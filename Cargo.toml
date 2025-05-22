@@ -1,0 +1,42 @@
+[package]
+name = "open-ai-rust-responses-by-sshift"
+version = "0.1.0"
+edition = "2021"
+description = "Rust SDK for the OpenAI Responses API"
+license = "MIT"
+repository = "https://github.com/sshift/open-ai-rust-responses-by-sshift"
+readme = "README.md"
+keywords = ["openai", "async", "api", "ai", "responses"]
+categories = ["api-bindings", "web-programming", "asynchronous"]
+
+[dependencies]
+reqwest = { version = "0.11", features = ["json", "multipart"], default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+futures = { version = "0.3", optional = true }
+async-fn-stream = { version = "0.2", optional = true }
+reqwest-eventsource = { version = "0.6", optional = true }
+tokio = { version = "1.0", features = ["rt", "macros"], optional = true }
+
+[features]
+default = ["rustls", "stream"]
+# Enable streaming responses
+stream = ["dep:reqwest-eventsource", "dep:futures", "dep:async-fn-stream"]
+# Enable rustls for TLS support
+rustls = ["reqwest/rustls-tls-native-roots"]
+# Enable rustls and webpki-roots
+rustls-webpki-roots = ["reqwest/rustls-tls-webpki-roots"]
+# Enable native-tls for TLS support
+native-tls = ["reqwest/native-tls"]
+# Remove dependency on OpenSSL
+native-tls-vendored = ["reqwest/native-tls-vendored"]
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["macros", "rt", "rt-multi-thread"] }
+mockito = "1.0"
+serde_test = "1.0"
+
+[package.metadata.docs.rs]
+all-features = true
