@@ -36,7 +36,7 @@ native-tls = ["reqwest/native-tls"]
 native-tls-vendored = ["reqwest/native-tls-vendored"]
 
 [dev-dependencies]
-tokio = { version = "1.0", features = ["rt", "macros"] }
+tokio = { version = "1.0", features = ["rt", "macros", "rt-multi-thread"] }
 tokio-test = "0.4"
 mockito = "1.0"
 serde_test = "1.0"
