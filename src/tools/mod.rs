@@ -1,4 +1,4 @@
-use crate::error::{Result, try_parse_api_error};
+use crate::error::{try_parse_api_error, Result};
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
 
@@ -14,10 +14,10 @@ pub struct Tools {
 pub struct WebSearchResult {
     /// Title of the search result
     pub title: String,
-    
+
     /// URL of the search result
     pub url: String,
-    
+
     /// Snippet of text from the search result
     pub snippet: String,
 }
@@ -34,10 +34,10 @@ pub struct WebSearchResponse {
 pub struct FileSearchResult {
     /// ID of the file that matched the search
     pub file_id: String,
-    
+
     /// Snippet of text from the file that matched the search
     pub snippet: String,
-    
+
     /// Score indicating how well the snippet matched the search
     pub score: f32,
 }
@@ -56,7 +56,7 @@ impl Tools {
     }
 
     /// Path constants for web search endpoint
-    const WEB_SEARCH_PATH: &'static str = "/web_search";       // canonical
+    const WEB_SEARCH_PATH: &'static str = "/web_search"; // canonical
     const LEGACY_WEB_SEARCH_PATH: &'static str = "/tools/web_search";
 
     /// Performs a web search.
@@ -72,7 +72,7 @@ impl Tools {
             .query(&[("query", query)])
             .send()
             .await;
-            
+
         match response {
             Ok(resp) => {
                 if resp.status().is_success() || resp.status().as_u16() != 404 {
@@ -81,9 +81,12 @@ impl Tools {
                     response.json().await.map_err(crate::Error::Http)
                 } else {
                     // If 404, try the legacy path
-                    log::warn!("Web search endpoint {} returned 404, trying legacy path {}", 
-                        Self::WEB_SEARCH_PATH, Self::LEGACY_WEB_SEARCH_PATH);
-                    
+                    log::warn!(
+                        "Web search endpoint {} returned 404, trying legacy path {}",
+                        Self::WEB_SEARCH_PATH,
+                        Self::LEGACY_WEB_SEARCH_PATH
+                    );
+
                     let legacy_response = self
                         .client
                         .get(format!("{}{}", self.base_url, Self::LEGACY_WEB_SEARCH_PATH))
@@ -91,11 +94,11 @@ impl Tools {
                         .send()
                         .await
                         .map_err(crate::Error::Http)?;
-                        
+
                     let response = try_parse_api_error(legacy_response).await?;
                     response.json().await.map_err(crate::Error::Http)
                 }
-            },
+            }
             Err(e) => Err(crate::Error::Http(e)),
         }
     }
@@ -105,14 +108,21 @@ impl Tools {
     /// # Errors
     ///
     /// Returns an error if the request fails to send or has a non-200 status code.
-    pub async fn file_search(&self, vector_store_id: &str, query: &str) -> Result<FileSearchResponse> {
+    pub async fn file_search(
+        &self,
+        vector_store_id: &str,
+        query: &str,
+    ) -> Result<FileSearchResponse> {
         let request = serde_json::json!({
             "query": query
         });
-        
+
         let response = self
             .client
-            .post(format!("{}/vector_stores/{}/search", self.base_url, vector_store_id))
+            .post(format!(
+                "{}/vector_stores/{}/search",
+                self.base_url, vector_store_id
+            ))
             .json(&request)
             .send()
             .await

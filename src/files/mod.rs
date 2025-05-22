@@ -1,8 +1,8 @@
-use crate::error::{Result, try_parse_api_error};
+use crate::error::{try_parse_api_error, Result};
 use crate::types::{PaginatedList, PaginationParams};
-use reqwest::{Client as HttpClient, StatusCode};
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use reqwest::Client as HttpClient;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Files API endpoints
@@ -17,26 +17,26 @@ pub struct Files {
 pub struct File {
     /// Unique identifier for the file
     pub id: String,
-    
+
     /// Type of object (always "file")
     pub object: String,
-    
+
     /// Name of the file
     pub filename: String,
-    
+
     /// Purpose of the file
     pub purpose: String,
-    
+
     /// Size of the file in bytes
     pub bytes: u64,
-    
+
     /// Unix timestamp for when the file was created
     #[serde(with = "chrono::serde::ts_seconds")]
     pub created_at: DateTime<Utc>,
-    
+
     /// Status of the file
     pub status: String,
-    
+
     /// Status details if the file is in an error state
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status_details: Option<String>,
@@ -48,10 +48,10 @@ pub struct File {
 pub enum FilePurpose {
     /// File for assistants
     Assistants,
-    
+
     /// File for fine-tuning
     FineTuning,
-    
+
     /// Custom purpose
     #[serde(untagged)]
     Custom(String),
@@ -78,14 +78,14 @@ impl From<String> for FilePurpose {
 pub struct CreateFileRequest {
     /// Purpose of the file
     pub purpose: String,
-    
+
     /// File data
     #[serde(skip)]
     pub file: Vec<u8>,
-    
+
     /// Filename
     pub filename: String,
-    
+
     /// Optional MIME type for the file
     #[serde(skip)]
     pub mime_type: Option<String>,
@@ -110,9 +110,8 @@ impl Files {
                 .map_err(|e| crate::Error::Stream(e.to_string()))?
         } else {
             // Infer MIME type from filename
-            let mime = mime_guess::from_path(&request.filename)
-                .first_or_octet_stream();
-                
+            let mime = mime_guess::from_path(&request.filename).first_or_octet_stream();
+
             reqwest::multipart::Part::bytes(request.file)
                 .file_name(request.filename.clone())
                 .mime_str(mime.as_ref())
@@ -134,7 +133,7 @@ impl Files {
         let response = try_parse_api_error(response).await?;
         response.json().await.map_err(crate::Error::Http)
     }
-    
+
     /// Uploads a file from a path.
     ///
     /// # Errors
@@ -147,28 +146,28 @@ impl Files {
         mime_type: Option<String>,
     ) -> Result<File> {
         let path = path.as_ref();
-        let filename = path.file_name()
+        let filename = path
+            .file_name()
             .ok_or_else(|| crate::Error::Stream("Invalid file path".to_string()))?
             .to_string_lossy()
             .to_string();
-            
-        let file_data = tokio::fs::read(path)
-            .await
-            .map_err(|e| crate::Error::Stream(format!("Failed to read file: {}", e)))?;
-            
+
+        let file_data = std::fs::read(path)
+            .map_err(|e| crate::Error::Stream(format!("Failed to read file: {e}")))?;
+
         let purpose_str = match purpose.into() {
             FilePurpose::Assistants => "assistants".to_string(),
             FilePurpose::FineTuning => "fine-tuning".to_string(),
             FilePurpose::Custom(s) => s,
         };
-        
+
         let request = CreateFileRequest {
             purpose: purpose_str,
             file: file_data,
             filename,
             mime_type,
         };
-        
+
         self.create(request).await
     }
 
@@ -195,18 +194,13 @@ impl Files {
     ///
     /// Returns an error if the request fails to send or has a non-200 status code.
     pub async fn list(&self, params: Option<PaginationParams>) -> Result<PaginatedList<File>> {
-        let mut request = self
-            .client
-            .get(format!("{}/files", self.base_url));
-            
+        let mut request = self.client.get(format!("{}/files", self.base_url));
+
         if let Some(params) = params {
             request = request.query(&params);
         }
-        
-        let response = request
-            .send()
-            .await
-            .map_err(crate::Error::Http)?;
+
+        let response = request.send().await.map_err(crate::Error::Http)?;
 
         let response = try_parse_api_error(response).await?;
         response.json().await.map_err(crate::Error::Http)
@@ -243,6 +237,10 @@ impl Files {
             .map_err(crate::Error::Http)?;
 
         let response = try_parse_api_error(response).await?;
-        response.bytes().await.map(|b| b.to_vec()).map_err(crate::Error::Http)
+        response
+            .bytes()
+            .await
+            .map(|b| b.to_vec())
+            .map_err(crate::Error::Http)
     }
 }

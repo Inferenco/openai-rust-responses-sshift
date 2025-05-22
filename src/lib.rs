@@ -1,5 +1,9 @@
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::module_name_repetitions, clippy::similar_names, clippy::doc_markdown)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::similar_names,
+    clippy::doc_markdown
+)]
 
 //! # Open AI Rust Responses by SShift
 //!
@@ -20,23 +24,23 @@ mod error;
 pub mod files;
 pub mod messages;
 pub mod responses;
+#[cfg(test)]
+mod tests;
 pub mod threads;
 pub mod tools;
 pub mod types;
 pub mod vector_stores;
-#[cfg(test)]
-mod tests;
 
 // Re-export types from the types module
 pub use types::{
-    Input, InputItem, Model, PaginatedList, PaginationParams, Request, RequestBuilder, Response, 
-    ResponseItem, Tool, ToolCall, ToolChoice, StreamEvent,
+    Input, InputItem, Model, PaginatedList, PaginationParams, Request, RequestBuilder, Response,
+    ResponseItem, StreamEvent, Tool, ToolCall, ToolChoice,
 };
 
 // Re-export error types
 pub use error::{Error, Result};
 
-use reqwest::{Client as HttpClient, header};
+use reqwest::{header, Client as HttpClient};
 use std::env;
 
 /// Error that can occur when creating a client
@@ -45,11 +49,11 @@ pub enum CreateError {
     /// API key is invalid
     #[error("Invalid API key format")]
     InvalidApiKey,
-    
+
     /// API key not found in environment
     #[error("API key not found in environment")]
     ApiKeyNotFound,
-    
+
     /// HTTP client creation error
     #[error("Failed to create HTTP client: {0}")]
     HttpClient(#[from] reqwest::Error),
@@ -58,85 +62,100 @@ pub enum CreateError {
 /// Client for the OpenAI Responses API
 #[derive(Debug, Clone)]
 pub struct Client {
-    /// HTTP client
-    http_client: HttpClient,
-    
-    /// Base URL for the API
-    base_url: String,
-    
     /// Responses API endpoints
     pub responses: responses::Responses,
-    
+
     /// Threads API endpoints
     pub threads: threads::Threads,
-    
+
     /// Messages API endpoints
     pub messages: messages::Messages,
-    
+
     /// Files API endpoints
     pub files: files::Files,
-    
+
     /// Vector stores API endpoints
     pub vector_stores: vector_stores::VectorStores,
-    
+
     /// Tools API endpoints
     pub tools: tools::Tools,
 }
 
 impl Client {
     /// Creates a new client with the given API key
-    pub fn new(api_key: &str) -> Result<Self, CreateError> {
+    ///
+    /// # Errors
+    ///
+    /// Returns `CreateError::InvalidApiKey` if the API key is empty or doesn't start with "sk-"
+    pub fn new(api_key: &str) -> std::result::Result<Self, CreateError> {
         Self::new_with_base_url(api_key, "https://api.openai.com/v1")
     }
-    
+
     /// Creates a new client with the given API key and base URL
-    pub fn new_with_base_url(api_key: &str, base_url: &str) -> Result<Self, CreateError> {
+    ///
+    /// # Errors
+    ///
+    /// Returns `CreateError::InvalidApiKey` if the API key is empty, doesn't start with "sk-", or contains invalid characters
+    pub fn new_with_base_url(
+        api_key: &str,
+        base_url: &str,
+    ) -> std::result::Result<Self, CreateError> {
         if api_key.is_empty() || !api_key.starts_with("sk-") {
             return Err(CreateError::InvalidApiKey);
         }
-        
+
         let mut headers = header::HeaderMap::new();
-        let auth_value = format!("Bearer {}", api_key);
-        let auth_header = header::HeaderValue::from_str(&auth_value)
-            .map_err(|_| CreateError::InvalidApiKey)?;
+        let auth_value = format!("Bearer {api_key}");
+        let auth_header =
+            header::HeaderValue::from_str(&auth_value).map_err(|_| CreateError::InvalidApiKey)?;
         headers.insert(header::AUTHORIZATION, auth_header);
-        
-        let user_agent = format!("open-ai-rust-responses-by-sshift/{}", env!("CARGO_PKG_VERSION"));
-        
+
+        let user_agent = format!(
+            "open-ai-rust-responses-by-sshift/{}",
+            env!("CARGO_PKG_VERSION")
+        );
+
         let http_client = HttpClient::builder()
             .default_headers(headers)
             .user_agent(user_agent)
             .build()?;
-        
-        Ok(Self::new_with_http_client(http_client, base_url))
+
+        Ok(Self::new_with_http_client(&http_client, base_url))
     }
-    
-    /// Creates a new client from the OPENAI_API_KEY environment variable
-    pub fn from_env() -> Result<Self, CreateError> {
-        let api_key = env::var("OPENAI_API_KEY").map_err(|_| CreateError::ApiKeyNotFound)?;
-        Self::new(&api_key)
+
+    /// Creates a client from the `OPENAI_API_KEY` environment variable
+    ///
+    /// # Errors
+    ///
+    /// Returns `CreateError::InvalidApiKey` if the environment variable is not set or invalid
+    pub fn from_env() -> std::result::Result<Self, CreateError> {
+        Self::from_env_with_base_url("https://api.openai.com/v1")
     }
-    
-    /// Creates a new client from the OPENAI_API_KEY environment variable with a custom base URL
-    pub fn from_env_with_base_url(base_url: &str) -> Result<Self, CreateError> {
-        let api_key = env::var("OPENAI_API_KEY").map_err(|_| CreateError::ApiKeyNotFound)?;
+
+    /// Creates a client from the `OPENAI_API_KEY` environment variable with a custom base URL
+    ///
+    /// # Errors
+    ///
+    /// Returns `CreateError::InvalidApiKey` if the environment variable is not set or invalid
+    pub fn from_env_with_base_url(base_url: &str) -> std::result::Result<Self, CreateError> {
+        let api_key = std::env::var("OPENAI_API_KEY").map_err(|_| CreateError::InvalidApiKey)?;
         Self::new_with_base_url(&api_key, base_url)
     }
-    
-    /// Creates a new client with a custom HTTP client
-    pub fn new_with_http_client(http_client: HttpClient, base_url: &str) -> Self {
+
+    /// Creates a new client with the given HTTP client and base URL
+    #[must_use]
+    pub fn new_with_http_client(http_client: &HttpClient, base_url: &str) -> Self {
         let base_url = base_url.trim_end_matches('/').to_string();
-        
+
         let responses = responses::Responses::new(http_client.clone(), base_url.clone());
-        let threads = threads::Threads::new(http_client.clone(), base_url.clone(), responses.clone());
+        let threads =
+            threads::Threads::new(http_client.clone(), base_url.clone(), responses.clone());
         let messages = messages::Messages::new(http_client.clone(), base_url.clone());
         let files = files::Files::new(http_client.clone(), base_url.clone());
         let vector_stores = vector_stores::VectorStores::new(http_client.clone(), base_url.clone());
         let tools = tools::Tools::new(http_client.clone(), base_url.clone());
-        
+
         Self {
-            http_client,
-            base_url,
             responses,
             threads,
             messages,

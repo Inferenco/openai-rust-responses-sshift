@@ -1,18 +1,20 @@
 #[cfg(test)]
-mod tests {
-    use crate::{Client, CreateError, Request, Model, Input};
-    
+mod unit_tests {
+    use crate::{Client, CreateError, Input, Model, Request};
+
     #[test]
     fn test_client_creation() {
-        // Test client creation with invalid API key
-        let result = Client::new("");
-        assert!(matches!(result, Err(CreateError::InvalidApiKey)));
-        
-        // Test client creation with valid API key
-        let result = Client::new("sk-valid_api_key_for_testing");
-        assert!(result.is_ok());
+        // Test invalid API key
+        assert!(matches!(Client::new(""), Err(CreateError::InvalidApiKey)));
+        assert!(matches!(
+            Client::new("invalid"),
+            Err(CreateError::InvalidApiKey)
+        ));
+
+        // Test valid API key format (doesn't verify it works)
+        assert!(Client::new("sk-test-key").is_ok());
     }
-    
+
     #[test]
     fn test_request_builder() {
         let request = Request::builder()
@@ -22,58 +24,98 @@ mod tests {
             .max_tokens(100)
             .temperature(0.7)
             .build();
-            
+
         assert_eq!(request.model, Model::GPT4o);
         assert!(matches!(request.input, Input::Text(text) if text == "Test input"));
         assert_eq!(request.instructions, Some("Test instructions".to_string()));
         assert_eq!(request.max_tokens, Some(100));
         assert_eq!(request.temperature, Some(0.7));
     }
-    
-    #[tokio::test]
-    #[ignore = "Requires API key"]
-    async fn test_create_response() {
-        let client = match Client::from_env() {
-            Ok(client) => client,
-            Err(_) => return, // Skip test if no API key is available
-        };
-        
-        let result = client.responses.create(Request {
-            model: Model::GPT4o,
-            input: Input::Text("Hello, world!".to_string()),
-            ..Default::default()
-        }).await;
-        
-        assert!(result.is_ok());
-        let response = result.unwrap();
-        assert!(!response.output_text().is_empty());
+
+    #[test]
+    #[ignore] // Only run with --ignored flag
+    fn test_create_response() {
+        tokio_test::block_on(async {
+            let Ok(client) = Client::from_env() else {
+                return;
+            }; // Skip test if no API key is available
+
+            let request = Request::builder()
+                .model(Model::GPT4o)
+                .input("Hello, world!")
+                .max_tokens(10)
+                .build();
+
+            let response = client.responses.create(request).await;
+            assert!(response.is_ok());
+
+            let response = response.unwrap();
+            assert!(!response.id().is_empty());
+            assert!(!response.output_text().is_empty());
+        });
     }
-    
+
+    #[test]
+    #[ignore] // Only run with --ignored flag
+    #[cfg(feature = "stream")]
+    fn test_create_stream() {
+        use futures::StreamExt;
+
+        tokio_test::block_on(async {
+            let Ok(client) = Client::from_env() else {
+                return;
+            }; // Skip test if no API key is available
+
+            let request = Request::builder()
+                .model(Model::GPT4o)
+                .input("Hello, world!")
+                .max_tokens(10)
+                .build();
+
+            let mut stream = std::pin::pin!(client.responses.stream(request));
+            let mut events_received = 0;
+
+            while let Some(event) = stream.next().await {
+                match event {
+                    Ok(_) => events_received += 1,
+                    Err(e) => panic!("Stream error: {e:?}"),
+                }
+                if events_received >= 5 {
+                    break; // Don't wait for the entire response
+                }
+            }
+
+            assert!(events_received > 0);
+        });
+    }
+
     #[tokio::test]
     #[ignore = "Requires API key"]
     async fn test_thread_operations() {
-        let client = match Client::from_env() {
-            Ok(client) => client,
-            Err(_) => return, // Skip test if no API key is available
-        };
-        
+        let Ok(client) = Client::from_env() else {
+            return;
+        }; // Skip test if no API key is available
+
         // Create a thread
-        let thread_result = client.threads.create(crate::threads::CreateThreadRequest {
-            model: Model::GPT4o,
-            instructions: Some("Test instructions".to_string()),
-            initial_message: "Hello, world!".to_string(),
-            metadata: None,
-        }).await;
+        let thread_result = client
+            .threads
+            .create(crate::threads::CreateThreadRequest {
+                model: Model::GPT4o,
+                instructions: Some("Test instructions".to_string()),
+                initial_message: "Hello, world!".to_string(),
+                metadata: None,
+            })
+            .await;
         assert!(thread_result.is_ok());
-        
+
         let (thread, _) = thread_result.unwrap();
         assert!(!thread.id.is_empty());
-        
+
         // Get the thread
         let get_result = client.threads.retrieve(&thread.id).await;
         assert!(get_result.is_ok());
         assert_eq!(get_result.unwrap().id, thread.id);
-        
+
         // Delete the thread
         let delete_result = client.threads.delete(&thread.id).await;
         assert!(delete_result.is_ok());

@@ -6,7 +6,7 @@ pub struct Tool {
     /// Type of tool
     #[serde(rename = "type")]
     pub tool_type: String,
-    
+
     /// Function definition for the tool
     pub function: ToolFunction,
 }
@@ -16,10 +16,10 @@ pub struct Tool {
 pub struct ToolFunction {
     /// Name of the function
     pub name: String,
-    
+
     /// Description of the function
     pub description: String,
-    
+
     /// Parameters for the function in JSON Schema format
     pub parameters: serde_json::Value,
 }
@@ -30,13 +30,13 @@ pub struct ToolFunction {
 pub enum ToolChoice {
     /// Automatic tool choice
     String(String),
-    
+
     /// Specific tool choice
     Object {
         /// Type of tool choice (always "function")
         #[serde(rename = "type")]
         choice_type: String,
-        
+
         /// Function to use
         function: ToolChoiceFunction,
     },
@@ -51,7 +51,11 @@ pub struct ToolChoiceFunction {
 
 impl Tool {
     /// Creates a new function tool
-    pub fn function(name: impl Into<String>, description: impl Into<String>, parameters: serde_json::Value) -> Self {
+    pub fn function(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        parameters: serde_json::Value,
+    ) -> Self {
         Self {
             tool_type: "function".to_string(),
             function: ToolFunction {
@@ -64,23 +68,23 @@ impl Tool {
 }
 
 impl ToolChoice {
-    /// Creates an automatic tool choice
+    /// Auto tool choice - let the model decide when to use tools
+    #[must_use]
     pub fn auto() -> Self {
         Self::String("auto".to_string())
     }
-    
-    /// Creates a tool choice that requires the model to use a function
+
+    /// Required tool choice - model must use a tool
+    #[must_use]
     pub fn required() -> Self {
         Self::String("required".to_string())
     }
-    
+
     /// Creates a tool choice that specifies a specific function
     pub fn function(name: impl Into<String>) -> Self {
         Self::Object {
             choice_type: "function".to_string(),
-            function: ToolChoiceFunction {
-                name: name.into(),
-            },
+            function: ToolChoiceFunction { name: name.into() },
         }
     }
 }

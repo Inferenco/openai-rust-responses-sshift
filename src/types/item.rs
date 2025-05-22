@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub enum Input {
     /// Text input
     Text(String),
-    
+
     /// List of input items
     Items(Vec<InputItem>),
 }
@@ -17,7 +17,7 @@ pub struct InputItem {
     /// Type of the input item
     #[serde(rename = "type")]
     pub item_type: String,
-    
+
     /// Content of the input item
     pub content: serde_json::Value,
 }
@@ -30,11 +30,11 @@ pub enum ResponseItem {
     Text {
         /// Content of the text response
         content: String,
-        
+
         /// Index of the text response
         index: u32,
     },
-    
+
     /// Tool call response
     #[serde(rename = "tool_call")]
     ToolCall(ToolCall),
@@ -45,13 +45,13 @@ pub enum ResponseItem {
 pub struct ToolCall {
     /// ID of the tool call
     pub id: String,
-    
+
     /// Name of the tool
     pub name: String,
-    
+
     /// Arguments for the tool call
     pub arguments: serde_json::Value,
-    
+
     /// Index of the tool call
     pub index: u32,
 }
@@ -61,7 +61,7 @@ pub struct ToolCall {
 pub struct ToolResult {
     /// ID of the tool call this result is for
     pub tool_call_id: String,
-    
+
     /// Result of the tool call
     pub result: serde_json::Value,
 }

@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     /// API key for authentication
     pub api_key: String,
-    
+
     /// Base URL for the API
     #[serde(default = "default_base_url")]
     pub base_url: String,
-    
+
     /// Organization ID for the API
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organization_id: Option<String>,
@@ -28,14 +28,16 @@ impl Config {
             organization_id: None,
         }
     }
-    
-    /// Sets the base URL
+
+    /// Sets a custom base URL for the client
+    #[must_use]
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into();
         self
     }
-    
-    /// Sets the organization ID
+
+    /// Sets an organization ID for the client
+    #[must_use]
     pub fn with_organization_id(mut self, organization_id: impl Into<String>) -> Self {
         self.organization_id = Some(organization_id.into());
         self
@@ -43,25 +45,25 @@ impl Config {
 }
 
 /// Model types for the OpenAI Responses API
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub enum Model {
     /// GPT-4o model
     #[serde(rename = "gpt-4o")]
     GPT4o,
-    
+
     /// GPT-4 Turbo model
     #[serde(rename = "gpt-4-turbo")]
     GPT4Turbo,
-    
+
     /// GPT-4 model
     #[serde(rename = "gpt-4")]
     GPT4,
-    
+
     /// GPT-3.5 Turbo model
     #[serde(rename = "gpt-3.5-turbo")]
     GPT35Turbo,
-    
+
     /// Custom model
     #[serde(untagged)]
     Custom(String),
