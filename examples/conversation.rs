@@ -11,6 +11,9 @@ use open_ai_rust_responses_by_sshift::{Client, Model, Request};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Load environment variables from .env file
+    dotenv::dotenv().ok();
+
     // Create client from environment variable
     let client = Client::from_env()?;
 
@@ -25,7 +28,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .model(Model::GPT4o)
         .input("Hi! My name is Alex and I love cooking. Can you give me a simple recipe for chocolate chip cookies?")
         .instructions("You are a friendly chef who remembers details about people you talk to.")
-        .max_tokens(200)
         .temperature(0.7)
         .build();
 
@@ -39,7 +41,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .model(Model::GPT4o)
         .input("That sounds great! Can you make it healthier by reducing the sugar?")
         .previous_response_id(response1.id()) // 🔑 This maintains conversation context!
-        .max_tokens(200)
         .temperature(0.7)
         .build();
 
@@ -53,7 +54,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .model(Model::GPT4o)
         .input("Perfect! One more question - what if I want to make them extra chewy?")
         .previous_response_id(response2.id()) // Continue from the previous response
-        .max_tokens(150)
         .temperature(0.7)
         .build();
 
