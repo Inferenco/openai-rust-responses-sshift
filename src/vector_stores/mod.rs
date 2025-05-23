@@ -35,7 +35,8 @@ pub struct VectorStore {
     pub status_details: Option<String>,
 
     /// File IDs associated with this vector store
-    pub file_ids: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_ids: Option<Vec<String>>,
 }
 
 /// Request to create a new vector store
@@ -48,11 +49,15 @@ pub struct CreateVectorStoreRequest {
     pub file_ids: Vec<String>,
 }
 
-/// Request to add files to a vector store
+/// Request to add a file to a vector store
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AddFilesToVectorStoreRequest {
-    /// File IDs to add to the vector store
-    pub file_ids: Vec<String>,
+pub struct AddFileToVectorStoreRequest {
+    /// File ID to add to the vector store
+    pub file_id: String,
+    
+    /// Optional attributes for the file
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attributes: Option<serde_json::Value>,
 }
 
 /// Request to search a vector store
@@ -63,27 +68,34 @@ pub struct SearchVectorStoreRequest {
 
     /// Maximum number of results to return
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit: Option<u32>,
+    pub max_num_results: Option<u32>,
 }
 
 /// Result from searching a vector store
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchVectorStoreResult {
-    /// File ID that matched the query
-    pub file_id: String,
+    /// Filename of the file that matched the query
+    pub filename: String,
+    
+    /// Content that matched the query
+    pub content: Vec<SearchContent>,
 
-    /// Snippet of text that matched the query
-    pub snippet: String,
+    /// Score indicating how well the result matched the query
+    pub score: f64,
+}
 
-    /// Score indicating how well the snippet matched the query
-    pub score: f32,
+/// Content structure in search results
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchContent {
+    /// The actual text content
+    pub text: String,
 }
 
 /// Response from searching a vector store
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchVectorStoreResponse {
     /// Results from the search
-    pub results: Vec<SearchVectorStoreResult>,
+    pub data: Vec<SearchVectorStoreResult>,
 }
 
 impl VectorStores {
@@ -171,16 +183,16 @@ impl VectorStores {
         Ok(())
     }
 
-    /// Adds files to a vector store.
+    /// Adds a file to a vector store.
     ///
     /// # Errors
     ///
     /// Returns an error if the request fails to send or has a non-200 status code.
-    pub async fn add_files(
+    pub async fn add_file(
         &self,
         vector_store_id: &str,
-        request: AddFilesToVectorStoreRequest,
-    ) -> Result<VectorStore> {
+        request: AddFileToVectorStoreRequest,
+    ) -> Result<serde_json::Value> {
         let response = self
             .client
             .post(format!(

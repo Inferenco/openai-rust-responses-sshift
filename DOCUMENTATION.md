@@ -4,18 +4,56 @@ This document provides comprehensive documentation for the Open AI Rust Response
 
 ## Table of Contents
 
-1. [Installation](#installation)
-2. [Authentication](#authentication)
-3. [Basic Usage](#basic-usage)
-4. [Responses API](#responses-api)
-5. [Messages API](#messages-api)
-6. [Files API](#files-api)
-7. [Vector Stores API](#vector-stores-api)
-8. [Tools API](#tools-api)
-9. [Streaming Responses](#streaming-responses)
-10. [Error Handling](#error-handling)
-11. [Advanced Configuration](#advanced-configuration)
-12. [Feature Flags](#feature-flags)
+1. [Quick Start](#quick-start)
+2. [Installation](#installation)
+3. [Authentication](#authentication)
+4. [Basic Usage](#basic-usage)
+5. [Responses API](#responses-api)
+6. [Messages API](#messages-api)
+7. [Files API](#files-api)
+8. [Vector Stores API](#vector-stores-api)
+9. [Tools API](#tools-api)
+10. [Streaming Responses](#streaming-responses)
+11. [Error Handling](#error-handling)
+12. [Advanced Configuration](#advanced-configuration)
+13. [Feature Flags](#feature-flags)
+14. [Testing and Examples](#testing-and-examples)
+
+## Quick Start
+
+Get up and running in under a minute:
+
+```bash
+# 1. Add to your project
+cargo add open-ai-rust-responses-by-sshift tokio --features tokio/full
+
+# 2. Set API key
+export OPENAI_API_KEY=sk-your-api-key-here
+
+# 3. Try the comprehensive demo
+cargo run --example comprehensive_demo --features stream
+```
+
+Or create a simple example:
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input("What is Rust programming language?")
+        .build();
+    
+    let response = client.responses.create(request).await?;
+    println!("Response: {}", response.output_text());
+    
+    Ok(())
+}
+```
 
 ## Installation
 
@@ -87,7 +125,6 @@ let request = Request::builder()
     .model(Model::GPT4o)
     .input("What is the capital of France?")
     .instructions("Keep your answer brief")
-    .max_tokens(100)
     .temperature(0.7)
     .build();
 
@@ -342,3 +379,75 @@ open-ai-rust-responses-by-sshift = { version = "0.1.0", default-features = false
 ```
 
 This will use the native TLS implementation instead of rustls.
+
+## Testing and Examples
+
+### Running the Test Suite
+
+```bash
+# Run unit and integration tests
+cargo test
+
+# Run tests with all features enabled
+cargo test --all-features
+
+# Run specific test modules
+cargo test responses
+cargo test files
+
+# Run integration tests that require API key (shows streaming output)
+OPENAI_API_KEY=sk-your-key cargo test --features stream -- --ignored --nocapture
+```
+
+### Understanding Test Output
+
+Most tests run without API calls using mocked responses. However, integration tests marked with `#[ignore]` require a real API key and demonstrate actual functionality:
+
+- **Unit Tests**: Fast, no API key required, test internal logic
+- **Integration Tests**: Require `--ignored` flag and API key, test real API calls  
+- **Streaming Tests**: Use `--nocapture` to see real-time streaming output
+
+> **Note**: If you see tests marked as `ignored`, this is **not an error**! These are intentionally skipped integration tests that require API keys. Use the `--ignored` flag to run them when you have an API key available.
+
+### Running Examples
+
+The library includes several examples to demonstrate different features:
+
+```bash
+# Basic usage
+cargo run --example basic
+
+# Conversation continuity
+cargo run --example conversation
+
+# Streaming responses (requires stream feature)
+cargo run --example streaming --features stream
+
+# Comprehensive demo of all features (requires API key)
+OPENAI_API_KEY=sk-your-key cargo run --example comprehensive_demo --features stream
+```
+
+### Environment Setup for Examples
+
+Create a `.env` file with your OpenAI API key:
+
+```bash
+echo "OPENAI_API_KEY=sk-your-api-key-here" > .env
+```
+
+The examples will automatically load the API key from this file or from the environment variable.
+
+### Comprehensive Demo Features
+
+The `comprehensive_demo.rs` example showcases all major SDK features:
+
+- **Response Creation**: Basic and advanced requests
+- **Conversation Continuity**: Using `previous_response_id`
+- **File Operations**: Upload, list, download, and delete files
+- **Vector Stores**: Create, add files, search, and delete
+- **Built-in Tools**: Web search and file search capabilities
+- **Custom Function Calling**: Calculator tool example
+- **Streaming Responses**: Real-time response streaming (if enabled)
+- **Resource Management**: Proper cleanup and deletion testing
+
+This demo creates temporary resources for testing and cleans them up afterward, making it safe to run multiple times.

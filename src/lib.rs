@@ -32,7 +32,7 @@ pub mod vector_stores;
 
 // Re-export types from the types module
 pub use types::{
-    Input, InputItem, Model, PaginatedList, PaginationParams, Request, RequestBuilder, Response,
+    FunctionCallInfo, Input, InputItem, MessageContent, Model, PaginatedList, PaginationParams, Request, RequestBuilder, Response,
     ResponseItem, StreamEvent, Tool, ToolCall, ToolChoice,
 };
 

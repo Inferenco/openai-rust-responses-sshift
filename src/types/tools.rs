@@ -7,8 +7,25 @@ pub struct Tool {
     #[serde(rename = "type")]
     pub tool_type: String,
 
-    /// Function definition for the tool
-    pub function: ToolFunction,
+    /// Name of the function (for function tools)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    /// Description of the function (for function tools)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Parameters for the function in JSON Schema format (for function tools)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parameters: Option<serde_json::Value>,
+
+    /// Vector store IDs for file search tools
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vector_store_ids: Option<Vec<String>>,
+
+    /// Function definition for the tool (legacy support)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function: Option<ToolFunction>,
 }
 
 /// Function definition for a tool
@@ -58,11 +75,37 @@ impl Tool {
     ) -> Self {
         Self {
             tool_type: "function".to_string(),
-            function: ToolFunction {
-                name: name.into(),
-                description: description.into(),
-                parameters,
-            },
+            name: Some(name.into()),
+            description: Some(description.into()),
+            parameters: Some(parameters),
+            vector_store_ids: None,
+            function: None,
+        }
+    }
+
+    /// Creates a web search preview tool
+    #[must_use]
+    pub fn web_search_preview() -> Self {
+        Self {
+            tool_type: "web_search_preview".to_string(),
+            name: None,
+            description: None,
+            parameters: None,
+            vector_store_ids: None,
+            function: None,
+        }
+    }
+
+    /// Creates a file search tool
+    #[must_use]
+    pub fn file_search(vector_store_ids: Vec<String>) -> Self {
+        Self {
+            tool_type: "file_search".to_string(),
+            name: None,
+            description: None,
+            parameters: None,
+            function: None,
+            vector_store_ids: Some(vector_store_ids),
         }
     }
 }

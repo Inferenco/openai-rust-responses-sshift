@@ -21,14 +21,12 @@ mod unit_tests {
             .model(Model::GPT4o)
             .input("Test input")
             .instructions("Test instructions")
-            .max_tokens(100)
             .temperature(0.7)
             .build();
 
         assert_eq!(request.model, Model::GPT4o);
         assert!(matches!(request.input, Input::Text(text) if text == "Test input"));
         assert_eq!(request.instructions, Some("Test instructions".to_string()));
-        assert_eq!(request.max_tokens, Some(100));
         assert_eq!(request.temperature, Some(0.7));
     }
 
@@ -43,7 +41,6 @@ mod unit_tests {
             let request = Request::builder()
                 .model(Model::GPT4o)
                 .input("Hello, world!")
-                .max_tokens(10)
                 .build();
 
             let response = client.responses.create(request).await;
@@ -68,24 +65,52 @@ mod unit_tests {
 
             let request = Request::builder()
                 .model(Model::GPT4o)
-                .input("Hello, world!")
-                .max_tokens(10)
+                .input("Count from 1 to 5")
                 .build();
 
             let mut stream = std::pin::pin!(client.responses.stream(request));
             let mut events_received = 0;
+            let mut full_content = String::new();
+
+            println!("🌊 Starting streaming test...");
+            print!("📖 Response: ");
+            std::io::Write::flush(&mut std::io::stdout()).unwrap();
 
             while let Some(event) = stream.next().await {
                 match event {
-                    Ok(_) => events_received += 1,
+                    Ok(stream_event) => {
+                        events_received += 1;
+                        match stream_event {
+                            crate::types::StreamEvent::TextDelta { content, .. } => {
+                                print!("{content}");
+                                std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                                full_content.push_str(&content);
+                            }
+                            crate::types::StreamEvent::Done => {
+                                println!("\n✅ Stream completed!");
+                                break;
+                            }
+                            _ => {
+                                // Handle other event types
+                            }
+                        }
+                    }
                     Err(e) => panic!("Stream error: {e:?}"),
                 }
-                if events_received >= 5 {
-                    break; // Don't wait for the entire response
+                
+                // Safety limit to prevent infinite streams
+                if events_received >= 50 {
+                    println!("\n⚠️ Stopping after 50 events");
+                    break;
                 }
             }
 
+            println!("\n📊 Test results:");
+            println!("   Events received: {events_received}");
+            println!("   Content length: {length} characters", length = full_content.len());
+            
             assert!(events_received > 0);
+            assert!(!full_content.is_empty());
         });
     }
 }

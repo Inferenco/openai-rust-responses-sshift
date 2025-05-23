@@ -19,6 +19,21 @@ A comprehensive, async Rust SDK for the OpenAI Responses API that provides full 
 
 ## 🚀 Quick Start
 
+### 30-Second Demo
+
+Want to try it right now? 
+
+```bash
+# Add to Cargo.toml
+cargo add open-ai-rust-responses-by-sshift tokio --features tokio/full
+
+# Set your API key
+export OPENAI_API_KEY=sk-your-api-key
+
+# Run the comprehensive demo
+cargo run --example comprehensive_demo --features stream
+```
+
 ### Installation
 
 Add this to your `Cargo.toml`:
@@ -49,7 +64,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let request = Request::builder()
         .model(Model::GPT4o)
         .input("Hello, how are you today?")
-        .max_tokens(100)
         .temperature(0.7)
         .build();
     
@@ -103,7 +117,7 @@ open-ai-rust-responses-by-sshift = { version = "0.1", features = ["stream"] }
 ```
 
 ```rust
-use open_ai_rust_responses_by_sshift::{Client, Request, Model};
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, StreamEvent};
 use futures::StreamExt;
 
 #[tokio::main]
@@ -113,7 +127,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let request = Request::builder()
         .model(Model::GPT4o)
         .input("Tell me a story about a robot.")
-        .max_tokens(200)
         .build();
     
     let mut stream = client.responses.stream(request);
@@ -188,18 +201,39 @@ let client = Client::new_with_config(config)?;
 
 ## 📊 Examples
 
-Check out the `examples/` directory for more comprehensive examples:
+Check out the `examples/` directory for comprehensive examples:
 
 - [`basic.rs`](examples/basic.rs) - Simple request/response
-- [`conversation.rs`](examples/conversation.rs) - Multi-turn conversations
+- [`conversation.rs`](examples/conversation.rs) - Multi-turn conversations  
 - [`streaming.rs`](examples/streaming.rs) - Real-time streaming
-- [`files.rs`](examples/files.rs) - File operations
-- [`tools.rs`](examples/tools.rs) - Function calling
+- [`comprehensive_demo.rs`](examples/comprehensive_demo.rs) - **Complete feature showcase** (files, vector stores, tools, etc.)
 
-Run examples with:
+### Quick Start with Full Demo
 
+Create a `.env` file with your API key:
+```bash
+echo "OPENAI_API_KEY=sk-your-api-key-here" > .env
+```
+
+Run the comprehensive demo to see all features:
+```bash
+cargo run --example comprehensive_demo --features stream
+```
+
+**This demo showcases ALL major features:**
+- 🔄 **Conversation Continuity** - Response ID linking
+- 🌊 **Streaming Responses** - Real-time text generation  
+- 📁 **File Operations** - Upload, download, delete
+- 🔍 **Vector Stores** - Semantic search and knowledge retrieval
+- 🌐 **Web Search Tool** - Built-in web searching capability
+- 📄 **File Search Tool** - Search through uploaded documents
+- ⚙️ **Custom Functions** - Define and call custom tools
+- 🧪 **Resource Management** - Proper cleanup and deletion testing
+
+Other examples:
 ```bash
 cargo run --example basic
+cargo run --example conversation
 cargo run --example streaming --features stream
 ```
 
@@ -255,11 +289,76 @@ match client.responses.create(request).await {
 - Supports custom certificate validation
 - Environment variable support for secure key management
 
+## 🧪 Testing
+
+To run the test suite:
+
+```bash
+# Run unit and integration tests
+cargo test
+
+# Run tests with all features
+cargo test --all-features
+
+# Run integration tests that need API key (streaming, actual API calls)
+OPENAI_API_KEY=sk-your-key cargo test --features stream -- --ignored --nocapture
+
+# Run the comprehensive demo (requires API key)
+OPENAI_API_KEY=sk-your-key cargo run --example comprehensive_demo --features stream
+```
+
+### Streaming Test Output
+
+The `--nocapture` flag is important for streaming tests because it allows you to see the real-time streaming output. The streaming test will show:
+
+```bash
+🌊 Starting streaming test...
+📖 Response: 1, 2, 3, 4, 5...
+✅ Stream completed!
+📊 Test results:
+   Events received: 12
+   Content length: 45 characters
+```
+
+For detailed test coverage and results, see [TEST_REPORT.md](./TEST_REPORT.md).
+
+## 🔧 Troubleshooting
+
+### Tests Show "ignored" - Is This an Error?
+
+**No!** ✅ Tests marked `ignored` are **intentional**:
+- `ignored` = Integration tests that need API keys (expensive/slow)
+- Regular tests = Unit tests (fast, no API needed)
+- Use `--ignored` flag to run integration tests when you have an API key
+
+### Not Seeing Streaming Output?
+
+Make sure to use both flags:
+```bash
+cargo test test_create_stream --features stream -- --ignored --nocapture
+#                                               ^^^^^^^^^ ^^^^^^^^^
+#                                               run ignored  show output
+```
+
+### API Key Issues?
+
+```bash
+# Check if set
+echo $OPENAI_API_KEY
+
+# Set for current session
+export OPENAI_API_KEY=sk-your-api-key
+
+# Or use .env file
+echo "OPENAI_API_KEY=sk-your-api-key" > .env
+```
+
 ## 📖 Documentation
 
 - [API Documentation](https://docs.rs/open-ai-rust-responses-by-sshift)
 - [Examples](./examples/)
-- [Changelog](./CHANGELOG.md)
+- [Detailed Documentation](./DOCUMENTATION.md)
+- [Test Report](./TEST_REPORT.md)
 
 ## 🤝 Contributing
 

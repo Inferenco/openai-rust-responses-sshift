@@ -48,6 +48,9 @@ jobs:
     - name: Run clippy
       run: cargo clippy --all-targets --all-features -- -D warnings
     
+    - name: Check examples
+      run: cargo check --examples --all-features
+    
     - name: Publish to crates.io
       run: cargo publish
       env:

@@ -26,7 +26,70 @@ pub struct InputItem {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ResponseItem {
-    /// Text response
+    /// Message response
+    Message {
+        /// ID of the message
+        id: String,
+        
+        /// Content of the message
+        content: Vec<MessageContent>,
+        
+        /// Role of the message
+        role: String,
+        
+        /// Status of the message
+        status: Option<String>,
+    },
+
+    /// Reasoning response
+    Reasoning {
+        /// ID of the reasoning item
+        id: String,
+        
+        /// Summary of the reasoning
+        summary: Vec<serde_json::Value>,
+        
+        /// Status of the reasoning
+        status: Option<String>,
+    },
+
+    /// Web search call
+    WebSearchCall {
+        /// ID of the web search call
+        id: String,
+        
+        /// Status of the web search call
+        status: String,
+    },
+
+    /// File search call
+    FileSearchCall {
+        /// ID of the file search call
+        id: String,
+        
+        /// Status of the file search call
+        status: String,
+    },
+
+    /// Function call
+    FunctionCall {
+        /// ID of the function call
+        id: String,
+        
+        /// Arguments for the function call
+        arguments: String,
+        
+        /// Call ID
+        call_id: String,
+        
+        /// Name of the function
+        name: String,
+        
+        /// Status of the function call
+        status: String,
+    },
+
+    /// Text response (legacy)
     Text {
         /// Content of the text response
         content: String,
@@ -35,9 +98,26 @@ pub enum ResponseItem {
         index: u32,
     },
 
-    /// Tool call response
+    /// Tool call response (legacy)
     #[serde(rename = "tool_call")]
     ToolCall(ToolCall),
+}
+
+/// Message content item
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum MessageContent {
+    /// Output text content
+    OutputText {
+        /// Text content
+        text: String,
+        
+        /// Annotations
+        annotations: Vec<serde_json::Value>,
+        
+        /// Log probabilities
+        logprobs: Option<serde_json::Value>,
+    },
 }
 
 /// Tool call from the OpenAI Responses API
@@ -64,4 +144,17 @@ pub struct ToolResult {
 
     /// Result of the tool call
     pub result: serde_json::Value,
+}
+
+/// Function call information
+#[derive(Debug, Clone)]
+pub struct FunctionCallInfo {
+    /// Name of the function
+    pub name: String,
+
+    /// Arguments for the function call
+    pub arguments: String,
+
+    /// Call ID
+    pub call_id: String,
 }

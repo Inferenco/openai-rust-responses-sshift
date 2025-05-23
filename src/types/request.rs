@@ -7,7 +7,6 @@ pub struct Request {
     pub model: crate::types::Model,
 
     /// The input to generate a response for
-    #[serde(flatten)]
     pub input: crate::types::Input,
 
     /// System instructions that guide the model's behavior
