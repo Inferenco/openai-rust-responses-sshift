@@ -21,7 +21,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let request = Request::builder()
         .model(Model::GPT4o)
         .input("What is the meaning of life in exactly 42 words?")
-        .max_tokens(100)
         .temperature(0.7)
         .build();
 
