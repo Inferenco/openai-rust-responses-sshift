@@ -26,7 +26,6 @@ pub mod messages;
 pub mod responses;
 #[cfg(test)]
 mod tests;
-pub mod threads;
 pub mod tools;
 pub mod types;
 pub mod vector_stores;
@@ -64,9 +63,6 @@ pub enum CreateError {
 pub struct Client {
     /// Responses API endpoints
     pub responses: responses::Responses,
-
-    /// Threads API endpoints
-    pub threads: threads::Threads,
 
     /// Messages API endpoints
     pub messages: messages::Messages,
@@ -148,8 +144,6 @@ impl Client {
         let base_url = base_url.trim_end_matches('/').to_string();
 
         let responses = responses::Responses::new(http_client.clone(), base_url.clone());
-        let threads =
-            threads::Threads::new(http_client.clone(), base_url.clone(), responses.clone());
         let messages = messages::Messages::new(http_client.clone(), base_url.clone());
         let files = files::Files::new(http_client.clone(), base_url.clone());
         let vector_stores = vector_stores::VectorStores::new(http_client.clone(), base_url.clone());
@@ -157,7 +151,6 @@ impl Client {
 
         Self {
             responses,
-            threads,
             messages,
             files,
             vector_stores,

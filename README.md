@@ -10,7 +10,6 @@ A comprehensive, async Rust SDK for the OpenAI Responses API that provides full 
 
 - **🔄 Conversation Continuity**: Use response IDs to maintain conversation context
 - **🌊 Streaming Support**: Real-time SSE streaming with `futures::Stream`
-- **🧵 Thread Management**: Organized conversation threads
 - **📁 File Operations**: Upload, download, and manage files
 - **🔍 Vector Stores**: Semantic search and knowledge retrieval
 - **🛠️ Built-in Tools**: Web search, file search, and custom function calling
@@ -133,38 +132,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Thread Management
-
-```rust
-use open_ai_rust_responses_by_sshift::{Client, Model};
-use open_ai_rust_responses_by_sshift::threads::CreateThreadRequest;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::from_env()?;
-    
-    // Create a new thread
-    let thread_request = CreateThreadRequest {
-        model: Model::GPT4o,
-        instructions: Some("You are a helpful cooking assistant.".to_string()),
-        initial_message: "Hello! I need help with dinner ideas.".to_string(),
-        metadata: None,
-    };
-    
-    let (thread, initial_response) = client.threads.create(thread_request).await?;
-    println!("Assistant: {}", initial_response.output_text());
-    
-    // Continue the conversation
-    let (updated_thread, response) = client.threads
-        .continue_thread(&thread, Model::GPT4o, "I'm vegetarian.")
-        .await?;
-    
-    println!("Assistant: {}", response.output_text());
-    
-    Ok(())
-}
-```
-
 ### File Operations
 
 ```rust
@@ -226,7 +193,6 @@ Check out the `examples/` directory for more comprehensive examples:
 - [`basic.rs`](examples/basic.rs) - Simple request/response
 - [`conversation.rs`](examples/conversation.rs) - Multi-turn conversations
 - [`streaming.rs`](examples/streaming.rs) - Real-time streaming
-- [`threads.rs`](examples/threads.rs) - Thread management
 - [`files.rs`](examples/files.rs) - File operations
 - [`tools.rs`](examples/tools.rs) - Function calling
 
@@ -246,7 +212,6 @@ This crate provides comprehensive coverage of the OpenAI Responses API:
 | Responses | ✅ | Create, retrieve, cancel, delete |
 | Streaming | ✅ | Server-sent events with `futures::Stream` |
 | Conversation Continuity | ✅ | Response ID linking |
-| Threads | ✅ | Thread management and continuation |
 | Messages | ✅ | Message CRUD operations |
 | Files | ✅ | Upload, download, list, delete |
 | Vector Stores | ✅ | Create, search, manage |

@@ -88,36 +88,4 @@ mod unit_tests {
             assert!(events_received > 0);
         });
     }
-
-    #[tokio::test]
-    #[ignore = "Requires API key"]
-    async fn test_thread_operations() {
-        let Ok(client) = Client::from_env() else {
-            return;
-        }; // Skip test if no API key is available
-
-        // Create a thread
-        let thread_result = client
-            .threads
-            .create(crate::threads::CreateThreadRequest {
-                model: Model::GPT4o,
-                instructions: Some("Test instructions".to_string()),
-                initial_message: "Hello, world!".to_string(),
-                metadata: None,
-            })
-            .await;
-        assert!(thread_result.is_ok());
-
-        let (thread, _) = thread_result.unwrap();
-        assert!(!thread.id.is_empty());
-
-        // Get the thread
-        let get_result = client.threads.retrieve(&thread.id).await;
-        assert!(get_result.is_ok());
-        assert_eq!(get_result.unwrap().id, thread.id);
-
-        // Delete the thread
-        let delete_result = client.threads.delete(&thread.id).await;
-        assert!(delete_result.is_ok());
-    }
 }

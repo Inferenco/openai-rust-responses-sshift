@@ -8,15 +8,14 @@ This document provides comprehensive documentation for the Open AI Rust Response
 2. [Authentication](#authentication)
 3. [Basic Usage](#basic-usage)
 4. [Responses API](#responses-api)
-5. [Thread Management](#thread-management)
-6. [Messages API](#messages-api)
-7. [Files API](#files-api)
-8. [Vector Stores API](#vector-stores-api)
-9. [Tools API](#tools-api)
-10. [Streaming Responses](#streaming-responses)
-11. [Error Handling](#error-handling)
-12. [Advanced Configuration](#advanced-configuration)
-13. [Feature Flags](#feature-flags)
+5. [Messages API](#messages-api)
+6. [Files API](#files-api)
+7. [Vector Stores API](#vector-stores-api)
+8. [Tools API](#tools-api)
+9. [Streaming Responses](#streaming-responses)
+10. [Error Handling](#error-handling)
+11. [Advanced Configuration](#advanced-configuration)
+12. [Feature Flags](#feature-flags)
 
 ## Installation
 
@@ -113,44 +112,9 @@ let response = client.responses.cancel("resp_abc123").await?;
 client.responses.delete("resp_abc123").await?;
 ```
 
-## Thread Management
-
-Threads provide a way to maintain conversation context across multiple responses.
-
-### Creating a Thread
-
-```rust
-let request = threads::CreateThreadRequest {
-    model: Model::GPT4o,
-    instructions: Some("You are a helpful assistant".to_string()),
-    initial_message: "Hello, how can you help me today?".to_string(),
-    metadata: None,
-};
-
-let (thread, response) = client.threads.create(request).await?;
-```
-
-### Continuing a Conversation
-
-```rust
-let (updated_thread, response) = client.threads.continue_thread(&thread, "Tell me more about that").await?;
-```
-
-### Retrieving a Thread
-
-```rust
-let thread = client.threads.retrieve("thread_abc123").await?;
-```
-
-### Listing Threads
-
-```rust
-let threads = client.threads.list(None).await?;
-```
-
 ## Messages API
 
-The Messages API allows you to manage messages within threads.
+The Messages API allows you to manage messages.
 
 ### Creating a Message
 

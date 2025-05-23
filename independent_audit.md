@@ -4,14 +4,14 @@
 
 | Section                                                            | Status | Notes                                                                                     |
 | ------------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------- |
-| **Endpoints** (responses, threads, messages, files, vector-stores) | ✅      | All route builders present and point to modern paths (`/responses`, `/web_search`, etc.). |
+| **Endpoints** (responses, messages, files, vector-stores)          | ✅      | All route builders present and point to modern paths (`/responses`, `/web_search`, etc.). |
 | **Built-in tools** (web search + file search)                      | ✅      | Canonical `/web_search`, with transparent legacy fallback.                                |
 | **Custom tool calling**                                            | ✅      | `Tool` / `ToolChoice` / `ToolCall` enums + stream variants.                               |
 | **Streaming (SSE)**                                                | ✅      | feature-gated `stream`, uses `reqwest-eventsource`, resilient `Unknown` variant.          |
-| **Thread helpers & model selection**                               | ✅      | `continue_thread(model, …)` **and** `continue_with_user_input` (inherits prior model).    |
+| **Conversation continuity via response IDs**                       | ✅      | Uses `previous_response_id` for conversation context (official API approach).             |
 | **MIME handling**                                                  | ✅      | Optional parameter or `mime_guess` fallback.                                              |
 | **Builder polish**                                                 | ✅      | Fluent `&mut self`, `#[must_use]`, `.build()` consumes builder.                           |
-| **Docs / examples**                                                | 🟡     | README improved; vector-store + streaming snippets still “TODO”.                          |
+| **Docs / examples**                                                | 🟡     | README improved; vector-store + streaming snippets still "TODO".                          |
 | **Unit tests compile**                                             | ✅      | Import path fixed.                                                                        |
 | **CI**                                                             | 🟡     | Workflow present; one compile error left (see below).                                     |
 
@@ -51,9 +51,10 @@ return Err(Error::HttpStatus(status));
 With that single tweak, the crate should compile cleanly and—on paper—now offers complete, production-grade coverage of the OpenAI **Responses API**:
 
 * ✅ full async endpoint set
-* ✅ thread management & message history
+* ✅ conversation continuity via response IDs
 * ✅ native vector-store + file search & upload
 * ✅ web-search tool, custom tool calling, streaming
 * ✅ robust builder + error types, feature-gated TLS options
+* ✅ comprehensive builder patterns
 
-Patch the tiny `Error` fallback, run `cargo clippy -- -D warnings`, and you’re clear to publish an alpha on crates.io. 🚀
+Patch the tiny `Error` fallback, run `cargo clippy -- -D warnings`, and you're clear to publish an alpha on crates.io. 🚀

@@ -109,6 +109,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@1.70.0  # Update this to your actual MSRV
+    - uses: dtolnay/rust-toolchain@1.82.0  # Updated to support modern dependencies
     - name: Check MSRV
       run: cargo check --all-features 

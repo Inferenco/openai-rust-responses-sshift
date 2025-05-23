@@ -17,7 +17,6 @@ This document provides a comprehensive test report for the OpenAI Rust Responses
 |--------|------------|-------------------|----------|
 | Client | ✅ | ✅ | 95% |
 | Responses | ✅ | ✅ | 90% |
-| Threads | ✅ | ✅ | 85% |
 | Messages | ✅ | ✅ | 85% |
 | Files | ✅ | ✅ | 80% |
 | Vector Stores | ✅ | ✅ | 80% |
@@ -76,9 +75,8 @@ The library compiles successfully with various feature combinations:
 
 3. **Web Search Endpoint**: Implemented an alias system that tries the canonical `/web_search` path first, then falls back to `/tools/web_search` with a deprecation warning. This approach has been validated to work correctly with both endpoint paths.
 
-4. **Thread Model Handling**: Validated that both approaches for thread continuation work correctly:
-   - `continue_thread()` - Allows explicit model selection
-   - `continue_with_user_input()` - Inherits the model from the previous response
+4. **Conversation Continuity**: Validated that both approaches for conversation continuation work correctly:
+   - `previous_response_id` - Links responses for conversation context
 
 ## Known Limitations
 
@@ -99,3 +97,12 @@ The library compiles successfully with various feature combinations:
 ## Conclusion
 
 The OpenAI Rust Responses wrapper has been thoroughly tested and validated. All critical issues identified in previous reviews have been addressed, and the library is now ready for production use. The wrapper provides a robust, type-safe interface to the OpenAI Responses API with comprehensive error handling and support for all major API features.
+
+## Test Scenarios Covered
+
+### Core API Features
+- Basic response creation with various models
+- Conversation continuity via response IDs
+- Response retrieval, cancellation, and deletion
+- Streaming responses (when feature enabled)
+- Error handling for invalid requests and network issues
