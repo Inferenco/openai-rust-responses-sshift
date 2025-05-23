@@ -30,13 +30,13 @@ pub enum ResponseItem {
     Message {
         /// ID of the message
         id: String,
-        
+
         /// Content of the message
         content: Vec<MessageContent>,
-        
+
         /// Role of the message
         role: String,
-        
+
         /// Status of the message
         status: Option<String>,
     },
@@ -45,10 +45,10 @@ pub enum ResponseItem {
     Reasoning {
         /// ID of the reasoning item
         id: String,
-        
+
         /// Summary of the reasoning
         summary: Vec<serde_json::Value>,
-        
+
         /// Status of the reasoning
         status: Option<String>,
     },
@@ -57,7 +57,7 @@ pub enum ResponseItem {
     WebSearchCall {
         /// ID of the web search call
         id: String,
-        
+
         /// Status of the web search call
         status: String,
     },
@@ -66,7 +66,7 @@ pub enum ResponseItem {
     FileSearchCall {
         /// ID of the file search call
         id: String,
-        
+
         /// Status of the file search call
         status: String,
     },
@@ -75,16 +75,16 @@ pub enum ResponseItem {
     FunctionCall {
         /// ID of the function call
         id: String,
-        
+
         /// Arguments for the function call
         arguments: String,
-        
+
         /// Call ID
         call_id: String,
-        
+
         /// Name of the function
         name: String,
-        
+
         /// Status of the function call
         status: String,
     },
@@ -111,10 +111,10 @@ pub enum MessageContent {
     OutputText {
         /// Text content
         text: String,
-        
+
         /// Annotations
         annotations: Vec<serde_json::Value>,
-        
+
         /// Log probabilities
         logprobs: Option<serde_json::Value>,
     },

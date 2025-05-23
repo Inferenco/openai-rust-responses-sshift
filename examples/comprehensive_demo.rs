@@ -14,8 +14,10 @@
 use dotenv::dotenv;
 use open_ai_rust_responses_by_sshift::{
     files::FilePurpose,
-    vector_stores::{CreateVectorStoreRequest, AddFileToVectorStoreRequest, SearchVectorStoreRequest},
-    Client, Request, Model, Tool, ToolChoice,
+    vector_stores::{
+        AddFileToVectorStoreRequest, CreateVectorStoreRequest, SearchVectorStoreRequest,
+    },
+    Client, Model, Request, Tool, ToolChoice,
 };
 use serde_json::json;
 
@@ -32,7 +34,7 @@ use futures::StreamExt;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables from .env file
     dotenv().ok();
-    
+
     println!("🚀 OpenAI Rust Responses API - Comprehensive Demo");
     println!("==================================================\n");
 
@@ -42,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. BASIC RESPONSE
     println!("1️⃣  Basic Response");
     println!("------------------");
-    
+
     let request = Request::builder()
         .model(Model::GPT4o)
         .input("What are the three most important programming principles?")
@@ -55,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. CONVERSATION CONTINUITY
     println!("2️⃣  Conversation Continuity (using response IDs)");
     println!("------------------------------------------------");
-    
+
     let request2 = Request::builder()
         .model(Model::GPT4o)
         .input("Can you give me a practical example of the first principle?")
@@ -70,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         println!("3️⃣  Streaming Response");
         println!("----------------------");
-        
+
         let request3 = Request::builder()
             .model(Model::GPT4o)
             .input("Write a short story about a robot learning to code")
@@ -79,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("🤖 Assistant (streaming): ");
         let mut stream = client.responses.stream(request3);
         let mut full_response = String::new();
-        
+
         while let Some(event) = stream.next().await {
             match event? {
                 StreamEvent::TextDelta { content, .. } => {
@@ -98,8 +100,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         println!("3️⃣  Streaming Response");
         println!("----------------------");
-        println!("⚠️  Streaming feature not enabled. Run with --features stream to see streaming.\n");
-        
+        println!(
+            "⚠️  Streaming feature not enabled. Run with --features stream to see streaming.\n"
+        );
+
         // Fallback to regular response
         let request3 = Request::builder()
             .model(Model::GPT4o)
@@ -120,15 +124,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         response1.output_text(),
         response2.output_text()
     );
-    
+
     std::fs::write("demo_guide.md", &sample_content)?;
-    
+
     // Upload file
     println!("📁 Uploading file...");
-    let file = client.files
-        .upload_file("demo_guide.md", FilePurpose::Assistants, Some("text/markdown".to_string()))
+    let file = client
+        .files
+        .upload_file(
+            "demo_guide.md",
+            FilePurpose::Assistants,
+            Some("text/markdown".to_string()),
+        )
         .await?;
-    
+
     println!("✅ Uploaded: {} (ID: {})", file.filename, file.id);
 
     // List files
@@ -141,7 +150,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("⬇️  Downloaded {} bytes", downloaded_content.len());
         }
         Err(e) => {
-            println!("⚠️  Cannot download assistants files (this is expected): {}", e);
+            println!(
+                "⚠️  Cannot download assistants files (this is expected): {}",
+                e
+            );
         }
     }
 
@@ -157,7 +169,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let vector_store = client.vector_stores.create(vs_request).await?;
-    println!("✅ Vector store created: {} (ID: {})", vector_store.name, vector_store.id);
+    println!(
+        "✅ Vector store created: {} (ID: {})",
+        vector_store.name, vector_store.id
+    );
 
     // Add file to vector store
     println!("📎 Adding file to vector store...");
@@ -165,8 +180,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         file_id: file.id.clone(),
         attributes: None,
     };
-    
-    let _file_result = client.vector_stores.add_file(&vector_store.id, add_file_request).await?;
+
+    let _file_result = client
+        .vector_stores
+        .add_file(&vector_store.id, add_file_request)
+        .await?;
     println!("✅ File added to vector store");
 
     // Wait a moment for indexing
@@ -180,16 +198,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_num_results: Some(3),
     };
 
-    match client.vector_stores.search(&vector_store.id, search_request).await {
+    match client
+        .vector_stores
+        .search(&vector_store.id, search_request)
+        .await
+    {
         Ok(search_results) => {
             println!("✅ Found {} search results", search_results.data.len());
             for (i, result) in search_results.data.iter().enumerate() {
-                println!("  {}. Score: {:.3} - File: {} - Content: {}...", 
-                         i + 1, 
-                         result.score,
-                         result.filename,
-                         result.content.first().map_or("No content", |c| &c.text)
-                               .chars().take(100).collect::<String>());
+                println!(
+                    "  {}. Score: {:.3} - File: {} - Content: {}...",
+                    i + 1,
+                    result.score,
+                    result.filename,
+                    result
+                        .content
+                        .first()
+                        .map_or("No content", |c| &c.text)
+                        .chars()
+                        .take(100)
+                        .collect::<String>()
+                );
             }
         }
         Err(e) => println!("⚠️  Search failed (may need more time for indexing): {}", e),
@@ -198,21 +227,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 6. BUILT-IN TOOLS WITH RESPONSES API
     println!("\n6️⃣  Built-in Tools with Responses API");
     println!("------------------------------------");
-    
+
     // Web search tool example
     println!("🌐 Using web search tool...");
     let web_search_request = Request::builder()
         .model(Model::GPT4o)
         .input("What are the latest trends in Rust programming language in 2024?")
-        .tools(vec![
-            Tool::web_search_preview(),
-        ])
+        .tools(vec![Tool::web_search_preview()])
         .build();
 
     match client.responses.create(web_search_request).await {
         Ok(web_response) => {
             println!("✅ Web search completed");
-            println!("   Response: {}", web_response.output_text().chars().take(200).collect::<String>() + "...");
+            println!(
+                "   Response: {}",
+                web_response
+                    .output_text()
+                    .chars()
+                    .take(200)
+                    .collect::<String>()
+                    + "..."
+            );
         }
         Err(e) => println!("⚠️  Web search failed: {}", e),
     }
@@ -220,20 +255,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 7. FILE SEARCH TOOL
     println!("\n7️⃣  File Search Tool with Responses API");
     println!("---------------------------------------");
-    
+
     println!("📄 Using file search tool...");
     let file_search_request = Request::builder()
         .model(Model::GPT4o)
         .input("Based on the uploaded file, what are the key programming principles mentioned?")
-        .tools(vec![
-            Tool::file_search(vec![vector_store.id.clone()]),
-        ])
+        .tools(vec![Tool::file_search(vec![vector_store.id.clone()])])
         .build();
 
     match client.responses.create(file_search_request).await {
         Ok(file_response) => {
             println!("✅ File search completed");
-            println!("   Response: {}", file_response.output_text().chars().take(200).collect::<String>() + "...");
+            println!(
+                "   Response: {}",
+                file_response
+                    .output_text()
+                    .chars()
+                    .take(200)
+                    .collect::<String>()
+                    + "..."
+            );
         }
         Err(e) => println!("⚠️  File search failed: {}", e),
     }
@@ -254,7 +295,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             },
             "required": ["expression"]
-        })
+        }),
     );
 
     let request_with_tools = Request::builder()
@@ -265,11 +306,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     let response_with_tools = client.responses.create(request_with_tools).await?;
-    
+
     println!("🔧 Response with function calling capability:");
     println!("   ID: {}", response_with_tools.id());
     println!("   Content: {}", response_with_tools.output_text());
-    
+
     // Check if any tool calls were made
     let tool_calls = response_with_tools.tool_calls();
     if !tool_calls.is_empty() {
@@ -300,14 +341,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 🔟. RESOURCE DELETION TESTING
     println!("\n🔟 Resource Deletion Testing");
     println!("---------------------------");
-    
+
     // Test vector store deletion API
     println!("🧪 Testing vector store deletion API...");
-    println!("   Deleting vector store: {} (ID: {})", vector_store.name, vector_store.id);
+    println!(
+        "   Deleting vector store: {} (ID: {})",
+        vector_store.name, vector_store.id
+    );
     match client.vector_stores.delete(&vector_store.id).await {
         Ok(_) => {
             println!("✅ Vector store delete API works correctly");
-            println!("   Vector store '{}' deleted successfully", vector_store.name);
+            println!(
+                "   Vector store '{}' deleted successfully",
+                vector_store.name
+            );
         }
         Err(e) => {
             println!("❌ Vector store delete API failed: {}", e);
@@ -334,13 +381,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify deletion by attempting to retrieve the deleted resources
     println!("\n🔍 Verifying deletions (attempting to retrieve deleted resources)...");
-    
+
     // Try to get the deleted vector store (should fail)
     match client.vector_stores.get(&vector_store.id).await {
         Ok(_) => println!("⚠️  Unexpected: Vector store still exists after deletion"),
         Err(_) => println!("✅ Confirmed: Vector store no longer exists (deletion successful)"),
     }
-    
+
     // Clean up local file
     println!("\n🗑️  Removing local demo file...");
     match std::fs::remove_file("demo_guide.md") {
@@ -352,7 +399,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📊 Final verification - listing remaining files...");
     match client.files.list(None).await {
         Ok(remaining_files) => {
-            println!("✅ Files API working - {} files remaining in account", remaining_files.len());
+            println!(
+                "✅ Files API working - {} files remaining in account",
+                remaining_files.len()
+            );
             if !remaining_files.is_empty() {
                 println!("   Note: Remaining files are from previous demo runs or other usage");
             }
@@ -372,9 +422,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  ✅ Resource deletion APIs (files.delete() & vector_stores.delete())");
     println!("  ✅ API verification and error handling");
     println!();
-    println!("💡 This demo creates and deletes all resources, testing both creation and deletion APIs.");
+    println!(
+        "💡 This demo creates and deletes all resources, testing both creation and deletion APIs."
+    );
     println!("🧪 Each API method is tested with proper error handling and verification.");
     println!("📚 Check the source code for implementation details and best practices!");
 
     Ok(())
-} 
+}

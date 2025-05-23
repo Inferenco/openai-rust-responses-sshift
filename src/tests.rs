@@ -97,7 +97,7 @@ mod unit_tests {
                     }
                     Err(e) => panic!("Stream error: {e:?}"),
                 }
-                
+
                 // Safety limit to prevent infinite streams
                 if events_received >= 50 {
                     println!("\n⚠️ Stopping after 50 events");
@@ -107,8 +107,11 @@ mod unit_tests {
 
             println!("\n📊 Test results:");
             println!("   Events received: {events_received}");
-            println!("   Content length: {length} characters", length = full_content.len());
-            
+            println!(
+                "   Content length: {length} characters",
+                length = full_content.len()
+            );
+
             assert!(events_received > 0);
             assert!(!full_content.is_empty());
         });

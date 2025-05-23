@@ -38,11 +38,14 @@ impl Response {
         self.output
             .iter()
             .filter_map(|item| match item {
-                crate::types::ResponseItem::Message { content, .. } => {
-                    Some(content.iter().map(|c| match c {
-                        crate::types::MessageContent::OutputText { text, .. } => text.as_str(),
-                    }).collect::<String>())
-                },
+                crate::types::ResponseItem::Message { content, .. } => Some(
+                    content
+                        .iter()
+                        .map(|c| match c {
+                            crate::types::MessageContent::OutputText { text, .. } => text.as_str(),
+                        })
+                        .collect::<String>(),
+                ),
                 crate::types::ResponseItem::Text { content, .. } => Some(content.clone()),
                 _ => None,
             })
@@ -55,20 +58,23 @@ impl Response {
         self.output
             .iter()
             .filter_map(|item| match item {
-                crate::types::ResponseItem::FunctionCall { name, arguments, call_id, .. } => {
-                    Some(crate::types::FunctionCallInfo {
-                        name: name.clone(),
-                        arguments: arguments.clone(),
-                        call_id: call_id.clone(),
-                    })
-                },
+                crate::types::ResponseItem::FunctionCall {
+                    name,
+                    arguments,
+                    call_id,
+                    ..
+                } => Some(crate::types::FunctionCallInfo {
+                    name: name.clone(),
+                    arguments: arguments.clone(),
+                    call_id: call_id.clone(),
+                }),
                 crate::types::ResponseItem::ToolCall(tool_call) => {
                     Some(crate::types::FunctionCallInfo {
                         name: tool_call.name.clone(),
                         arguments: tool_call.arguments.to_string(),
                         call_id: tool_call.id.clone(),
                     })
-                },
+                }
                 _ => None,
             })
             .collect()

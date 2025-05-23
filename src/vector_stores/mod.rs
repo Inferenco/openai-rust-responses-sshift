@@ -54,7 +54,7 @@ pub struct CreateVectorStoreRequest {
 pub struct AddFileToVectorStoreRequest {
     /// File ID to add to the vector store
     pub file_id: String,
-    
+
     /// Optional attributes for the file
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attributes: Option<serde_json::Value>,
@@ -76,7 +76,7 @@ pub struct SearchVectorStoreRequest {
 pub struct SearchVectorStoreResult {
     /// Filename of the file that matched the query
     pub filename: String,
-    
+
     /// Content that matched the query
     pub content: Vec<SearchContent>,
 
