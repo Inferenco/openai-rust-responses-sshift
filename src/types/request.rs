@@ -1,5 +1,36 @@
 use serde::{Deserialize, Serialize};
 
+/// Additional fields that can be included in the response
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Include {
+    /// Include file search results in the response
+    #[serde(rename = "file_search.results")]
+    FileSearchResults,
+
+    /// Include encrypted reasoning content in the response (May 2025)
+    /// Note: reasoning.summary is not yet supported by the API
+    #[serde(rename = "reasoning.encrypted_content")]
+    ReasoningEncryptedContent,
+}
+
+impl Include {
+    /// Converts the include variant to its string representation
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::FileSearchResults => "file_search.results",
+            Self::ReasoningEncryptedContent => "reasoning.encrypted_content",
+        }
+    }
+}
+
+impl std::fmt::Display for Include {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// Request for creating a response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Request {
@@ -47,7 +78,16 @@ pub struct Request {
 
     /// Additional fields to include in the response
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub include: Option<Vec<String>>,
+    pub include: Option<Vec<Include>>,
+
+    /// Reasoning parameters for controlling reasoning model behavior (NEW: May 2025)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<crate::types::ReasoningParams>,
+
+    /// Enable background processing mode (NEW: May 2025)
+    /// When true, returns HTTP 202 with BackgroundHandle for long-running tasks
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background: Option<bool>,
 }
 
 impl Default for Request {
@@ -65,6 +105,8 @@ impl Default for Request {
             previous_response_id: None,
             metadata: None,
             include: None,
+            reasoning: None,
+            background: None,
         }
     }
 }
@@ -176,8 +218,38 @@ impl RequestBuilder {
 
     /// Sets additional fields to include in the response
     #[must_use]
-    pub fn include(mut self, include: Vec<String>) -> Self {
+    pub fn include(mut self, include: Vec<Include>) -> Self {
         self.request.include = Some(include);
+        self
+    }
+
+    /// Converts string includes to typed includes for backward compatibility
+    #[must_use]
+    pub fn include_strings(mut self, include: Vec<String>) -> Self {
+        let typed_includes: Vec<Include> = include
+            .into_iter()
+            .filter_map(|s| match s.as_str() {
+                "file_search.results" => Some(Include::FileSearchResults),
+                "reasoning.encrypted_content" => Some(Include::ReasoningEncryptedContent),
+                _ => None, // Skip unknown includes
+            })
+            .collect();
+        self.request.include = Some(typed_includes);
+        self
+    }
+
+    /// Sets reasoning parameters for controlling reasoning model behavior (NEW: May 2025)
+    #[must_use]
+    pub fn reasoning(mut self, reasoning: crate::types::ReasoningParams) -> Self {
+        self.request.reasoning = Some(reasoning);
+        self
+    }
+
+    /// Enable background processing mode (NEW: May 2025)
+    /// When true, returns HTTP 202 with BackgroundHandle for long-running tasks
+    #[must_use]
+    pub fn background(mut self, background: bool) -> Self {
+        self.request.background = Some(background);
         self
     }
 

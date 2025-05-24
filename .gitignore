@@ -79,3 +79,8 @@ temp/
 /tests/tmp/
 *.orig
 *.rej
+
+# Development documents (exclude from published package)
+development_plan.md
+TEST_REPORT.md
+independent_audit.md
