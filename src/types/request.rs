@@ -1,5 +1,40 @@
 use serde::{Deserialize, Serialize};
 
+/// Additional fields that can be included in the response
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Include {
+    /// Include file search results in the response
+    #[serde(rename = "file_search.results")]
+    FileSearchResults,
+
+    /// Include reasoning summary in the response (NEW for May 2025)
+    #[serde(rename = "reasoning.summary")]
+    ReasoningSummary,
+
+    /// Include encrypted reasoning content in the response (NEW for May 2025)
+    #[serde(rename = "reasoning.encrypted_content")]
+    ReasoningEncryptedContent,
+}
+
+impl Include {
+    /// Converts the include variant to its string representation
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::FileSearchResults => "file_search.results",
+            Self::ReasoningSummary => "reasoning.summary",
+            Self::ReasoningEncryptedContent => "reasoning.encrypted_content",
+        }
+    }
+}
+
+impl std::fmt::Display for Include {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// Request for creating a response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Request {
@@ -47,7 +82,7 @@ pub struct Request {
 
     /// Additional fields to include in the response
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub include: Option<Vec<String>>,
+    pub include: Option<Vec<Include>>,
 }
 
 impl Default for Request {
@@ -176,8 +211,24 @@ impl RequestBuilder {
 
     /// Sets additional fields to include in the response
     #[must_use]
-    pub fn include(mut self, include: Vec<String>) -> Self {
+    pub fn include(mut self, include: Vec<Include>) -> Self {
         self.request.include = Some(include);
+        self
+    }
+
+    /// Sets additional fields to include in the response using strings (legacy support)
+    #[must_use]
+    pub fn include_strings(mut self, include: Vec<String>) -> Self {
+        let includes: Vec<Include> = include
+            .into_iter()
+            .filter_map(|s| match s.as_str() {
+                "file_search.results" => Some(Include::FileSearchResults),
+                "reasoning.summary" => Some(Include::ReasoningSummary),
+                "reasoning.encrypted_content" => Some(Include::ReasoningEncryptedContent),
+                _ => None,
+            })
+            .collect();
+        self.request.include = Some(includes);
         self
     }
 

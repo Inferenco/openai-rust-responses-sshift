@@ -6,6 +6,11 @@
 //! - File operations (upload, download, manage)
 //! - Vector stores (create, search)
 //! - Tools (web search, file search, custom functions)
+//! - NEW Phase 1 Features (May 2025):
+//!   * Image generation tool with container support
+//!   * MCP (Model Context Protocol) server integration
+//!   * Enhanced include options for reasoning
+//!   * Type-safe include options with backward compatibility
 //!
 //! Setup:
 //! 1. Create a `.env` file in the project root with: OPENAI_API_KEY=sk-your-api-key-here
@@ -14,12 +19,14 @@
 use dotenv::dotenv;
 use open_ai_rust_responses_by_sshift::{
     files::FilePurpose,
+    types::{Container, Include},
     vector_stores::{
         AddFileToVectorStoreRequest, CreateVectorStoreRequest, SearchVectorStoreRequest,
     },
     Client, Model, Request, Tool, ToolChoice,
 };
 use serde_json::json;
+use std::collections::HashMap;
 
 #[cfg(feature = "stream")]
 use open_ai_rust_responses_by_sshift::StreamEvent;
@@ -35,8 +42,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables from .env file
     dotenv().ok();
 
-    println!("🚀 OpenAI Rust Responses API - Comprehensive Demo");
-    println!("==================================================\n");
+    println!("🚀 OpenAI Rust Responses API - Comprehensive Demo (May 2025 Edition)");
+    println!("====================================================================\n");
 
     // Create client from environment variable
     let client = Client::from_env()?;
@@ -67,11 +74,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response2 = client.responses.create(request2).await?;
     println!("🤖 Assistant: {}\n", response2.output_text());
 
-    // 3. STREAMING RESPONSE (only if stream feature is enabled)
+    // 3. STREAMING RESPONSE WITH NEW IMAGE PROGRESS EVENTS (only if stream feature is enabled)
     #[cfg(feature = "stream")]
     {
-        println!("3️⃣  Streaming Response");
-        println!("----------------------");
+        println!("3️⃣  Streaming Response (Enhanced with Image Progress Events)");
+        println!("-----------------------------------------------------------");
 
         let request3 = Request::builder()
             .model(Model::GPT4o)
@@ -88,6 +95,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     print!("{}", content);
                     std::io::stdout().flush().unwrap();
                     full_response.push_str(&content);
+                }
+                StreamEvent::ImageProgress { url, index } => {
+                    // NEW: Handle image generation progress
+                    if let Some(progress_url) = url {
+                        println!("\n📸 Image progress (index {}): {}", index, progress_url);
+                    } else {
+                        println!("\n📸 Image generation in progress (index {})...", index);
+                    }
                 }
                 StreamEvent::Done => break,
                 _ => {}
@@ -324,6 +339,147 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         println!("   No tool calls were made for this request");
     }
+
+    // 🆕 NEW PHASE 1 FEATURES (MAY 2025 API EXTENSIONS)
+    println!("\n🆕 NEW Phase 1 Features - May 2025 API Extensions");
+    println!("================================================");
+
+    // Image Generation Tool Demo
+    println!("\n🎨 Image Generation Tool with Container Support");
+    println!("----------------------------------------------");
+
+    let image_tool = Tool::image_generation(Some(Container::default_type()));
+    println!(
+        "✅ Created image generation tool with container: {:?}",
+        image_tool.container
+    );
+
+    // Note: This would actually generate an image in a real scenario
+    println!("📝 Image generation tool configured (would generate images if connected to API)");
+
+    // MCP (Model Context Protocol) Tool Demo
+    println!("\n🔌 MCP Server Integration");
+    println!("-------------------------");
+
+    let mut mcp_headers = HashMap::new();
+    mcp_headers.insert(
+        "Authorization".to_string(),
+        "Bearer example-token".to_string(),
+    );
+    mcp_headers.insert("Content-Type".to_string(), "application/json".to_string());
+
+    let mcp_tool = Tool::mcp(
+        "example-knowledge-server",
+        "https://api.example-mcp-server.com/v1",
+        Some(mcp_headers),
+    );
+
+    println!("✅ Created MCP tool:");
+    println!("   Server Label: {:?}", mcp_tool.server_label);
+    println!("   Server URL: {:?}", mcp_tool.server_url);
+    println!(
+        "   Headers: {} configured",
+        mcp_tool.headers.as_ref().map_or(0, |h| h.len())
+    );
+
+    // Enhanced Code Interpreter with Container
+    println!("\n🔧 Enhanced Code Interpreter with Container Support");
+    println!("--------------------------------------------------");
+
+    let enhanced_code_tool = Tool::code_interpreter(Some(Container::default_type()));
+    println!("✅ Enhanced code interpreter with container support");
+    println!(
+        "   Container type: {:?}",
+        enhanced_code_tool
+            .container
+            .as_ref()
+            .map(|c| &c.container_type)
+    );
+
+    // Computer Use Tool (showing existing support)
+    println!("\n🖥️  Computer Use Preview Tool");
+    println!("-----------------------------");
+
+    let computer_tool = Tool::computer_use_preview();
+    println!("✅ Computer use preview tool ready");
+    println!("   Tool type: {}", computer_tool.tool_type);
+
+    // Type-Safe Include Options Demo
+    println!("\n📋 Enhanced Include Options with Type Safety");
+    println!("--------------------------------------------");
+
+    // Show new type-safe include options
+    let enhanced_includes = vec![
+        Include::FileSearchResults,         // Existing
+        Include::ReasoningSummary,          // NEW for May 2025
+        Include::ReasoningEncryptedContent, // NEW for May 2025
+    ];
+
+    println!("✅ New type-safe include options:");
+    for include in &enhanced_includes {
+        println!("   • {} ('{}')", include, include.as_str());
+    }
+
+    // Demonstrate request with new features
+    println!("\n🔬 Comprehensive Request with All New Features");
+    println!("----------------------------------------------");
+
+    let comprehensive_request = Request::builder()
+        .model(Model::GPT4o)
+        .input("Analyze the programming principles document and create a visual diagram")
+        .instructions("You are an expert programming educator with access to advanced tools")
+        .tools(vec![
+            Tool::web_search_preview(),
+            Tool::file_search(vec![vector_store.id.clone()]),
+            enhanced_code_tool,
+            image_tool,
+            mcp_tool,
+        ])
+        .include(enhanced_includes.clone())
+        .temperature(0.7)
+        .build();
+
+    println!("✅ Created comprehensive request with:");
+    println!(
+        "   • {} tools (including new image generation and MCP)",
+        comprehensive_request.tools.as_ref().map_or(0, |t| t.len())
+    );
+    println!(
+        "   • {} include options (with new reasoning features)",
+        comprehensive_request
+            .include
+            .as_ref()
+            .map_or(0, |i| i.len())
+    );
+
+    // Backward Compatibility Demo
+    println!("\n🔄 Backward Compatibility with Legacy String Includes");
+    println!("-----------------------------------------------------");
+
+    let legacy_request = Request::builder()
+        .model(Model::GPT4o)
+        .input("Test backward compatibility")
+        .include_strings(vec![
+            "file_search.results".to_string(),
+            "reasoning.summary".to_string(),
+            "reasoning.encrypted_content".to_string(),
+        ])
+        .build();
+
+    println!("✅ Legacy string includes still work:");
+    if let Some(includes) = &legacy_request.include {
+        for include in includes {
+            println!("   • Converted '{}' to type-safe variant", include.as_str());
+        }
+    }
+
+    println!("\n✨ Phase 1 Features Summary:");
+    println!("   🎨 Image Generation Tool - Ready for visual content creation");
+    println!("   🔌 MCP Server Integration - Connect to external knowledge sources");
+    println!("   🛡️  Container Support - Enhanced security and isolation");
+    println!("   🧠 Reasoning Includes - Access to AI reasoning processes");
+    println!("   🔒 Type Safety - Compile-time validation for include options");
+    println!("   ↩️  Backward Compatibility - Legacy code continues to work");
 
     // 9. RESPONSE WITH INSTRUCTIONS
     println!("\n9️⃣  Response with Custom Instructions");

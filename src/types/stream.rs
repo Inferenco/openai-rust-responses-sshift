@@ -48,6 +48,14 @@ pub enum StreamEvent {
         index: u32,
     },
 
+    /// Image generation progress event (NEW for May 2025)
+    ImageProgress {
+        /// URL of the progressive image (if available)
+        url: Option<String>,
+        /// Index of the image being generated
+        index: u32,
+    },
+
     /// Chunk heartbeat event
     Chunk,
 
@@ -74,6 +82,15 @@ impl StreamEvent {
     pub fn as_tool_call_delta(&self) -> Option<&str> {
         match self {
             Self::ToolCallDelta { content, .. } => Some(content),
+            _ => None,
+        }
+    }
+
+    /// Returns image progress URL if this is an image progress event
+    #[must_use]
+    pub fn as_image_progress(&self) -> Option<&str> {
+        match self {
+            Self::ImageProgress { url: Some(url), .. } => Some(url),
             _ => None,
         }
     }
