@@ -22,12 +22,60 @@ Cargo.lock
 *.swp
 *.swo
 *.swn
+# Additional editor files
+*.sublime-*
+.project
+.classpath
+.settings/
+*.iml
+*.ipr
+*.iws
+# Vim
+*~
+*.tmp
+*.bak
+# Emacs
+*#
+.#*
 
 # OS generated files
 .DS_Store
 Thumbs.db
+# Additional OS files
+*.tmp
+*.temp
+.directory
+.Trash-*
+ehthumbs.db
+ehthumbs_vista.db
 
 # Logs
 *.log 
 
 .env
+
+# Documentation artifacts
+/doc/
+/docs/_build/
+*.html
+*.pdf
+
+# Benchmark results
+/benches/results/
+criterion/
+
+# Profiling data
+*.prof
+perf.data*
+*.dhat
+
+# Local development
+.scratch/
+.local/
+tmp/
+temp/
+
+# Testing artifacts
+/tests/tmp/
+*.orig
+*.rej
