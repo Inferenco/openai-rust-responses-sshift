@@ -85,6 +85,11 @@ impl Responses {
 
     /// Creates a streaming response.
     ///
+    /// # Panics
+    ///
+    /// This method may panic if the internal response state becomes inconsistent,
+    /// though this is not expected during normal operation.
+    ///
     /// # Errors
     ///
     /// Returns a stream of events or errors if the request fails to send or has a non-200 status code.
@@ -162,9 +167,7 @@ impl Responses {
                             }
 
                             // Handle SSE format: "data: {...}" or "data: [DONE]"
-                            if line.starts_with("data: ") {
-                                let data = &line[6..]; // Remove "data: " prefix
-
+                            if let Some(data) = line.strip_prefix("data: ") {
                                 if data == "[DONE]" {
                                     return Some((Ok(crate::types::StreamEvent::Done), None));
                                 }
