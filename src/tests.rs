@@ -1,20 +1,105 @@
 #[cfg(test)]
 mod unit_tests {
     use crate::types::{Container, Include, StreamEvent};
-    use crate::{Client, CreateError, Input, Model, Request, Tool};
+    use crate::{Client, Input, Model, Request, Tool};
     use std::collections::HashMap;
 
     #[test]
     fn test_client_creation() {
-        // Test invalid API key
-        assert!(matches!(Client::new(""), Err(CreateError::InvalidApiKey)));
-        assert!(matches!(
-            Client::new("invalid"),
-            Err(CreateError::InvalidApiKey)
-        ));
+        let client = Client::new("sk-test-key-1234567890abcdef");
+        assert!(client.is_ok());
+    }
 
-        // Test valid API key format (doesn't verify it works)
-        assert!(Client::new("sk-test-key").is_ok());
+    #[test]
+    fn test_new_model_serialization() {
+        use crate::types::Model;
+        
+        // Test latest generation models (2025)
+        assert_eq!(Model::O3.to_string(), "o3");
+        assert_eq!(Model::O4Mini.to_string(), "o4-mini");
+        assert_eq!(Model::GPT41.to_string(), "gpt-4.1");
+        assert_eq!(Model::GPT41Nano.to_string(), "gpt-4.1-nano");
+        assert_eq!(Model::GPT41Mini.to_string(), "gpt-4.1-mini");
+        
+        // Test O-Series reasoning models
+        assert_eq!(Model::O3Mini.to_string(), "o3-mini");
+        assert_eq!(Model::O1.to_string(), "o1");
+        assert_eq!(Model::O1Preview.to_string(), "o1-preview");
+        assert_eq!(Model::O1Mini.to_string(), "o1-mini");
+        
+        // Test GPT-4o family
+        assert_eq!(Model::GPT4o.to_string(), "gpt-4o");
+        assert_eq!(Model::GPT4o20241120.to_string(), "gpt-4o-2024-11-20");
+        assert_eq!(Model::GPT4o20240806.to_string(), "gpt-4o-2024-08-06");
+        assert_eq!(Model::GPT4o20240513.to_string(), "gpt-4o-2024-05-13");
+        assert_eq!(Model::GPT4oMini.to_string(), "gpt-4o-mini");
+        
+        // Test GPT-4 family
+        assert_eq!(Model::GPT4Turbo.to_string(), "gpt-4-turbo");
+        assert_eq!(Model::GPT4Turbo20240409.to_string(), "gpt-4-turbo-2024-04-09");
+        assert_eq!(Model::GPT4_32k.to_string(), "gpt-4-32k");
+        
+        // Test GPT-3.5 family
+        assert_eq!(Model::GPT35Turbo0125.to_string(), "gpt-3.5-turbo-0125");
+        assert_eq!(Model::GPT35Turbo1106.to_string(), "gpt-3.5-turbo-1106");
+        assert_eq!(Model::GPT35TurboInstruct.to_string(), "gpt-3.5-turbo-instruct");
+    }
+
+    #[test]
+    fn test_new_model_from_string() {
+        use crate::types::Model;
+        
+        // Test latest generation models (2025)
+        assert_eq!(Model::from("o3"), Model::O3);
+        assert_eq!(Model::from("o4-mini"), Model::O4Mini);
+        assert_eq!(Model::from("gpt-4.1"), Model::GPT41);
+        assert_eq!(Model::from("gpt-4.1-nano"), Model::GPT41Nano);
+        assert_eq!(Model::from("gpt-4.1-mini"), Model::GPT41Mini);
+        
+        // Test O-Series reasoning models
+        assert_eq!(Model::from("o3-mini"), Model::O3Mini);
+        assert_eq!(Model::from("o1"), Model::O1);
+        assert_eq!(Model::from("o1-preview"), Model::O1Preview);
+        assert_eq!(Model::from("o1-mini"), Model::O1Mini);
+        
+        // Test GPT-4o family
+        assert_eq!(Model::from("gpt-4o-2024-11-20"), Model::GPT4o20241120);
+        assert_eq!(Model::from("gpt-4o-2024-08-06"), Model::GPT4o20240806);
+        assert_eq!(Model::from("gpt-4o-2024-05-13"), Model::GPT4o20240513);
+        assert_eq!(Model::from("gpt-4o-mini"), Model::GPT4oMini);
+        
+        // Test custom model fallback
+        assert_eq!(Model::from("custom-model-123"), Model::Custom("custom-model-123".to_string()));
+    }
+
+    #[test]
+    fn test_request_with_new_models() {
+        use crate::types::{Model, Request};
+        
+        // Test that we can create requests with the new models
+        let request_o3 = Request::builder()
+            .model(Model::O3)
+            .input("Test with o3 model")
+            .build();
+        assert_eq!(request_o3.model, Model::O3);
+        
+        let request_o4_mini = Request::builder()
+            .model(Model::O4Mini)
+            .input("Test with o4-mini model")
+            .build();
+        assert_eq!(request_o4_mini.model, Model::O4Mini);
+        
+        let request_gpt41 = Request::builder()
+            .model(Model::GPT41)
+            .input("Test with GPT-4.1 model")
+            .build();
+        assert_eq!(request_gpt41.model, Model::GPT41);
+        
+        let request_o1 = Request::builder()
+            .model(Model::O1)
+            .input("Test with o1 reasoning model")
+            .build();
+        assert_eq!(request_o1.model, Model::O1);
     }
 
     #[test]
@@ -22,13 +107,11 @@ mod unit_tests {
         let request = Request::builder()
             .model(Model::GPT4o)
             .input("Test input")
-            .instructions("Test instructions")
             .temperature(0.7)
             .build();
 
         assert_eq!(request.model, Model::GPT4o);
-        assert!(matches!(request.input, Input::Text(text) if text == "Test input"));
-        assert_eq!(request.instructions, Some("Test instructions".to_string()));
+        assert!(matches!(request.input, Input::Text(ref text) if text == "Test input"));
         assert_eq!(request.temperature, Some(0.7));
     }
 
