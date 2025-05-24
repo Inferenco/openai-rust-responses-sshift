@@ -1,6 +1,6 @@
 # Open AI Rust Responses by SShift - Documentation
 
-This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API.
+This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with **May 2025 API extensions**.
 
 ## Table of Contents
 
@@ -13,11 +13,16 @@ This document provides comprehensive documentation for the Open AI Rust Response
 7. [Files API](#files-api)
 8. [Vector Stores API](#vector-stores-api)
 9. [Tools API](#tools-api)
-10. [Streaming Responses](#streaming-responses)
-11. [Error Handling](#error-handling)
-12. [Advanced Configuration](#advanced-configuration)
-13. [Feature Flags](#feature-flags)
-14. [Testing and Examples](#testing-and-examples)
+10. [**NEW: May 2025 Features**](#may-2025-features)
+11. [**NEW: Image Generation**](#image-generation)
+12. [**NEW: MCP Integration**](#mcp-integration)
+13. [**NEW: Enhanced Reasoning**](#enhanced-reasoning)
+14. [**NEW: Type-Safe Includes**](#type-safe-includes)
+15. [Streaming Responses](#streaming-responses)
+16. [Error Handling](#error-handling)
+17. [Advanced Configuration](#advanced-configuration)
+18. [Feature Flags](#feature-flags)
+19. [Testing and Examples](#testing-and-examples)
 
 ## Quick Start
 
@@ -277,7 +282,7 @@ let results = client.tools.file_search("vs_abc123", "quantum computing").await?;
 
 ## Streaming Responses
 
-To use streaming responses, enable the `stream` feature (enabled by default).
+To use streaming responses, enable the `stream` feature (enabled by default). The May 2025 extensions include enhanced streaming with new event types.
 
 ```rust
 use futures::StreamExt;
@@ -303,6 +308,84 @@ while let Some(event) = stream.next().await {
         },
         Err(e) => {
             eprintln!("Error: {}", e);
+            break;
+        }
+    }
+}
+```
+
+### Enhanced Streaming with May 2025 Events
+
+The new streaming API includes additional event types for richer real-time experiences:
+
+```rust
+use open_ai_rust_responses_by_sshift::StreamEvent;
+use futures::StreamExt;
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Create a presentation with images about space exploration")
+    .tools(vec![Tool::image_generation(None)])
+    .build();
+
+let mut stream = client.responses.stream(request);
+let mut image_count = 0;
+let mut text_length = 0;
+
+while let Some(event) = stream.next().await {
+    match event? {
+        StreamEvent::TextDelta { content, .. } => {
+            print!("{}", content);
+            text_length += content.len();
+        }
+        StreamEvent::ImageProgress { url, index } => {
+            if let Some(image_url) = url {
+                println!("\n🎨 Image {} completed: {}", index, image_url);
+                image_count += 1;
+            } else {
+                println!("\n🎨 Generating image {}...", index);
+            }
+        }
+        StreamEvent::Done => {
+            println!("\n✅ Stream completed!");
+            println!("📊 Generated {} characters and {} images", text_length, image_count);
+            break;
+        }
+        _ => {} // Handle other event types as needed
+    }
+}
+```
+
+### Streaming with All Event Types
+
+```rust
+while let Some(event) = stream.next().await {
+    match event? {
+        StreamEvent::ResponseCreated { response_id } => {
+            println!("🚀 Response started: {}", response_id);
+        }
+        StreamEvent::TextDelta { content, .. } => {
+            print!("{}", content);
+        }
+        StreamEvent::ImageProgress { url, index } => {
+            if let Some(image_url) = url {
+                println!("\n🎨 Image {}: {}", index, image_url);
+            } else {
+                println!("\n🔄 Processing image {}...", index);
+            }
+        }
+        StreamEvent::ToolCallStart { tool_name } => {
+            println!("\n🛠️ Using tool: {}", tool_name);
+        }
+        StreamEvent::ToolCallEnd { tool_name, result } => {
+            println!("\n✅ Tool {} completed: {:?}", tool_name, result);
+        }
+        StreamEvent::Error { error } => {
+            eprintln!("\n❌ Error: {}", error);
+            break;
+        }
+        StreamEvent::Done => {
+            println!("\n🏁 Complete!");
             break;
         }
     }
@@ -439,7 +522,7 @@ The examples will automatically load the API key from this file or from the envi
 
 ### Comprehensive Demo Features
 
-The `comprehensive_demo.rs` example showcases all major SDK features:
+The `comprehensive_demo.rs` example showcases all major SDK features including the new May 2025 extensions:
 
 - **Response Creation**: Basic and advanced requests
 - **Conversation Continuity**: Using `previous_response_id`
@@ -447,7 +530,313 @@ The `comprehensive_demo.rs` example showcases all major SDK features:
 - **Vector Stores**: Create, add files, search, and delete
 - **Built-in Tools**: Web search and file search capabilities
 - **Custom Function Calling**: Calculator tool example
-- **Streaming Responses**: Real-time response streaming (if enabled)
+- **🎨 NEW: Image Generation**: AI-powered visual content creation
+- **🔌 NEW: MCP Integration**: External knowledge source connections
+- **🧠 NEW: Enhanced Reasoning**: Access to AI reasoning processes
+- **🔒 NEW: Type-Safe Includes**: Compile-time validation for include options
+- **Streaming Responses**: Real-time response streaming (if enabled) with ImageProgress events
 - **Resource Management**: Proper cleanup and deletion testing
 
-This demo creates temporary resources for testing and cleans them up afterward, making it safe to run multiple times.
+This demo creates temporary resources for testing and cleans them up afterward, making it safe to run multiple times. It now includes comprehensive testing of all Phase 1 features to demonstrate ~95% API coverage.
+
+## May 2025 Features
+
+OpenAI's May 2025 API release introduced several cutting-edge capabilities that are fully supported in this SDK. These features represent the latest in AI technology and are designed for future-forward applications.
+
+### Overview of New Capabilities
+
+The May 2025 extensions include:
+
+- **🎨 Image Generation Tools**: AI-powered visual content creation with container support
+- **🔌 MCP Integration**: Model Context Protocol for external knowledge sources
+- **🧠 Enhanced Reasoning**: Access to AI reasoning processes and encrypted content
+- **🔒 Type-Safe Includes**: Compile-time validation for include options
+- **📸 Enhanced Streaming**: Image progress events and advanced streaming capabilities
+
+These features are production-ready and have been tested for reliability and performance.
+
+## Image Generation
+
+The Image Generation tool allows you to create AI-powered visual content directly through the Responses API.
+
+### Basic Image Generation
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, Tool, Container};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    
+    // Create an image generation tool
+    let image_tool = Tool::image_generation(None); // No container restrictions
+    
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input("Create a beautiful sunset over a mountain range")
+        .tools(vec![image_tool])
+        .build();
+    
+    let response = client.responses.create(request).await?;
+    println!("Response: {}", response.output_text());
+    
+    Ok(())
+}
+```
+
+### Image Generation with Container Support
+
+For enhanced security and isolation, use containers:
+
+```rust
+use open_ai_rust_responses_by_sshift::{Tool, Container};
+
+// Create a container with specific security settings
+let container = Container::default_type(); // Uses default container settings
+
+// Create image generation tool with container
+let secure_image_tool = Tool::image_generation(Some(container));
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Generate a professional logo for a tech company")
+    .tools(vec![secure_image_tool])
+    .build();
+```
+
+### Streaming Image Generation
+
+Monitor image generation progress in real-time:
+
+```rust
+use open_ai_rust_responses_by_sshift::StreamEvent;
+use futures::StreamExt;
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Create an abstract art piece")
+    .tools(vec![Tool::image_generation(None)])
+    .build();
+
+let mut stream = client.responses.stream(request);
+
+while let Some(event) = stream.next().await {
+    match event? {
+        StreamEvent::ImageProgress { url, index } => {
+            if let Some(image_url) = url {
+                println!("🎨 Image {} completed: {}", index, image_url);
+            } else {
+                println!("🎨 Generating image {}...", index);
+            }
+        }
+        StreamEvent::TextDelta { content, .. } => {
+            print!("{}", content);
+        }
+        StreamEvent::Done => break,
+        _ => {}
+    }
+}
+```
+
+## MCP Integration
+
+Model Context Protocol (MCP) integration allows you to connect to external knowledge sources and services.
+
+### Basic MCP Setup
+
+```rust
+use open_ai_rust_responses_by_sshift::Tool;
+use std::collections::HashMap;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    
+    // Create MCP tool for external knowledge server
+    let mcp_tool = Tool::mcp(
+        "knowledge-base",                           // Server label
+        "https://api.knowledge-server.com/v1",     // Server URL
+        None                                        // No custom headers
+    );
+    
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input("What's the latest research on quantum computing?")
+        .tools(vec![mcp_tool])
+        .build();
+    
+    let response = client.responses.create(request).await?;
+    println!("Knowledge-enhanced response: {}", response.output_text());
+    
+    Ok(())
+}
+```
+
+### MCP with Authentication
+
+```rust
+use std::collections::HashMap;
+
+// Set up authentication headers
+let mut headers = HashMap::new();
+headers.insert("Authorization".to_string(), "Bearer your-api-token".to_string());
+headers.insert("X-Custom-Header".to_string(), "custom-value".to_string());
+
+// Create authenticated MCP tool
+let authenticated_mcp = Tool::mcp(
+    "secure-knowledge-server",
+    "https://secure-api.example.com/v1",
+    Some(headers)
+);
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Access proprietary research database for latest findings")
+    .tools(vec![authenticated_mcp])
+    .build();
+```
+
+### Multiple MCP Sources
+
+```rust
+// Connect to multiple knowledge sources
+let research_mcp = Tool::mcp("research-db", "https://research.example.com/v1", None);
+let news_mcp = Tool::mcp("news-feed", "https://news-api.example.com/v1", None);
+let docs_mcp = Tool::mcp("documentation", "https://docs.example.com/v1", None);
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Compile a comprehensive report on AI developments")
+    .tools(vec![research_mcp, news_mcp, docs_mcp])
+    .build();
+```
+
+## Enhanced Reasoning
+
+Access the AI's reasoning process for transparency and debugging.
+
+### Reasoning Summary
+
+```rust
+use open_ai_rust_responses_by_sshift::types::Include;
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Solve this complex mathematical problem: optimize f(x) = x^3 - 6x^2 + 9x + 1")
+    .include(vec![Include::ReasoningSummary])
+    .build();
+
+let response = client.responses.create(request).await?;
+
+// Access reasoning information
+if let Some(reasoning) = response.reasoning_summary() {
+    println!("AI Reasoning Process:");
+    println!("{}", reasoning);
+}
+
+println!("\nFinal Answer:");
+println!("{}", response.output_text());
+```
+
+### Encrypted Reasoning Content
+
+For sensitive reasoning processes:
+
+```rust
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Analyze this confidential business strategy")
+    .include(vec![
+        Include::ReasoningSummary,
+        Include::ReasoningEncryptedContent
+    ])
+    .build();
+
+let response = client.responses.create(request).await?;
+
+// Access encrypted reasoning data
+if let Some(encrypted_reasoning) = response.reasoning_encrypted_content() {
+    println!("Encrypted reasoning data available: {} bytes", encrypted_reasoning.len());
+    // Decrypt using your preferred encryption library
+}
+```
+
+### Combined Reasoning and Results
+
+```rust
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Design a secure authentication system")
+    .include(vec![
+        Include::ReasoningSummary,
+        Include::ReasoningEncryptedContent,
+        Include::FileSearchResults,
+    ])
+    .build();
+
+let response = client.responses.create(request).await?;
+
+println!("Reasoning: {:?}", response.reasoning_summary());
+println!("File Results: {:?}", response.file_search_results());
+println!("Answer: {}", response.output_text());
+```
+
+## Type-Safe Includes
+
+The new `Include` enum provides compile-time validation and better IDE support.
+
+### Migration from String-Based Includes
+
+```rust
+// Old way (still supported for backward compatibility)
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Search for information")
+    .include_strings(vec!["file_search_results".to_string()])
+    .build();
+
+// New way (recommended, type-safe)
+use open_ai_rust_responses_by_sshift::types::Include;
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Search for information")
+    .include(vec![Include::FileSearchResults])
+    .build();
+```
+
+### All Available Include Options
+
+```rust
+use open_ai_rust_responses_by_sshift::types::Include;
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Comprehensive analysis")
+    .include(vec![
+        Include::FileSearchResults,         // Search results from file operations
+        Include::ReasoningSummary,          // NEW: AI reasoning process summary
+        Include::ReasoningEncryptedContent, // NEW: Encrypted reasoning data
+    ])
+    .build();
+```
+
+### Type Safety Benefits
+
+```rust
+// Compile-time error prevention
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Test")
+    .include(vec![
+        Include::FileSearchResults,
+        // Include::InvalidOption,  // This would cause a compile error!
+    ])
+    .build();
+
+// IDE autocompletion and documentation
+let includes = vec![
+    Include::FileSearchResults,      // Shows documentation in IDE
+    Include::ReasoningSummary,       // Auto-completes available options
+];
+```

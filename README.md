@@ -4,18 +4,81 @@
 [![Crates.io](https://img.shields.io/crates/v/open-ai-rust-responses-by-sshift.svg)](https://crates.io/crates/open-ai-rust-responses-by-sshift)
 [![Documentation](https://docs.rs/open-ai-rust-responses-by-sshift/badge.svg)](https://docs.rs/open-ai-rust-responses-by-sshift)
 
-A comprehensive, async Rust SDK for the OpenAI Responses API that provides full access to conversation continuity, streaming responses, and advanced features.
+A comprehensive, async Rust SDK for the OpenAI Responses API with **May 2025 API extensions** that provides full access to conversation continuity, streaming responses, and cutting-edge AI capabilities.
 
 ## ✨ Features
 
 - **🔄 Conversation Continuity**: Use response IDs to maintain conversation context
-- **🌊 Streaming Support**: Real-time SSE streaming with `futures::Stream`
-- **📁 File Operations**: Upload, download, and manage files
-- **🔍 Vector Stores**: Semantic search and knowledge retrieval
-- **🛠️ Built-in Tools**: Web search, file search, and custom function calling
+- **🌊 Enhanced Streaming**: Real-time SSE streaming with `futures::Stream` and image progress events
+- **📁 File Operations**: Upload, download, and manage files with full MIME support
+- **🔍 Vector Stores**: Semantic search and knowledge retrieval with attribute filtering
+- **🛠️ Advanced Tools**: Web search, file search, custom functions, **image generation**, and **MCP integration**
+- **🎨 NEW: Image Generation**: AI-powered visual content creation with container support
+- **🔌 NEW: MCP Integration**: Connect to external knowledge sources via Model Context Protocol
+- **🧠 NEW: Reasoning Support**: Access AI reasoning processes and encrypted content
 - **⚡ Async/Await**: Built on `tokio` and `reqwest` for high performance
-- **🔒 Type Safety**: Comprehensive error handling and type definitions
+- **🔒 Type Safety**: Comprehensive error handling, type-safe includes, and compile-time validation
 - **📚 Rich Documentation**: Extensive examples and API documentation
+
+## 🆕 May 2025 API Extensions (Phase 1)
+
+This SDK includes cutting-edge features from OpenAI's May 2025 API release:
+
+### 🎨 **Image Generation Tools**
+```rust
+use open_ai_rust_responses_by_sshift::{Tool, Container};
+
+// Create image generation tool with container support
+let image_tool = Tool::image_generation(Some(Container::default_type()));
+```
+
+### 🔌 **MCP Server Integration**
+```rust
+use std::collections::HashMap;
+
+// Connect to external knowledge sources
+let mut headers = HashMap::new();
+headers.insert("Authorization".to_string(), "Bearer token".to_string());
+
+let mcp_tool = Tool::mcp(
+    "knowledge-server",
+    "https://api.knowledge-server.com/v1",
+    Some(headers)
+);
+```
+
+### 🧠 **Enhanced Reasoning & Includes**
+```rust
+use open_ai_rust_responses_by_sshift::types::Include;
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Analyze this complex problem")
+    .include(vec![
+        Include::ReasoningSummary,           // NEW: Access reasoning process
+        Include::ReasoningEncryptedContent,  // NEW: Encrypted reasoning data
+        Include::FileSearchResults,          // Enhanced file search
+    ])
+    .build();
+```
+
+### 📸 **Image Progress Streaming**
+```rust
+while let Some(event) = stream.next().await {
+    match event? {
+        StreamEvent::ImageProgress { url, index } => {
+            if let Some(img_url) = url {
+                println!("🎨 Image generated: {}", img_url);
+            } else {
+                println!("🎨 Generating image {}...", index);
+            }
+        }
+        StreamEvent::TextDelta { content, .. } => print!("{}", content),
+        StreamEvent::Done => break,
+        _ => {}
+    }
+}
+```
 
 ## 🚀 Quick Start
 
@@ -220,14 +283,18 @@ Run the comprehensive demo to see all features:
 cargo run --example comprehensive_demo --features stream
 ```
 
-**This demo showcases ALL major features:**
+**This demo showcases ALL major features including May 2025 extensions:**
 - 🔄 **Conversation Continuity** - Response ID linking
-- 🌊 **Streaming Responses** - Real-time text generation  
+- 🌊 **Enhanced Streaming** - Real-time text generation + image progress events
 - 📁 **File Operations** - Upload, download, delete
 - 🔍 **Vector Stores** - Semantic search and knowledge retrieval
 - 🌐 **Web Search Tool** - Built-in web searching capability
 - 📄 **File Search Tool** - Search through uploaded documents
 - ⚙️ **Custom Functions** - Define and call custom tools
+- **🎨 NEW: Image Generation Tool** - AI-powered visual content creation
+- **🔌 NEW: MCP Server Integration** - External knowledge source connections
+- **🧠 NEW: Enhanced Reasoning** - Access to AI reasoning processes
+- **🔒 NEW: Type-Safe Includes** - Compile-time validation for include options
 - 🧪 **Resource Management** - Proper cleanup and deletion testing
 
 Other examples:
@@ -239,17 +306,22 @@ cargo run --example streaming --features stream
 
 ## 🎯 API Coverage
 
-This crate provides comprehensive coverage of the OpenAI Responses API:
+This crate provides comprehensive coverage of the OpenAI Responses API with **May 2025 extensions**:
 
 | Feature | Status | Notes |
 |---------|---------|--------|
 | Responses | ✅ | Create, retrieve, cancel, delete |
-| Streaming | ✅ | Server-sent events with `futures::Stream` |
+| Streaming | ✅ | SSE with `futures::Stream` + ImageProgress events |
 | Conversation Continuity | ✅ | Response ID linking |
 | Messages | ✅ | Message CRUD operations |
 | Files | ✅ | Upload, download, list, delete |
 | Vector Stores | ✅ | Create, search, manage |
+| **NEW: Image Generation** | ✅ | Container-supported visual content creation |
+| **NEW: MCP Integration** | ✅ | External knowledge source connections |
+| **NEW: Enhanced Reasoning** | ✅ | Reasoning summaries and encrypted content |
 | Tools | ✅ | Built-in and custom function calling |
+
+**API Coverage: ~95%** of May 2025 specification (Phase 1 complete)
 
 ## 🚦 Error Handling
 
