@@ -18,20 +18,22 @@ impl Default for Effort {
 
 /// Summary setting for reasoning output
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum SummarySetting {
     /// Automatically generate a reasoning summary
-    #[serde(rename = "auto")]
     Auto,
-    /// Custom summary text
-    #[serde(untagged)]
-    Text(String),
+    /// Generate a concise reasoning summary
+    Concise,
+    /// Generate a detailed reasoning summary
+    Detailed,
 }
 
 impl From<&str> for SummarySetting {
     fn from(s: &str) -> Self {
         match s {
-            "auto" => Self::Auto,
-            text => Self::Text(text.to_string()),
+            "concise" => Self::Concise,
+            "detailed" => Self::Detailed,
+            _ => Self::Auto, // Default fallback for "auto" and any other values
         }
     }
 }
@@ -42,7 +44,7 @@ pub struct ReasoningParams {
     /// Effort level for reasoning (low/high)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
-    
+
     /// Summary setting for reasoning output
     #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<SummarySetting>,
@@ -50,40 +52,74 @@ pub struct ReasoningParams {
 
 impl ReasoningParams {
     /// Create new reasoning parameters
+    #[must_use]
     pub fn new() -> Self {
         Self {
             effort: None,
             summary: None,
         }
     }
-    
+
     /// Set effort level
+    #[must_use]
     pub fn with_effort(mut self, effort: Effort) -> Self {
         self.effort = Some(effort);
         self
     }
-    
+
     /// Set summary setting
+    #[must_use]
     pub fn with_summary(mut self, summary: SummarySetting) -> Self {
         self.summary = Some(summary);
         self
     }
-    
+
     /// Enable high effort reasoning (enables background mode)
+    #[must_use]
     pub fn high_effort() -> Self {
         Self::new().with_effort(Effort::High)
     }
-    
+
     /// Enable automatic summary generation
+    #[must_use]
     pub fn auto_summary() -> Self {
         Self::new().with_summary(SummarySetting::Auto)
     }
-    
+
+    /// Enable concise summary generation
+    #[must_use]
+    pub fn concise_summary() -> Self {
+        Self::new().with_summary(SummarySetting::Concise)
+    }
+
+    /// Enable detailed summary generation
+    #[must_use]
+    pub fn detailed_summary() -> Self {
+        Self::new().with_summary(SummarySetting::Detailed)
+    }
+
     /// Create reasoning params with high effort and auto summary
+    #[must_use]
     pub fn high_effort_with_summary() -> Self {
         Self::new()
             .with_effort(Effort::High)
             .with_summary(SummarySetting::Auto)
+    }
+
+    /// Create reasoning params with high effort and concise summary
+    #[must_use]
+    pub fn high_effort_concise() -> Self {
+        Self::new()
+            .with_effort(Effort::High)
+            .with_summary(SummarySetting::Concise)
+    }
+
+    /// Create reasoning params with high effort and detailed summary
+    #[must_use]
+    pub fn high_effort_detailed() -> Self {
+        Self::new()
+            .with_effort(Effort::High)
+            .with_summary(SummarySetting::Detailed)
     }
 }
 
@@ -115,7 +151,7 @@ mod tests {
     fn test_effort_serialization() {
         let effort_low = Effort::Low;
         let effort_high = Effort::High;
-        
+
         assert_eq!(serde_json::to_string(&effort_low).unwrap(), r#""low""#);
         assert_eq!(serde_json::to_string(&effort_high).unwrap(), r#""high""#);
     }
@@ -123,11 +159,14 @@ mod tests {
     #[test]
     fn test_summary_setting_serialization() {
         let auto = SummarySetting::Auto;
-        let text = SummarySetting::Text("custom summary".to_string());
-        
+        let concise = SummarySetting::Concise;
+        let detailed = SummarySetting::Detailed;
+
         // Auto should serialize to just "auto"
         assert_eq!(serde_json::to_string(&auto).unwrap(), r#""auto""#);
-        // Text should serialize to the string content
-        assert_eq!(serde_json::to_string(&text).unwrap(), r#""custom summary""#);
+        // Concise should serialize to "concise"
+        assert_eq!(serde_json::to_string(&concise).unwrap(), r#""concise""#);
+        // Detailed should serialize to "detailed"
+        assert_eq!(serde_json::to_string(&detailed).unwrap(), r#""detailed""#);
     }
-} 
+}

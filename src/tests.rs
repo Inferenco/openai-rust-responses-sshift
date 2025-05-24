@@ -13,88 +13,97 @@ mod unit_tests {
     #[test]
     fn test_new_model_serialization() {
         use crate::types::Model;
-        
+
         // Test latest generation models (2025)
         assert_eq!(Model::O3.to_string(), "o3");
         assert_eq!(Model::O4Mini.to_string(), "o4-mini");
         assert_eq!(Model::GPT41.to_string(), "gpt-4.1");
         assert_eq!(Model::GPT41Nano.to_string(), "gpt-4.1-nano");
         assert_eq!(Model::GPT41Mini.to_string(), "gpt-4.1-mini");
-        
+
         // Test O-Series reasoning models
         assert_eq!(Model::O3Mini.to_string(), "o3-mini");
         assert_eq!(Model::O1.to_string(), "o1");
         assert_eq!(Model::O1Preview.to_string(), "o1-preview");
         assert_eq!(Model::O1Mini.to_string(), "o1-mini");
-        
+
         // Test GPT-4o family
         assert_eq!(Model::GPT4o.to_string(), "gpt-4o");
         assert_eq!(Model::GPT4o20241120.to_string(), "gpt-4o-2024-11-20");
         assert_eq!(Model::GPT4o20240806.to_string(), "gpt-4o-2024-08-06");
         assert_eq!(Model::GPT4o20240513.to_string(), "gpt-4o-2024-05-13");
         assert_eq!(Model::GPT4oMini.to_string(), "gpt-4o-mini");
-        
+
         // Test GPT-4 family
         assert_eq!(Model::GPT4Turbo.to_string(), "gpt-4-turbo");
-        assert_eq!(Model::GPT4Turbo20240409.to_string(), "gpt-4-turbo-2024-04-09");
+        assert_eq!(
+            Model::GPT4Turbo20240409.to_string(),
+            "gpt-4-turbo-2024-04-09"
+        );
         assert_eq!(Model::GPT4_32k.to_string(), "gpt-4-32k");
-        
+
         // Test GPT-3.5 family
         assert_eq!(Model::GPT35Turbo0125.to_string(), "gpt-3.5-turbo-0125");
         assert_eq!(Model::GPT35Turbo1106.to_string(), "gpt-3.5-turbo-1106");
-        assert_eq!(Model::GPT35TurboInstruct.to_string(), "gpt-3.5-turbo-instruct");
+        assert_eq!(
+            Model::GPT35TurboInstruct.to_string(),
+            "gpt-3.5-turbo-instruct"
+        );
     }
 
     #[test]
     fn test_new_model_from_string() {
         use crate::types::Model;
-        
+
         // Test latest generation models (2025)
         assert_eq!(Model::from("o3"), Model::O3);
         assert_eq!(Model::from("o4-mini"), Model::O4Mini);
         assert_eq!(Model::from("gpt-4.1"), Model::GPT41);
         assert_eq!(Model::from("gpt-4.1-nano"), Model::GPT41Nano);
         assert_eq!(Model::from("gpt-4.1-mini"), Model::GPT41Mini);
-        
+
         // Test O-Series reasoning models
         assert_eq!(Model::from("o3-mini"), Model::O3Mini);
         assert_eq!(Model::from("o1"), Model::O1);
         assert_eq!(Model::from("o1-preview"), Model::O1Preview);
         assert_eq!(Model::from("o1-mini"), Model::O1Mini);
-        
+
         // Test GPT-4o family
         assert_eq!(Model::from("gpt-4o-2024-11-20"), Model::GPT4o20241120);
         assert_eq!(Model::from("gpt-4o-2024-08-06"), Model::GPT4o20240806);
         assert_eq!(Model::from("gpt-4o-2024-05-13"), Model::GPT4o20240513);
         assert_eq!(Model::from("gpt-4o-mini"), Model::GPT4oMini);
-        
+
         // Test custom model fallback
-        assert_eq!(Model::from("custom-model-123"), Model::Custom("custom-model-123".to_string()));
+        assert_eq!(
+            Model::from("custom-model-123"),
+            Model::Custom("custom-model-123".to_string())
+        );
     }
 
     #[test]
     fn test_request_with_new_models() {
         use crate::types::{Model, Request};
-        
+
         // Test that we can create requests with the new models
         let request_o3 = Request::builder()
             .model(Model::O3)
             .input("Test with o3 model")
             .build();
         assert_eq!(request_o3.model, Model::O3);
-        
+
         let request_o4_mini = Request::builder()
             .model(Model::O4Mini)
             .input("Test with o4-mini model")
             .build();
         assert_eq!(request_o4_mini.model, Model::O4Mini);
-        
+
         let request_gpt41 = Request::builder()
             .model(Model::GPT41)
             .input("Test with GPT-4.1 model")
             .build();
         assert_eq!(request_gpt41.model, Model::GPT41);
-        
+
         let request_o1 = Request::builder()
             .model(Model::O1)
             .input("Test with o1 reasoning model")
@@ -163,17 +172,14 @@ mod unit_tests {
     fn test_include_enum() {
         // Test all include variants
         let file_search = Include::FileSearchResults;
-        let reasoning_summary = Include::ReasoningSummary;
         let reasoning_encrypted = Include::ReasoningEncryptedContent;
 
         // Test string representation
         assert_eq!(file_search.as_str(), "file_search.results");
-        assert_eq!(reasoning_summary.as_str(), "reasoning.summary");
         assert_eq!(reasoning_encrypted.as_str(), "reasoning.encrypted_content");
 
         // Test display formatting
         assert_eq!(format!("{file_search}"), "file_search.results");
-        assert_eq!(format!("{reasoning_summary}"), "reasoning.summary");
         assert_eq!(
             format!("{reasoning_encrypted}"),
             "reasoning.encrypted_content"
@@ -184,7 +190,6 @@ mod unit_tests {
     fn test_request_with_new_features() {
         let includes = vec![
             Include::FileSearchResults,
-            Include::ReasoningSummary,
             Include::ReasoningEncryptedContent,
         ];
 
@@ -213,16 +218,14 @@ mod unit_tests {
             .input("Test backward compatibility")
             .include_strings(vec![
                 "file_search.results".to_string(),
-                "reasoning.summary".to_string(),
                 "reasoning.encrypted_content".to_string(),
                 "unknown.option".to_string(), // Should be filtered out
             ])
             .build();
 
         let includes = request.include.unwrap();
-        assert_eq!(includes.len(), 3); // unknown.option filtered out
+        assert_eq!(includes.len(), 2); // unknown.option filtered out
         assert!(includes.contains(&Include::FileSearchResults));
-        assert!(includes.contains(&Include::ReasoningSummary));
         assert!(includes.contains(&Include::ReasoningEncryptedContent));
     }
 
@@ -278,9 +281,9 @@ mod unit_tests {
         assert_eq!(container.container_type, deserialized.container_type);
 
         // Test Include serialization
-        let include = Include::ReasoningSummary;
+        let include = Include::ReasoningEncryptedContent;
         let serialized = serde_json::to_string(&include).unwrap();
-        assert!(serialized.contains("reasoning.summary"));
+        assert!(serialized.contains("reasoning.encrypted_content"));
 
         // Test Tool serialization with new fields
         let mcp_tool = Tool::mcp("test", "https://test.com", None);
@@ -294,17 +297,17 @@ mod unit_tests {
     #[test]
     fn test_reasoning_params_in_request() {
         use crate::types::{Effort, ReasoningParams, SummarySetting};
-        
+
         let reasoning = ReasoningParams::new()
             .with_effort(Effort::High)
             .with_summary(SummarySetting::Auto);
-        
+
         let request = Request::builder()
             .model(Model::O1)
             .input("Complex reasoning task")
             .reasoning(reasoning.clone())
             .build();
-        
+
         assert_eq!(request.reasoning, Some(reasoning));
         assert_eq!(request.model, Model::O1);
     }
@@ -316,49 +319,45 @@ mod unit_tests {
             .input("Long-running analysis task")
             .background(true)
             .build();
-        
+
         assert_eq!(request.background, Some(true));
     }
 
     #[test]
     fn test_reasoning_with_background_request() {
-        use crate::types::{Effort, ReasoningParams, SummarySetting};
-        
+        use crate::types::ReasoningParams;
+
         let reasoning = ReasoningParams::high_effort_with_summary();
-        
+
         let request = Request::builder()
             .model(Model::O1)
             .input("Complex task requiring high effort reasoning")
             .reasoning(reasoning.clone())
             .background(true)
-            .include(vec![
-                Include::ReasoningSummary,
-                Include::ReasoningEncryptedContent,
-            ])
+            .include(vec![Include::ReasoningEncryptedContent])
             .build();
-        
+
         assert_eq!(request.reasoning, Some(reasoning));
         assert_eq!(request.background, Some(true));
         assert!(request.include.is_some());
         let includes = request.include.unwrap();
-        assert!(includes.contains(&Include::ReasoningSummary));
         assert!(includes.contains(&Include::ReasoningEncryptedContent));
     }
 
     #[test]
     fn test_reasoning_params_builders() {
         use crate::types::{Effort, ReasoningParams, SummarySetting};
-        
+
         // Test high effort builder
         let high_effort = ReasoningParams::high_effort();
         assert_eq!(high_effort.effort, Some(Effort::High));
         assert_eq!(high_effort.summary, None);
-        
+
         // Test auto summary builder
         let auto_summary = ReasoningParams::auto_summary();
         assert_eq!(auto_summary.effort, None);
         assert_eq!(auto_summary.summary, Some(SummarySetting::Auto));
-        
+
         // Test combined builder
         let combined = ReasoningParams::high_effort_with_summary();
         assert_eq!(combined.effort, Some(Effort::High));
@@ -368,7 +367,7 @@ mod unit_tests {
     #[test]
     fn test_reasoning_model_compatibility() {
         use crate::types::ReasoningParams;
-        
+
         // Test that reasoning models work with reasoning params
         let reasoning_models = vec![
             Model::O1,
@@ -378,14 +377,14 @@ mod unit_tests {
             Model::O3Mini,
             Model::O4Mini,
         ];
-        
+
         for model in reasoning_models {
             let request = Request::builder()
                 .model(model.clone())
                 .input("Test reasoning task")
                 .reasoning(ReasoningParams::high_effort())
                 .build();
-            
+
             assert_eq!(request.model, model);
             assert!(request.reasoning.is_some());
         }
@@ -394,14 +393,14 @@ mod unit_tests {
     #[test]
     fn test_background_handle_functionality() {
         use crate::types::BackgroundHandle;
-        
+
         let handle = BackgroundHandle::new(
             "bg_test_123".to_string(),
             "https://api.openai.com/v1/backgrounds/bg_test_123/status".to_string(),
         )
         .with_stream_url("https://api.openai.com/v1/backgrounds/bg_test_123/stream".to_string())
         .with_estimated_completion("2025-01-15T10:30:00Z".to_string());
-        
+
         assert_eq!(handle.id, "bg_test_123");
         assert!(handle.stream_url.is_some());
         assert!(handle.estimated_completion.is_some());
@@ -516,7 +515,10 @@ mod unit_tests {
                     Tool::web_search_preview(),
                     Tool::image_generation(Some(Container::default_type())),
                 ])
-                .include(vec![Include::FileSearchResults, Include::ReasoningSummary])
+                .include(vec![
+                    Include::FileSearchResults,
+                    Include::ReasoningEncryptedContent,
+                ])
                 .build();
 
             let mut stream = std::pin::pin!(client.responses.stream(request));

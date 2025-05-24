@@ -155,32 +155,32 @@ impl From<String> for Model {
             "gpt-4.1" => Self::GPT41,
             "gpt-4.1-nano" => Self::GPT41Nano,
             "gpt-4.1-mini" => Self::GPT41Mini,
-            
+
             // O-Series (Reasoning Models)
             "o3-mini" => Self::O3Mini,
             "o1" => Self::O1,
             "o1-preview" => Self::O1Preview,
             "o1-mini" => Self::O1Mini,
-            
+
             // GPT-4o Family
             "gpt-4o" => Self::GPT4o,
             "gpt-4o-2024-11-20" => Self::GPT4o20241120,
             "gpt-4o-2024-08-06" => Self::GPT4o20240806,
             "gpt-4o-2024-05-13" => Self::GPT4o20240513,
             "gpt-4o-mini" => Self::GPT4oMini,
-            
+
             // GPT-4 Family
             "gpt-4-turbo" => Self::GPT4Turbo,
             "gpt-4-turbo-2024-04-09" => Self::GPT4Turbo20240409,
             "gpt-4" => Self::GPT4,
             "gpt-4-32k" => Self::GPT4_32k,
-            
+
             // GPT-3.5 Family
             "gpt-3.5-turbo" => Self::GPT35Turbo,
             "gpt-3.5-turbo-0125" => Self::GPT35Turbo0125,
             "gpt-3.5-turbo-1106" => Self::GPT35Turbo1106,
             "gpt-3.5-turbo-instruct" => Self::GPT35TurboInstruct,
-            
+
             // Custom fallback
             _ => Self::Custom(s),
         }
@@ -202,34 +202,34 @@ impl std::fmt::Display for Model {
             Model::GPT41 => write!(f, "gpt-4.1"),
             Model::GPT41Nano => write!(f, "gpt-4.1-nano"),
             Model::GPT41Mini => write!(f, "gpt-4.1-mini"),
-            
+
             // O-Series (Reasoning Models)
             Model::O3Mini => write!(f, "o3-mini"),
             Model::O1 => write!(f, "o1"),
             Model::O1Preview => write!(f, "o1-preview"),
             Model::O1Mini => write!(f, "o1-mini"),
-            
+
             // GPT-4o Family
             Model::GPT4o => write!(f, "gpt-4o"),
             Model::GPT4o20241120 => write!(f, "gpt-4o-2024-11-20"),
             Model::GPT4o20240806 => write!(f, "gpt-4o-2024-08-06"),
             Model::GPT4o20240513 => write!(f, "gpt-4o-2024-05-13"),
             Model::GPT4oMini => write!(f, "gpt-4o-mini"),
-            
+
             // GPT-4 Family
             Model::GPT4Turbo => write!(f, "gpt-4-turbo"),
             Model::GPT4Turbo20240409 => write!(f, "gpt-4-turbo-2024-04-09"),
             Model::GPT4 => write!(f, "gpt-4"),
             Model::GPT4_32k => write!(f, "gpt-4-32k"),
-            
+
             // GPT-3.5 Family
             Model::GPT35Turbo => write!(f, "gpt-3.5-turbo"),
             Model::GPT35Turbo0125 => write!(f, "gpt-3.5-turbo-0125"),
             Model::GPT35Turbo1106 => write!(f, "gpt-3.5-turbo-1106"),
             Model::GPT35TurboInstruct => write!(f, "gpt-3.5-turbo-instruct"),
-            
+
             // Custom fallback
-            Model::Custom(s) => write!(f, "{}", s),
+            Model::Custom(s) => write!(f, "{s}"),
         }
     }
 }

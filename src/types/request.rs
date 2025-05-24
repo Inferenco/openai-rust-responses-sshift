@@ -8,11 +8,8 @@ pub enum Include {
     #[serde(rename = "file_search.results")]
     FileSearchResults,
 
-    /// Include reasoning summary in the response (NEW for May 2025)
-    #[serde(rename = "reasoning.summary")]
-    ReasoningSummary,
-
-    /// Include encrypted reasoning content in the response (NEW for May 2025)
+    /// Include encrypted reasoning content in the response (May 2025)
+    /// Note: reasoning.summary is not yet supported by the API
     #[serde(rename = "reasoning.encrypted_content")]
     ReasoningEncryptedContent,
 }
@@ -23,7 +20,6 @@ impl Include {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::FileSearchResults => "file_search.results",
-            Self::ReasoningSummary => "reasoning.summary",
             Self::ReasoningEncryptedContent => "reasoning.encrypted_content",
         }
     }
@@ -234,7 +230,6 @@ impl RequestBuilder {
             .into_iter()
             .filter_map(|s| match s.as_str() {
                 "file_search.results" => Some(Include::FileSearchResults),
-                "reasoning.summary" => Some(Include::ReasoningSummary),
                 "reasoning.encrypted_content" => Some(Include::ReasoningEncryptedContent),
                 _ => None, // Skip unknown includes
             })
