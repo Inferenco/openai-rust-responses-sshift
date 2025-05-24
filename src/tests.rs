@@ -290,6 +290,125 @@ mod unit_tests {
         assert!(serialized.contains("https://test.com"));
     }
 
+    // NEW PHASE 2 TESTS
+    #[test]
+    fn test_reasoning_params_in_request() {
+        use crate::types::{Effort, ReasoningParams, SummarySetting};
+        
+        let reasoning = ReasoningParams::new()
+            .with_effort(Effort::High)
+            .with_summary(SummarySetting::Auto);
+        
+        let request = Request::builder()
+            .model(Model::O1)
+            .input("Complex reasoning task")
+            .reasoning(reasoning.clone())
+            .build();
+        
+        assert_eq!(request.reasoning, Some(reasoning));
+        assert_eq!(request.model, Model::O1);
+    }
+
+    #[test]
+    fn test_background_mode_request() {
+        let request = Request::builder()
+            .model(Model::O1)
+            .input("Long-running analysis task")
+            .background(true)
+            .build();
+        
+        assert_eq!(request.background, Some(true));
+    }
+
+    #[test]
+    fn test_reasoning_with_background_request() {
+        use crate::types::{Effort, ReasoningParams, SummarySetting};
+        
+        let reasoning = ReasoningParams::high_effort_with_summary();
+        
+        let request = Request::builder()
+            .model(Model::O1)
+            .input("Complex task requiring high effort reasoning")
+            .reasoning(reasoning.clone())
+            .background(true)
+            .include(vec![
+                Include::ReasoningSummary,
+                Include::ReasoningEncryptedContent,
+            ])
+            .build();
+        
+        assert_eq!(request.reasoning, Some(reasoning));
+        assert_eq!(request.background, Some(true));
+        assert!(request.include.is_some());
+        let includes = request.include.unwrap();
+        assert!(includes.contains(&Include::ReasoningSummary));
+        assert!(includes.contains(&Include::ReasoningEncryptedContent));
+    }
+
+    #[test]
+    fn test_reasoning_params_builders() {
+        use crate::types::{Effort, ReasoningParams, SummarySetting};
+        
+        // Test high effort builder
+        let high_effort = ReasoningParams::high_effort();
+        assert_eq!(high_effort.effort, Some(Effort::High));
+        assert_eq!(high_effort.summary, None);
+        
+        // Test auto summary builder
+        let auto_summary = ReasoningParams::auto_summary();
+        assert_eq!(auto_summary.effort, None);
+        assert_eq!(auto_summary.summary, Some(SummarySetting::Auto));
+        
+        // Test combined builder
+        let combined = ReasoningParams::high_effort_with_summary();
+        assert_eq!(combined.effort, Some(Effort::High));
+        assert_eq!(combined.summary, Some(SummarySetting::Auto));
+    }
+
+    #[test]
+    fn test_reasoning_model_compatibility() {
+        use crate::types::ReasoningParams;
+        
+        // Test that reasoning models work with reasoning params
+        let reasoning_models = vec![
+            Model::O1,
+            Model::O1Preview,
+            Model::O1Mini,
+            Model::O3,
+            Model::O3Mini,
+            Model::O4Mini,
+        ];
+        
+        for model in reasoning_models {
+            let request = Request::builder()
+                .model(model.clone())
+                .input("Test reasoning task")
+                .reasoning(ReasoningParams::high_effort())
+                .build();
+            
+            assert_eq!(request.model, model);
+            assert!(request.reasoning.is_some());
+        }
+    }
+
+    #[test]
+    fn test_background_handle_functionality() {
+        use crate::types::BackgroundHandle;
+        
+        let handle = BackgroundHandle::new(
+            "bg_test_123".to_string(),
+            "https://api.openai.com/v1/backgrounds/bg_test_123/status".to_string(),
+        )
+        .with_stream_url("https://api.openai.com/v1/backgrounds/bg_test_123/stream".to_string())
+        .with_estimated_completion("2025-01-15T10:30:00Z".to_string());
+        
+        assert_eq!(handle.id, "bg_test_123");
+        assert!(handle.stream_url.is_some());
+        assert!(handle.estimated_completion.is_some());
+        assert!(handle.is_running());
+        assert!(!handle.is_done());
+    }
+
     // Original tests maintained
     #[test]
     #[ignore] // Only run with --ignored flag

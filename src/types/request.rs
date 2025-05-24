@@ -83,6 +83,15 @@ pub struct Request {
     /// Additional fields to include in the response
     #[serde(skip_serializing_if = "Option::is_none")]
     pub include: Option<Vec<Include>>,
+
+    /// Reasoning parameters for controlling reasoning model behavior (NEW: May 2025)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<crate::types::ReasoningParams>,
+
+    /// Enable background processing mode (NEW: May 2025)
+    /// When true, returns HTTP 202 with BackgroundHandle for long-running tasks
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background: Option<bool>,
 }
 
 impl Default for Request {
@@ -100,6 +109,8 @@ impl Default for Request {
             previous_response_id: None,
             metadata: None,
             include: None,
+            reasoning: None,
+            background: None,
         }
     }
 }
@@ -216,19 +227,34 @@ impl RequestBuilder {
         self
     }
 
-    /// Sets additional fields to include in the response using strings (legacy support)
+    /// Converts string includes to typed includes for backward compatibility
     #[must_use]
     pub fn include_strings(mut self, include: Vec<String>) -> Self {
-        let includes: Vec<Include> = include
+        let typed_includes: Vec<Include> = include
             .into_iter()
             .filter_map(|s| match s.as_str() {
                 "file_search.results" => Some(Include::FileSearchResults),
                 "reasoning.summary" => Some(Include::ReasoningSummary),
                 "reasoning.encrypted_content" => Some(Include::ReasoningEncryptedContent),
-                _ => None,
+                _ => None, // Skip unknown includes
             })
             .collect();
-        self.request.include = Some(includes);
+        self.request.include = Some(typed_includes);
+        self
+    }
+
+    /// Sets reasoning parameters for controlling reasoning model behavior (NEW: May 2025)
+    #[must_use]
+    pub fn reasoning(mut self, reasoning: crate::types::ReasoningParams) -> Self {
+        self.request.reasoning = Some(reasoning);
+        self
+    }
+
+    /// Enable background processing mode (NEW: May 2025)
+    /// When true, returns HTTP 202 with BackgroundHandle for long-running tasks
+    #[must_use]
+    pub fn background(mut self, background: bool) -> Self {
+        self.request.background = Some(background);
         self
     }
 
