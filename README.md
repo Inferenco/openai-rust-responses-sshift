@@ -4,18 +4,83 @@
 [![Crates.io](https://img.shields.io/crates/v/open-ai-rust-responses-by-sshift.svg)](https://crates.io/crates/open-ai-rust-responses-by-sshift)
 [![Documentation](https://docs.rs/open-ai-rust-responses-by-sshift/badge.svg)](https://docs.rs/open-ai-rust-responses-by-sshift)
 
-A comprehensive, async Rust SDK for the OpenAI Responses API that provides full access to conversation continuity, streaming responses, and advanced features.
+A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reasoning capabilities, background processing, enhanced models, and production-ready streaming.
 
 ## ✨ Features
 
 - **🔄 Conversation Continuity**: Use response IDs to maintain conversation context
-- **🌊 Streaming Support**: Real-time SSE streaming with `futures::Stream`
-- **📁 File Operations**: Upload, download, and manage files
-- **🔍 Vector Stores**: Semantic search and knowledge retrieval
-- **🛠️ Built-in Tools**: Web search, file search, and custom function calling
+- **🌊 Production-Ready Streaming**: HTTP chunked responses with proper parsing and real-time text generation
+- **📁 File Operations**: Upload, download, and manage files with full MIME support
+- **🔍 Vector Stores**: Semantic search and knowledge retrieval with attribute filtering
+- **🛠️ Advanced Tools**: Web search, file search, custom functions, image generation, and MCP integration
+- **🧠 Reasoning Parameters**: Low/high effort reasoning with auto/concise/detailed summaries
+- **🔄 Background Processing**: Async operation handling for long-running tasks
+- **🎯 Enhanced Models**: Support for o3, o4-mini, all o1 variants, and GPT-4o family
 - **⚡ Async/Await**: Built on `tokio` and `reqwest` for high performance
-- **🔒 Type Safety**: Comprehensive error handling and type definitions
+- **🔒 Type Safety**: Comprehensive error handling, type-safe includes, and compile-time validation
 - **📚 Rich Documentation**: Extensive examples and API documentation
+
+## 🆕 Advanced Capabilities
+
+This SDK includes cutting-edge features with full API parity:
+
+### 🧠 **Reasoning Parameters**
+```rust
+use open_ai_rust_responses_by_sshift::types::{ReasoningParams, Effort, SummarySetting};
+
+// Optimized configuration - fast and cost-effective
+let request = Request::builder()
+    .model(Model::O4Mini)  // Efficient reasoning model
+    .input("Solve this complex problem step by step")
+    .reasoning(ReasoningParams::new()
+        .with_effort(Effort::Low)              // Fast responses
+        .with_summary(SummarySetting::Auto))   // Auto-generated summaries
+    .build();
+```
+
+### 🔄 **Background Processing**
+```rust
+use open_ai_rust_responses_by_sshift::types::BackgroundHandle;
+
+// Enable background mode for long-running tasks
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .input("Perform comprehensive analysis...")
+    .reasoning(ReasoningParams::new().with_effort(Effort::Low))
+    .background(true)  // Returns HTTP 202 with handle for polling
+    .build();
+
+// Would return BackgroundHandle for status polling
+let response = client.responses.create(request).await?;
+```
+
+### 🎯 **Enhanced Model Support**
+```rust
+// All latest models supported
+Model::O3              // Latest reasoning model
+Model::O4Mini          // Efficient reasoning (recommended)
+Model::O1              // Original reasoning model
+Model::O1Mini          // Compact reasoning
+Model::O1Preview       // Preview version
+Model::GPT4o          // Latest GPT-4 Omni
+Model::GPT4oMini      // Compact GPT-4 Omni
+Model::GPT4o20241120  // Specific version
+// ... and more
+```
+
+### 🔒 **Type-Safe Includes**
+```rust
+use open_ai_rust_responses_by_sshift::types::Include;
+
+// Compile-time validated includes
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .input("Search and analyze")
+    .include(vec![
+        Include::FileSearchResults,  // Type-safe, autocompleted
+    ])
+    .build();
+```
 
 ## 🚀 Quick Start
 
@@ -62,7 +127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Create a simple request
     let request = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::O4Mini)  // Efficient reasoning model
         .input("Hello, how are you today?")
         .temperature(0.7)
         .build();
@@ -86,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // First message
     let request = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::O4Mini)  // Optimized model choice
         .input("My name is Alice. What's a good recipe for pasta?")
         .build();
     
@@ -95,7 +160,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Continue conversation with response ID
     let request2 = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::O4Mini)
         .input("Can you make it vegetarian?")
         .previous_response_id(response1.id())
         .build();
@@ -125,7 +190,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?;
     
     let request = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::O4Mini)  // Optimized for streaming
         .input("Tell me a story about a robot.")
         .build();
     

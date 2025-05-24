@@ -1,6 +1,6 @@
 # Open AI Rust Responses by SShift - Documentation
 
-This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API.
+This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, and production-ready streaming.
 
 ## Table of Contents
 
@@ -13,11 +13,15 @@ This document provides comprehensive documentation for the Open AI Rust Response
 7. [Files API](#files-api)
 8. [Vector Stores API](#vector-stores-api)
 9. [Tools API](#tools-api)
-10. [Streaming Responses](#streaming-responses)
-11. [Error Handling](#error-handling)
-12. [Advanced Configuration](#advanced-configuration)
-13. [Feature Flags](#feature-flags)
-14. [Testing and Examples](#testing-and-examples)
+10. [**Reasoning Parameters**](#reasoning-parameters)
+11. [**Background Processing**](#background-processing)
+12. [**Enhanced Models**](#enhanced-models)
+13. [**Type-Safe Includes**](#type-safe-includes)
+14. [Production-Ready Streaming](#production-ready-streaming)
+15. [Error Handling](#error-handling)
+16. [Advanced Configuration](#advanced-configuration)
+17. [Feature Flags](#feature-flags)
+18. [Testing and Examples](#testing-and-examples)
 
 ## Quick Start
 
@@ -30,7 +34,7 @@ cargo add open-ai-rust-responses-by-sshift tokio --features tokio/full
 # 2. Set API key
 export OPENAI_API_KEY=sk-your-api-key-here
 
-# 3. Try the comprehensive demo
+# 3. Try the comprehensive demo with working streaming
 cargo run --example comprehensive_demo --features stream
 ```
 
@@ -44,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?;
     
     let request = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::O4Mini)  // Optimized efficient reasoning model
         .input("What is Rust programming language?")
         .build();
     
@@ -275,17 +279,173 @@ let results = client.tools.web_search("latest news about AI").await?;
 let results = client.tools.file_search("vs_abc123", "quantum computing").await?;
 ```
 
-## Streaming Responses
+## **Reasoning Parameters**
 
-To use streaming responses, enable the `stream` feature (enabled by default).
+Control how the AI thinks through problems with reasoning parameters:
+
+```rust
+use open_ai_rust_responses_by_sshift::types::{ReasoningParams, Effort, SummarySetting};
+
+// Fast, cost-effective reasoning
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .input("Explain quantum computing")
+    .reasoning(ReasoningParams::new()
+        .with_effort(Effort::Low)              // Quick responses
+        .with_summary(SummarySetting::Auto))   // Automatic summary generation
+    .build();
+
+// Thorough, detailed reasoning  
+let request = Request::builder()
+    .model(Model::O3)
+    .input("Solve this complex mathematical proof")
+    .reasoning(ReasoningParams::new()
+        .with_effort(Effort::High)             // Deep reasoning
+        .with_summary(SummarySetting::Detailed)) // Comprehensive summaries
+    .build();
+```
+
+### Available Options
+
+- **Effort Levels**: `Effort::Low` (fast) or `Effort::High` (thorough)
+- **Summary Settings**: `SummarySetting::Auto`, `SummarySetting::Concise`, or `SummarySetting::Detailed`
+
+## **Background Processing**
+
+Handle long-running operations with background processing:
+
+```rust
+use open_ai_rust_responses_by_sshift::types::{BackgroundHandle, BackgroundStatus};
+
+// Start a background task
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .input("Analyze this large dataset...")
+    .background(true)  // Enable background processing
+    .build();
+
+// Returns immediately with a handle for polling
+let response = client.responses.create(request).await?;
+
+// Poll for completion (when implemented)
+// let status = client.background.check_status(&response.background_handle).await?;
+```
+
+Background processing returns HTTP 202 status and provides handles for checking operation status.
+
+## **Enhanced Models**
+
+Support for the latest OpenAI models with optimal recommendations:
+
+```rust
+// Reasoning models - optimal for complex thinking
+Model::O3              // Latest, most capable reasoning
+Model::O4Mini          // Efficient reasoning (recommended for most use cases)
+
+// O1 family - original reasoning models  
+Model::O1              // Original reasoning model
+Model::O1Mini          // Compact reasoning
+Model::O1Preview       // Preview version
+
+// GPT-4 Omni family - multimodal capabilities
+Model::GPT4o          // Latest GPT-4 Omni
+Model::GPT4oMini      // Compact GPT-4 Omni  
+Model::GPT4o20241120  // Specific version for consistency
+
+// Legacy models still supported
+Model::GPT4Turbo      // Previous generation
+Model::GPT35Turbo     // Cost-effective option
+```
+
+### Model Optimization Recommendations
+
+```rust
+// For production - balanced performance/cost
+let request = Request::builder()
+    .model(Model::O4Mini)  // Efficient reasoning
+    .reasoning(ReasoningParams::new().with_effort(Effort::Low))
+    .build();
+
+// For complex reasoning tasks
+let request = Request::builder()
+    .model(Model::O3)      // Most capable
+    .reasoning(ReasoningParams::high_effort_detailed())
+    .build();
+
+// For general conversations
+let request = Request::builder()
+    .model(Model::GPT4o)   // Latest GPT-4 Omni
+    .build();
+```
+
+## **Type-Safe Includes**
+
+Compile-time validated include options replace error-prone strings:
+
+### Migration from String-Based Includes
+
+```rust
+// Old way (still supported for backward compatibility)
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .input("Search for information")
+    .include_strings(vec!["file_search.results".to_string()])
+    .build();
+
+// New way (recommended, type-safe)
+use open_ai_rust_responses_by_sshift::types::Include;
+
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .input("Search for information")
+    .include(vec![Include::FileSearchResults])
+    .build();
+```
+
+### Available Include Options
+
+```rust
+use open_ai_rust_responses_by_sshift::types::Include;
+
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .input("Comprehensive analysis")
+    .include(vec![
+        Include::FileSearchResults,         // Search results from file operations
+        // Note: Additional include types available based on API capabilities
+    ])
+    .build();
+```
+
+### Type Safety Benefits
+
+```rust
+// Compile-time error prevention
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .input("Test")
+    .include(vec![
+        Include::FileSearchResults,
+        // Include::InvalidOption,  // This would cause a compile error!
+    ])
+    .build();
+
+// IDE autocompletion and documentation available
+let includes = vec![
+    Include::FileSearchResults,      // Shows documentation in IDE
+];
+```
+
+## Production-Ready Streaming
+
+Streaming responses with proper HTTP chunked parsing:
 
 ```rust
 use futures::StreamExt;
 
 let request = Request::builder()
-    .model(Model::GPT4o)
+    .model(Model::O4Mini)
     .input("Write a short story about a robot")
-    .stream(true)
     .build();
 
 let mut stream = client.responses.stream(request);
