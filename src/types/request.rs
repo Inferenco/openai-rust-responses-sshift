@@ -253,6 +253,27 @@ impl RequestBuilder {
         self
     }
 
+    /// Creates a request to continue a conversation with function call outputs
+    /// This is the correct way to submit tool results in the Responses API
+    #[must_use]
+    pub fn with_function_outputs(
+        mut self,
+        previous_response_id: impl Into<String>,
+        function_outputs: Vec<(String, String)>, // (call_id, output) pairs
+    ) -> Self {
+        self.request.previous_response_id = Some(previous_response_id.into());
+        
+        let input_items: Vec<crate::types::InputItem> = function_outputs
+            .into_iter()
+            .map(|(call_id, output)| {
+                crate::types::InputItem::function_call_output(call_id, output)
+            })
+            .collect();
+        
+        self.request.input = crate::types::Input::Items(input_items);
+        self
+    }
+
     /// Builds the request
     #[must_use]
     pub fn build(self) -> Request {
