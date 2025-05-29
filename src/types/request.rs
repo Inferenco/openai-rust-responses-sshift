@@ -262,14 +262,12 @@ impl RequestBuilder {
         function_outputs: Vec<(String, String)>, // (call_id, output) pairs
     ) -> Self {
         self.request.previous_response_id = Some(previous_response_id.into());
-        
+
         let input_items: Vec<crate::types::InputItem> = function_outputs
             .into_iter()
-            .map(|(call_id, output)| {
-                crate::types::InputItem::function_call_output(call_id, output)
-            })
+            .map(|(call_id, output)| crate::types::InputItem::function_call_output(call_id, output))
             .collect();
-        
+
         self.request.input = crate::types::Input::Items(input_items);
         self
     }

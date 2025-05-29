@@ -1,6 +1,4 @@
-use open_ai_rust_responses_by_sshift::{
-    Client, Request, Model, Tool, ToolChoice,
-};
+use open_ai_rust_responses_by_sshift::{Client, Model, Request, Tool, ToolChoice};
 use serde_json::json;
 use std::collections::HashMap;
 
@@ -38,10 +36,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     let response = client.responses.create(request).await?;
-    
+
     println!("📝 Model Response:");
     println!("   Text: {}", response.output_text());
-    
+
     // Step 2: Check for tool calls
     let tool_calls = response.tool_calls();
     if tool_calls.is_empty() {
@@ -63,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(expression) = args.get("expression") {
                 let result = evaluate_expression(expression);
                 println!("   ✅ Calculated result: {}", result);
-                
+
                 // Collect the function output
                 function_outputs.push((tool_call.call_id.clone(), result));
             }
@@ -73,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Step 4: Continue conversation with function outputs
     // This is the correct way to submit tool outputs in the Responses API
     println!("\n3️⃣ Submitting function outputs and continuing conversation...");
-    
+
     let continuation_request = Request::builder()
         .model(Model::GPT4o)
         .with_function_outputs(response.id(), function_outputs)
@@ -81,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     let final_response = client.responses.create(continuation_request).await?;
-    
+
     println!("📝 Final Model Response:");
     println!("   {}", final_response.output_text());
 
@@ -112,7 +110,10 @@ fn evaluate_expression(expression: &str) -> String {
                 format!("Unable to calculate: {}", expr)
             }
         }
-        _ => format!("Calculation: {} = [result would be computed here]", expression),
+        _ => format!(
+            "Calculation: {} = [result would be computed here]",
+            expression
+        ),
     }
 }
 
@@ -120,7 +121,7 @@ fn evaluate_expression(expression: &str) -> String {
 fn simple_calculate(expr: &str) -> Option<i32> {
     // Remove spaces
     let expr = expr.replace(" ", "");
-    
+
     // This is a very basic implementation for demo purposes
     // In production, use a proper expression parser like `evalexpr` crate
     if expr == "15*7+23" {
@@ -130,4 +131,4 @@ fn simple_calculate(expr: &str) -> Option<i32> {
     } else {
         None
     }
-} 
+}
