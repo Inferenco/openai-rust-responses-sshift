@@ -355,7 +355,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Function calling loop - handle multiple rounds of tool calls
     while !current_response.tool_calls().is_empty() && iteration <= MAX_ITERATIONS {
         let tool_calls = current_response.tool_calls();
-        println!("\n🔄 Iteration {}: Processing {} tool calls", iteration, tool_calls.len());
+        println!(
+            "\n🔄 Iteration {}: Processing {} tool calls",
+            iteration,
+            tool_calls.len()
+        );
 
         let mut function_outputs = Vec::new();
 
@@ -381,15 +385,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 "get_weather" => {
                     let args: HashMap<String, String> = serde_json::from_str(&tool_call.arguments)?;
-                    let location = args.get("location").cloned().unwrap_or_else(|| "Unknown".to_string());
-                    let units = args.get("units").cloned().unwrap_or_else(|| "celsius".to_string());
-                    
+                    let location = args
+                        .get("location")
+                        .cloned()
+                        .unwrap_or_else(|| "Unknown".to_string());
+                    let units = args
+                        .get("units")
+                        .cloned()
+                        .unwrap_or_else(|| "celsius".to_string());
+
                     // Simulate weather API call
-                    format!("Weather in {}: 22°{} ({}°{}), partly cloudy with light breeze", 
-                            location, 
-                            if units == "celsius" { "C" } else { "F" },
-                            if units == "celsius" { "72" } else { "22" },
-                            if units == "celsius" { "F" } else { "C" })
+                    format!(
+                        "Weather in {}: 22°{} ({}°{}), partly cloudy with light breeze",
+                        location,
+                        if units == "celsius" { "C" } else { "F" },
+                        if units == "celsius" { "72" } else { "22" },
+                        if units == "celsius" { "F" } else { "C" }
+                    )
                 }
                 _ => format!("Error: Unknown function '{}'", tool_call.name),
             };
@@ -399,8 +411,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Submit tool outputs and continue conversation
-        println!("   📤 Submitting {} tool outputs...", function_outputs.len());
-        
+        println!(
+            "   📤 Submitting {} tool outputs...",
+            function_outputs.len()
+        );
+
         let continuation_request = Request::builder()
             .model(Model::GPT4o)
             .with_function_outputs(current_response.id(), function_outputs)
@@ -408,16 +423,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build();
 
         current_response = client.responses.create(continuation_request).await?;
-        
+
         println!("   📥 Response after tool execution:");
         println!("      ID: {}", current_response.id());
         println!("      Content: {}", current_response.output_text());
-        
+
         iteration += 1;
     }
 
     if iteration > MAX_ITERATIONS {
-        println!("⚠️ Stopped after {} iterations to prevent infinite loop", MAX_ITERATIONS);
+        println!(
+            "⚠️ Stopped after {} iterations to prevent infinite loop",
+            MAX_ITERATIONS
+        );
     } else if current_response.tool_calls().is_empty() {
         println!("✅ Function calling workflow completed - no more tool calls needed");
     }
@@ -439,15 +457,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     let followup_response = client.responses.create(followup_request).await?;
-    
+
     // Handle potential follow-up function calls
     if !followup_response.tool_calls().is_empty() {
         println!("   🔧 Follow-up triggered additional function calls:");
         for tool_call in followup_response.tool_calls() {
-            println!("      - Function: {} ({})", tool_call.name, tool_call.call_id);
+            println!(
+                "      - Function: {} ({})",
+                tool_call.name, tool_call.call_id
+            );
             println!("      - Arguments: {}", tool_call.arguments);
         }
-        
+
         // Execute follow-up function calls
         let mut followup_outputs = Vec::new();
         for tool_call in followup_response.tool_calls() {
@@ -463,19 +484,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        
+
         if !followup_outputs.is_empty() {
             let final_followup_request = Request::builder()
                 .model(Model::GPT4o)
                 .with_function_outputs(followup_response.id(), followup_outputs)
                 .tools(tools)
                 .build();
-            
+
             let final_followup_response = client.responses.create(final_followup_request).await?;
-            println!("   📝 Final follow-up response: {}", final_followup_response.output_text());
+            println!(
+                "   📝 Final follow-up response: {}",
+                final_followup_response.output_text()
+            );
         }
     } else {
-        println!("   📝 Follow-up response (no function calls): {}", followup_response.output_text());
+        println!(
+            "   📝 Follow-up response (no function calls): {}",
+            followup_response.output_text()
+        );
     }
 
     println!("\n✅ Continuous conversation with function calling completed!");
