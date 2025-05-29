@@ -22,6 +22,27 @@ pub struct InputItem {
     pub content: serde_json::Value,
 }
 
+impl InputItem {
+    /// Creates a text input item
+    pub fn text(content: impl Into<String>) -> Self {
+        Self {
+            item_type: "text".to_string(),
+            content: serde_json::Value::String(content.into()),
+        }
+    }
+
+    /// Creates a function call output input item for submitting tool results
+    pub fn function_call_output(call_id: impl Into<String>, output: impl Into<String>) -> Self {
+        Self {
+            item_type: "function_call_output".to_string(),
+            content: serde_json::json!({
+                "call_id": call_id.into(),
+                "output": output.into()
+            }),
+        }
+    }
+}
+
 /// Response item from the OpenAI Responses API
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]

@@ -239,6 +239,82 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Function Calling & Tool Outputs
+
+The Responses API handles function calling differently from the Assistants API. There is **no `submit_tool_outputs` endpoint**. Instead, tool outputs are submitted as input items in a new request:
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, Tool, ToolChoice};
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    
+    // 1. Define function tools
+    let calculator_tool = Tool::function(
+        "calculate",
+        "Perform basic arithmetic calculations",
+        json!({
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "type": "string",
+                    "description": "Mathematical expression to evaluate"
+                }
+            },
+            "required": ["expression"]
+        }),
+    );
+    
+    // 2. Initial request with tools
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input("Calculate 15 * 7 + 23")
+        .tools(vec![calculator_tool.clone()])
+        .tool_choice(ToolChoice::auto())
+        .build();
+    
+    let response = client.responses.create(request).await?;
+    
+    // 3. Check for tool calls and execute functions
+    let tool_calls = response.tool_calls();
+    if !tool_calls.is_empty() {
+        let mut function_outputs = Vec::new();
+        
+        for tool_call in &tool_calls {
+            if tool_call.name == "calculate" {
+                // Execute your function here
+                let result = "128"; // Calculate 15 * 7 + 23 = 128
+                function_outputs.push((tool_call.call_id.clone(), result.to_string()));
+            }
+        }
+        
+        // 4. Submit tool outputs by creating a new request
+        // This is the correct pattern for the Responses API
+        let continuation_request = Request::builder()
+            .model(Model::GPT4o)
+            .with_function_outputs(response.id(), function_outputs)
+            .tools(vec![calculator_tool])
+            .build();
+        
+        let final_response = client.responses.create(continuation_request).await?;
+        println!("Final response: {}", final_response.output_text());
+    }
+    
+    Ok(())
+}
+```
+
+**Key Points for Function Calling:**
+- ❌ **No `submit_tool_outputs` endpoint** (unlike Assistants API)
+- ✅ **Use `with_function_outputs()`** to submit tool results
+- ✅ **Include `previous_response_id`** to maintain conversation context
+- ✅ **Match `call_id`** from tool calls to function outputs
+- ✅ **Create new request** for each tool output submission
+
+See [`examples/function_calling.rs`](examples/function_calling.rs) for a complete working example.
+
 ## 🔧 Configuration
 
 ### Environment Variables
@@ -271,6 +347,7 @@ Check out the `examples/` directory for comprehensive examples:
 - [`basic.rs`](examples/basic.rs) - Simple request/response
 - [`conversation.rs`](examples/conversation.rs) - Multi-turn conversations  
 - [`streaming.rs`](examples/streaming.rs) - Real-time streaming
+- [`function_calling.rs`](examples/function_calling.rs) - Function calling and tool outputs
 - [`comprehensive_demo.rs`](examples/comprehensive_demo.rs) - **Complete feature showcase** (files, vector stores, tools, etc.)
 
 ### Quick Start with Full Demo
@@ -300,6 +377,7 @@ Other examples:
 cargo run --example basic
 cargo run --example conversation
 cargo run --example streaming --features stream
+cargo run --example function_calling
 ```
 
 ## 🎯 API Coverage
