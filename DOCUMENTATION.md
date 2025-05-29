@@ -66,14 +66,14 @@ Add the library to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.1.0"
+open-ai-rust-responses-by-sshift = "0.1.6"
 ```
 
 If you want to use streaming responses, make sure to include the `stream` feature (enabled by default):
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.1.0", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.1.6", features = ["stream"] }
 ```
 
 ## Authentication
@@ -280,7 +280,13 @@ let results = client.tools.web_search("latest news about AI").await?;
 let results = client.tools.file_search("vs_abc123", "quantum computing").await?;
 ```
 
-## Function Calling & Tool Outputs
+## **Function Calling (Tools)**
+
+> **✅ FIXED in v0.1.5**: Critical bug fix for multiple function calls! Previous versions had issues with multiple tool calls in sequence. This is now resolved.
+
+Function calling allows the AI to use tools and functions you provide. The OpenAI Responses API uses a stateless approach where you submit tool outputs by creating new requests.
+
+## **Function Calling & Tool Outputs**
 
 The OpenAI Responses API handles function calling differently from the Assistants API. **There is no `submit_tool_outputs` endpoint** like in the Assistants API. Instead, tool outputs are submitted as input items in a new request.
 
@@ -752,7 +758,7 @@ Example of using a specific TLS implementation:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.1.0", default-features = false, features = ["stream", "native-tls"] }
+open-ai-rust-responses-by-sshift = { version = "0.1.6", default-features = false, features = ["stream", "native-tls"] }
 ```
 
 This will use the native TLS implementation instead of rustls.
