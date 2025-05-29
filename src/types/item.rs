@@ -19,7 +19,16 @@ pub struct InputItem {
     pub item_type: String,
 
     /// Content of the input item
-    pub content: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<serde_json::Value>,
+
+    /// Call ID for function call outputs
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub call_id: Option<String>,
+
+    /// Output for function call outputs
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<String>,
 }
 
 impl InputItem {
@@ -27,7 +36,9 @@ impl InputItem {
     pub fn text(content: impl Into<String>) -> Self {
         Self {
             item_type: "text".to_string(),
-            content: serde_json::Value::String(content.into()),
+            content: Some(serde_json::Value::String(content.into())),
+            call_id: None,
+            output: None,
         }
     }
 
@@ -35,10 +46,9 @@ impl InputItem {
     pub fn function_call_output(call_id: impl Into<String>, output: impl Into<String>) -> Self {
         Self {
             item_type: "function_call_output".to_string(),
-            content: serde_json::json!({
-                "call_id": call_id.into(),
-                "output": output.into()
-            }),
+            content: None,
+            call_id: Some(call_id.into()),
+            output: Some(output.into()),
         }
     }
 }

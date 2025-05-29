@@ -294,10 +294,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => println!("⚠️  File search failed: {}", e),
     }
 
-    // 8. CUSTOM FUNCTION CALLING
-    println!("\n8️⃣  Custom Function Calling");
-    println!("---------------------------");
+    // 8. CUSTOM FUNCTION CALLING - CONTINUOUS CONVERSATION
+    println!("\n8️⃣  Custom Function Calling - Continuous Conversation");
+    println!("----------------------------------------------------");
 
+    // Define multiple tools for a realistic scenario
     let calculator_tool = Tool::function(
         "calculate",
         "Perform basic arithmetic calculations",
@@ -313,32 +314,204 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
     );
 
+    let weather_tool = Tool::function(
+        "get_weather",
+        "Get current weather for a location",
+        json!({
+            "type": "object",
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "City name or coordinates"
+                },
+                "units": {
+                    "type": "string",
+                    "enum": ["celsius", "fahrenheit"],
+                    "description": "Temperature units"
+                }
+            },
+            "required": ["location"]
+        }),
+    );
+
+    let tools = vec![calculator_tool.clone(), weather_tool.clone()];
+
+    println!("🔧 Step 1: Initial request with multiple tools");
     let request_with_tools = Request::builder()
         .model(Model::GPT4o)
-        .input("Calculate the result of 15 * 7 + 23 and explain the order of operations")
-        .tools(vec![calculator_tool])
+        .input("Calculate 15 * 7 + 23, then tell me what the weather is like in New York")
+        .tools(tools.clone())
         .tool_choice(ToolChoice::auto())
         .build();
 
-    let response_with_tools = client.responses.create(request_with_tools).await?;
+    let mut current_response = client.responses.create(request_with_tools).await?;
+    let mut iteration = 1;
+    const MAX_ITERATIONS: usize = 5; // Prevent infinite loops
 
-    println!("🔧 Response with function calling capability:");
-    println!("   ID: {}", response_with_tools.id());
-    println!("   Content: {}", response_with_tools.output_text());
+    println!("📝 Initial Response:");
+    println!("   ID: {}", current_response.id());
+    println!("   Content: {}", current_response.output_text());
 
-    // Check if any tool calls were made
-    let tool_calls = response_with_tools.tool_calls();
-    if !tool_calls.is_empty() {
-        println!("   Tool calls made: {}", tool_calls.len());
+    // Function calling loop - handle multiple rounds of tool calls
+    while !current_response.tool_calls().is_empty() && iteration <= MAX_ITERATIONS {
+        let tool_calls = current_response.tool_calls();
+        println!(
+            "\n🔄 Iteration {}: Processing {} tool calls",
+            iteration,
+            tool_calls.len()
+        );
+
+        let mut function_outputs = Vec::new();
+
+        // Execute all tool calls in this iteration
         for tool_call in &tool_calls {
-            println!("     - Function: {}", tool_call.name);
-            println!("     - Arguments: {}", tool_call.arguments);
+            println!("   🔧 Function: {} ({})", tool_call.name, tool_call.call_id);
+            println!("   📋 Arguments: {}", tool_call.arguments);
+
+            // Execute the function and get result
+            let result = match tool_call.name.as_str() {
+                "calculate" => {
+                    let args: HashMap<String, String> = serde_json::from_str(&tool_call.arguments)?;
+                    if let Some(expression) = args.get("expression") {
+                        // Simulate calculation
+                        if expression.contains("15 * 7 + 23") || expression.contains("15*7+23") {
+                            "128".to_string()
+                        } else {
+                            format!("Calculated result for: {}", expression)
+                        }
+                    } else {
+                        "Error: No expression provided".to_string()
+                    }
+                }
+                "get_weather" => {
+                    let args: HashMap<String, String> = serde_json::from_str(&tool_call.arguments)?;
+                    let location = args
+                        .get("location")
+                        .cloned()
+                        .unwrap_or_else(|| "Unknown".to_string());
+                    let units = args
+                        .get("units")
+                        .cloned()
+                        .unwrap_or_else(|| "celsius".to_string());
+
+                    // Simulate weather API call
+                    format!(
+                        "Weather in {}: 22°{} ({}°{}), partly cloudy with light breeze",
+                        location,
+                        if units == "celsius" { "C" } else { "F" },
+                        if units == "celsius" { "72" } else { "22" },
+                        if units == "celsius" { "F" } else { "C" }
+                    )
+                }
+                _ => format!("Error: Unknown function '{}'", tool_call.name),
+            };
+
+            println!("   ✅ Result: {}", result);
+            function_outputs.push((tool_call.call_id.clone(), result));
         }
-        println!("   Note: In a real application, you would execute these function calls");
-        println!("         and provide the results back to continue the conversation.");
-    } else {
-        println!("   No tool calls were made for this request");
+
+        // Submit tool outputs and continue conversation
+        println!(
+            "   📤 Submitting {} tool outputs...",
+            function_outputs.len()
+        );
+
+        let continuation_request = Request::builder()
+            .model(Model::GPT4o)
+            .with_function_outputs(current_response.id(), function_outputs)
+            .tools(tools.clone()) // Keep tools available for potential follow-ups
+            .build();
+
+        current_response = client.responses.create(continuation_request).await?;
+
+        println!("   📥 Response after tool execution:");
+        println!("      ID: {}", current_response.id());
+        println!("      Content: {}", current_response.output_text());
+
+        iteration += 1;
     }
+
+    if iteration > MAX_ITERATIONS {
+        println!(
+            "⚠️ Stopped after {} iterations to prevent infinite loop",
+            MAX_ITERATIONS
+        );
+    } else if current_response.tool_calls().is_empty() {
+        println!("✅ Function calling workflow completed - no more tool calls needed");
+    }
+
+    println!("\n🎯 Function Calling Summary:");
+    println!("   • Iterations: {}", iteration - 1);
+    println!("   • Tools available: calculate, get_weather");
+    println!("   • Pattern: Initial request → Function calls → Tool outputs → Final response");
+    println!("   • Conversation continuity: ✅ (using response IDs)");
+    println!("   • Multiple tool support: ✅ (calculator + weather)");
+
+    // Test follow-up conversation after function calling
+    println!("\n🔗 Step 2: Follow-up conversation (testing continuity)");
+    let followup_request = Request::builder()
+        .model(Model::GPT4o)
+        .input("Thanks! Can you now calculate what 128 divided by 4 equals?")
+        .previous_response_id(current_response.id()) // Continue from where we left off
+        .tools(tools.clone()) // Keep tools available
+        .build();
+
+    let followup_response = client.responses.create(followup_request).await?;
+
+    // Handle potential follow-up function calls
+    if !followup_response.tool_calls().is_empty() {
+        println!("   🔧 Follow-up triggered additional function calls:");
+        for tool_call in followup_response.tool_calls() {
+            println!(
+                "      - Function: {} ({})",
+                tool_call.name, tool_call.call_id
+            );
+            println!("      - Arguments: {}", tool_call.arguments);
+        }
+
+        // Execute follow-up function calls
+        let mut followup_outputs = Vec::new();
+        for tool_call in followup_response.tool_calls() {
+            if tool_call.name == "calculate" {
+                let args: HashMap<String, String> = serde_json::from_str(&tool_call.arguments)?;
+                if let Some(expression) = args.get("expression") {
+                    let result = if expression.contains("128") && expression.contains("4") {
+                        "32".to_string()
+                    } else {
+                        format!("Calculated: {}", expression)
+                    };
+                    followup_outputs.push((tool_call.call_id.clone(), result));
+                }
+            }
+        }
+
+        if !followup_outputs.is_empty() {
+            let final_followup_request = Request::builder()
+                .model(Model::GPT4o)
+                .with_function_outputs(followup_response.id(), followup_outputs)
+                .tools(tools)
+                .build();
+
+            let final_followup_response = client.responses.create(final_followup_request).await?;
+            println!(
+                "   📝 Final follow-up response: {}",
+                final_followup_response.output_text()
+            );
+        }
+    } else {
+        println!(
+            "   📝 Follow-up response (no function calls): {}",
+            followup_response.output_text()
+        );
+    }
+
+    println!("\n✅ Continuous conversation with function calling completed!");
+    println!("   • Demonstrated: Multi-tool usage in single request");
+    println!("   • Demonstrated: Function calling loop with multiple iterations");
+    println!("   • Demonstrated: Conversation continuity across function calls");
+    println!("   • Demonstrated: Follow-up questions maintaining context");
+    println!("   • Key Pattern: with_function_outputs() for submitting tool results");
+    println!("   • Safety: Iteration limits prevent infinite loops");
 
     // 🆕 NEW PHASE 1 FEATURES (MAY 2025 API EXTENSIONS)
     println!("\n🆕 NEW Phase 1 Features - May 2025 API Extensions");

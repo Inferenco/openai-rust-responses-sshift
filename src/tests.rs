@@ -571,4 +571,60 @@ mod unit_tests {
             assert!(events_received > 0);
         });
     }
+
+    #[test]
+    fn test_function_call_output_format() {
+        use crate::types::{InputItem, Model, Request};
+
+        // Test individual InputItem creation
+        let function_output = InputItem::function_call_output("call_123", "result output");
+
+        // Verify the structure matches expected API format
+        assert_eq!(function_output.item_type, "function_call_output");
+        assert_eq!(function_output.call_id, Some("call_123".to_string()));
+        assert_eq!(function_output.output, Some("result output".to_string()));
+        // Content should be None for function call outputs in new structure
+        assert!(function_output.content.is_none());
+
+        // Test with_function_outputs method
+        let function_outputs = vec![
+            ("call_123".to_string(), "result 1".to_string()),
+            ("call_456".to_string(), "result 2".to_string()),
+        ];
+
+        let request = Request::builder()
+            .model(Model::GPT4o)
+            .with_function_outputs("resp_123", function_outputs)
+            .build();
+
+        // Verify previous_response_id is set
+        assert_eq!(request.previous_response_id, Some("resp_123".to_string()));
+
+        // Verify input is properly formatted as Items with function_call_output
+        if let crate::types::Input::Items(items) = &request.input {
+            assert_eq!(items.len(), 2);
+
+            // Check first item
+            assert_eq!(items[0].item_type, "function_call_output");
+            assert_eq!(items[0].call_id, Some("call_123".to_string()));
+            assert_eq!(items[0].output, Some("result 1".to_string()));
+            assert!(items[0].content.is_none()); // Content should be None for function call outputs
+
+            // Check second item
+            assert_eq!(items[1].item_type, "function_call_output");
+            assert_eq!(items[1].call_id, Some("call_456".to_string()));
+            assert_eq!(items[1].output, Some("result 2".to_string()));
+            assert!(items[1].content.is_none()); // Content should be None for function call outputs
+        } else {
+            panic!("Expected Input::Items but got Input::Text");
+        }
+
+        // Test serialization to ensure it matches expected API format
+        let serialized = serde_json::to_string(&request).unwrap();
+        assert!(serialized.contains("function_call_output"));
+        assert!(serialized.contains("call_123"));
+        assert!(serialized.contains("result 1"));
+
+        println!("✅ Function call output format test complete");
+    }
 }
