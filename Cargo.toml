@@ -1,6 +1,6 @@
 [package]
 name = "open-ai-rust-responses-by-sshift"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 rust-version = "1.82.0"
 description = "Rust SDK for OpenAI Responses API with web search, files, vector stores, and tools support"
