@@ -46,6 +46,14 @@ pub struct Tool {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container: Option<Container>,
 
+    /// Number of partial images to stream (1-3, for image_generation tool)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partial_images: Option<u8>,
+
+    /// Approval requirement for MCP tools (never/auto/always)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub require_approval: Option<String>,
+
     /// Server label for MCP tools
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_label: Option<String>,
@@ -115,6 +123,8 @@ impl Tool {
             parameters: Some(parameters),
             vector_store_ids: None,
             container: None,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -132,6 +142,8 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container: None,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -150,6 +162,8 @@ impl Tool {
             function: None,
             vector_store_ids: Some(vector_store_ids),
             container: None,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -166,6 +180,8 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container: None,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -183,6 +199,8 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -200,6 +218,36 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container,
+            partial_images: None,
+            require_approval: None,
+            server_label: None,
+            server_url: None,
+            headers: None,
+            function: None,
+        }
+    }
+
+    /// Creates an image generation tool with partial images support
+    #[must_use]
+    pub fn image_generation_with_partials(
+        container: Option<Container>,
+        partial_images: u8,
+    ) -> Self {
+        let partial_images = if partial_images == 0 || partial_images > 3 {
+            None
+        } else {
+            Some(partial_images)
+        };
+
+        Self {
+            tool_type: "image_generation".to_string(),
+            name: None,
+            description: None,
+            parameters: None,
+            vector_store_ids: None,
+            container,
+            partial_images,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -221,6 +269,32 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container: None,
+            partial_images: None,
+            require_approval: Some("auto".to_string()), // Default approval mode
+            server_label: Some(server_label.into()),
+            server_url: Some(server_url.into()),
+            headers,
+            function: None,
+        }
+    }
+
+    /// Creates an MCP tool with custom approval requirements
+    #[must_use]
+    pub fn mcp_with_approval(
+        server_label: impl Into<String>,
+        server_url: impl Into<String>,
+        require_approval: impl Into<String>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Self {
+        Self {
+            tool_type: "mcp".to_string(),
+            name: None,
+            description: None,
+            parameters: None,
+            vector_store_ids: None,
+            container: None,
+            partial_images: None,
+            require_approval: Some(require_approval.into()),
             server_label: Some(server_label.into()),
             server_url: Some(server_url.into()),
             headers,

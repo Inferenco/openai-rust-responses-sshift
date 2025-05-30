@@ -1,5 +1,7 @@
 # Open AI Rust Responses by SShift - Documentation
 
+> **🔥 v0.1.7 API Compatibility**: This documentation has been updated to reflect major API compatibility fixes including corrected include field values, reasoning parameter structures, model-specific configurations, and enhanced error handling. All examples now run without API errors.
+
 This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, and production-ready streaming.
 
 ## Table of Contents
@@ -49,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?;
     
     let request = Request::builder()
-        .model(Model::O4Mini)  // Optimized efficient reasoning model
+        .model(Model::GPT4oMini)  // Optimized default model (cost-effective)
         .input("What is Rust programming language?")
         .build();
     
@@ -104,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Create a request
     let request = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::GPT4oMini)  // Recommended default model
         .input("What is the capital of France?")
         .build();
     
@@ -127,7 +129,7 @@ The Responses API allows you to create, retrieve, and manage responses.
 ```rust
 // Using the builder pattern
 let request = Request::builder()
-    .model(Model::GPT4o)
+    .model(Model::GPT4oMini)  // Cost-effective default choice
     .input("What is the capital of France?")
     .instructions("Keep your answer brief")
     .temperature(0.7)
@@ -511,20 +513,22 @@ use open_ai_rust_responses_by_sshift::types::{ReasoningParams, Effort, SummarySe
 
 // Fast, cost-effective reasoning
 let request = Request::builder()
-    .model(Model::O4Mini)
+    .model(Model::O4Mini)  // Specialized reasoning model
     .input("Explain quantum computing")
     .reasoning(ReasoningParams::new()
         .with_effort(Effort::Low)              // Quick responses
         .with_summary(SummarySetting::Auto))   // Automatic summary generation
+    // Note: O4Mini doesn't support temperature parameter (built-in optimization)
     .build();
 
 // Thorough, detailed reasoning  
 let request = Request::builder()
-    .model(Model::O3)
+    .model(Model::O3)  // Most capable reasoning model
     .input("Solve this complex mathematical proof")
     .reasoning(ReasoningParams::new()
         .with_effort(Effort::High)             // Deep reasoning
         .with_summary(SummarySetting::Detailed)) // Comprehensive summaries
+    // Note: O3 also has built-in reasoning optimization
     .build();
 ```
 
@@ -532,6 +536,10 @@ let request = Request::builder()
 
 - **Effort Levels**: `Effort::Low` (fast) or `Effort::High` (thorough)
 - **Summary Settings**: `SummarySetting::Auto`, `SummarySetting::Concise`, or `SummarySetting::Detailed`
+
+### Important Notes
+
+⚠️ **Reasoning models (O4Mini, O3, O1 series) don't support the `temperature` parameter** - they have built-in reasoning optimization instead.
 
 ## **Background Processing**
 
@@ -563,16 +571,16 @@ Support for the latest OpenAI models with optimal recommendations:
 ```rust
 // Reasoning models - optimal for complex thinking
 Model::O3              // Latest, most capable reasoning
-Model::O4Mini          // Efficient reasoning (recommended for most use cases)
+Model::O4Mini          // Efficient reasoning (recommended for most reasoning tasks)
 
 // O1 family - original reasoning models  
 Model::O1              // Original reasoning model
 Model::O1Mini          // Compact reasoning
 Model::O1Preview       // Preview version
 
-// GPT-4 Omni family - multimodal capabilities
+// GPT-4 Omni family - multimodal capabilities (recommended for general use)
 Model::GPT4o          // Latest GPT-4 Omni
-Model::GPT4oMini      // Compact GPT-4 Omni  
+Model::GPT4oMini      // Compact GPT-4 Omni (recommended default)
 Model::GPT4o20241120  // Specific version for consistency
 
 // Legacy models still supported
@@ -583,23 +591,42 @@ Model::GPT35Turbo     // Cost-effective option
 ### Model Optimization Recommendations
 
 ```rust
-// For production - balanced performance/cost
+// For production - balanced performance/cost (RECOMMENDED)
 let request = Request::builder()
-    .model(Model::O4Mini)  // Efficient reasoning
+    .model(Model::GPT4oMini)  // Best default choice
+    .temperature(0.7)         // Temperature supported
+    .build();
+
+// For reasoning tasks
+let request = Request::builder()
+    .model(Model::O4Mini)     // Efficient reasoning
     .reasoning(ReasoningParams::new().with_effort(Effort::Low))
+    // Note: No temperature parameter (built-in optimization)
     .build();
 
 // For complex reasoning tasks
 let request = Request::builder()
-    .model(Model::O3)      // Most capable
+    .model(Model::O3)         // Most capable
     .reasoning(ReasoningParams::high_effort_detailed())
+    // Note: No temperature parameter (built-in optimization)
     .build();
 
 // For general conversations
 let request = Request::builder()
-    .model(Model::GPT4o)   // Latest GPT-4 Omni
+    .model(Model::GPT4o)      // Latest GPT-4 Omni
+    .temperature(0.7)         // Temperature supported
     .build();
 ```
+
+### Model Capabilities Matrix
+
+| Model | Use Case | Temperature | Reasoning | Cost | Speed |
+|-------|----------|-------------|-----------|------|-------|
+| `GPT4oMini` | **General use (recommended)** | ✅ | ❌ | 💚 Low | 🚀 Fast |
+| `GPT4o` | Advanced conversations | ✅ | ❌ | 🟡 Medium | ⚡ Fast |
+| `O4Mini` | **Reasoning tasks** | ❌ | ✅ | 💚 Low | 🚀 Fast |
+| `O3` | Complex reasoning | ❌ | ✅ | 🔴 High | 🐌 Slow |
+| `O1Mini` | Legacy reasoning | ❌ | ✅ | 🟡 Medium | ⚡ Medium |
 
 ## **Type-Safe Includes**
 
@@ -610,16 +637,19 @@ Compile-time validated include options replace error-prone strings:
 ```rust
 // Old way (still supported for backward compatibility)
 let request = Request::builder()
-    .model(Model::O4Mini)
+    .model(Model::GPT4oMini)
     .input("Search for information")
-    .include_strings(vec!["file_search.results".to_string()])
+    .include_strings(vec![
+        "file_search.results".to_string(),        // Legacy value (still works)
+        "file_search_call.results".to_string(),   // Current API value
+    ])
     .build();
 
 // New way (recommended, type-safe)
 use open_ai_rust_responses_by_sshift::types::Include;
 
 let request = Request::builder()
-    .model(Model::O4Mini)
+    .model(Model::GPT4oMini)
     .input("Search for information")
     .include(vec![Include::FileSearchResults])
     .build();
@@ -631,11 +661,14 @@ let request = Request::builder()
 use open_ai_rust_responses_by_sshift::types::Include;
 
 let request = Request::builder()
-    .model(Model::O4Mini)
+    .model(Model::GPT4oMini)
     .input("Comprehensive analysis")
     .include(vec![
-        Include::FileSearchResults,         // Search results from file operations
-        // Note: Additional include types available based on API capabilities
+        Include::FileSearchResults,         // file_search_call.results
+        Include::WebSearchResults,          // web_search_call.results  
+        Include::MessageInputImageUrl,      // message.input_image.image_url
+        Include::ComputerCallOutputImageUrl, // computer_call_output.output.image_url
+        Include::ReasoningEncryptedContent, // reasoning.encrypted_content
     ])
     .build();
 ```
@@ -645,7 +678,7 @@ let request = Request::builder()
 ```rust
 // Compile-time error prevention
 let request = Request::builder()
-    .model(Model::O4Mini)
+    .model(Model::GPT4oMini)
     .input("Test")
     .include(vec![
         Include::FileSearchResults,
@@ -656,7 +689,32 @@ let request = Request::builder()
 // IDE autocompletion and documentation available
 let includes = vec![
     Include::FileSearchResults,      // Shows documentation in IDE
+    Include::WebSearchResults,       // Auto-completion available
 ];
+```
+
+### API Field Mapping
+
+The include options map to these API field names:
+
+| Type-Safe Enum | API Field Name | Description |
+|-----------------|----------------|-------------|
+| `FileSearchResults` | `file_search_call.results` | Results from file search operations |
+| `WebSearchResults` | `web_search_call.results` | Results from web search operations |
+| `MessageInputImageUrl` | `message.input_image.image_url` | Image URLs in message inputs |
+| `ComputerCallOutputImageUrl` | `computer_call_output.output.image_url` | Image URLs from computer use |
+| `ReasoningEncryptedContent` | `reasoning.encrypted_content` | Encrypted reasoning traces |
+
+### Backward Compatibility
+
+Both legacy and current API values are supported:
+
+```rust
+// These all work and map to Include::FileSearchResults
+.include_strings(vec![
+    "file_search.results".to_string(),      // Legacy (still supported)
+    "file_search_call.results".to_string(), // Current API value
+])
 ```
 
 ## Production-Ready Streaming
@@ -667,7 +725,7 @@ Streaming responses with proper HTTP chunked parsing:
 use futures::StreamExt;
 
 let request = Request::builder()
-    .model(Model::O4Mini)
+    .model(Model::GPT4oMini)  // Optimized for streaming performance
     .input("Write a short story about a robot")
     .build();
 

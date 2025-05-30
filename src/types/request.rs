@@ -5,8 +5,20 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Include {
     /// Include file search results in the response
-    #[serde(rename = "file_search.results")]
+    #[serde(rename = "file_search_call.results")]
     FileSearchResults,
+
+    /// Include web search results in the response
+    #[serde(rename = "web_search_call.results")]
+    WebSearchResults,
+
+    /// Include message input image URLs in the response
+    #[serde(rename = "message.input_image.image_url")]
+    MessageInputImageUrl,
+
+    /// Include computer call output image URLs in the response
+    #[serde(rename = "computer_call_output.output.image_url")]
+    ComputerCallOutputImageUrl,
 
     /// Include encrypted reasoning content in the response (May 2025)
     /// Note: reasoning.summary is not yet supported by the API
@@ -19,7 +31,10 @@ impl Include {
     #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::FileSearchResults => "file_search.results",
+            Self::FileSearchResults => "file_search_call.results",
+            Self::WebSearchResults => "web_search_call.results",
+            Self::MessageInputImageUrl => "message.input_image.image_url",
+            Self::ComputerCallOutputImageUrl => "computer_call_output.output.image_url",
             Self::ReasoningEncryptedContent => "reasoning.encrypted_content",
         }
     }
@@ -44,9 +59,13 @@ pub struct Request {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instructions: Option<String>,
 
-    /// The maximum number of tokens to generate
+    /// The maximum number of tokens to generate (alias for max_output_tokens)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
+
+    /// The maximum number of output tokens to generate
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
 
     /// Sampling temperature between 0 and 2
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,6 +74,10 @@ pub struct Request {
     /// Nucleus sampling parameter
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
+
+    /// Number of top log probabilities to return
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_logprobs: Option<u32>,
 
     /// Whether to stream the response
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -67,6 +90,10 @@ pub struct Request {
     /// Controls which (if any) tool is called by the model
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<crate::types::ToolChoice>,
+
+    /// Whether tools can be called in parallel
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parallel_tool_calls: Option<bool>,
 
     /// ID of a previous response to continue from
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,6 +115,23 @@ pub struct Request {
     /// When true, returns HTTP 202 with BackgroundHandle for long-running tasks
     #[serde(skip_serializing_if = "Option::is_none")]
     pub background: Option<bool>,
+
+    /// Whether to store the conversation state (default: true)
+    /// Set to false for stateless requests
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub store: Option<bool>,
+
+    /// Truncation configuration for automatic context management
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub truncation: Option<crate::types::TruncationSetting>,
+
+    /// Text generation configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<crate::types::TextConfig>,
+
+    /// User identifier for tracking and abuse prevention
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
 }
 
 impl Default for Request {
@@ -97,16 +141,23 @@ impl Default for Request {
             input: crate::types::Input::Text(String::new()),
             instructions: None,
             max_tokens: None,
+            max_output_tokens: None,
             temperature: None,
             top_p: None,
+            top_logprobs: None,
             stream: None,
             tools: None,
             tool_choice: None,
+            parallel_tool_calls: None,
             previous_response_id: None,
             metadata: None,
             include: None,
             reasoning: None,
             background: None,
+            store: None,
+            truncation: None,
+            text: None,
+            user: None,
         }
     }
 }
@@ -160,10 +211,17 @@ impl RequestBuilder {
         self
     }
 
-    /// Sets the maximum number of tokens to generate
+    /// Sets the maximum number of tokens to generate (legacy parameter)
     #[must_use]
     pub fn max_tokens(mut self, max_tokens: u32) -> Self {
         self.request.max_tokens = Some(max_tokens);
+        self
+    }
+
+    /// Sets the maximum number of output tokens to generate
+    #[must_use]
+    pub fn max_output_tokens(mut self, max_output_tokens: u32) -> Self {
+        self.request.max_output_tokens = Some(max_output_tokens);
         self
     }
 
@@ -178,6 +236,13 @@ impl RequestBuilder {
     #[must_use]
     pub fn top_p(mut self, top_p: f32) -> Self {
         self.request.top_p = Some(top_p);
+        self
+    }
+
+    /// Sets the number of top log probabilities to return
+    #[must_use]
+    pub fn top_logprobs(mut self, top_logprobs: u32) -> Self {
+        self.request.top_logprobs = Some(top_logprobs);
         self
     }
 
@@ -199,6 +264,13 @@ impl RequestBuilder {
     #[must_use]
     pub fn tool_choice(mut self, tool_choice: crate::types::ToolChoice) -> Self {
         self.request.tool_choice = Some(tool_choice);
+        self
+    }
+
+    /// Sets whether tools can be called in parallel
+    #[must_use]
+    pub fn parallel_tool_calls(mut self, parallel: bool) -> Self {
+        self.request.parallel_tool_calls = Some(parallel);
         self
     }
 
@@ -229,8 +301,13 @@ impl RequestBuilder {
         let typed_includes: Vec<Include> = include
             .into_iter()
             .filter_map(|s| match s.as_str() {
-                "file_search.results" => Some(Include::FileSearchResults),
+                // Current API values
+                "web_search_call.results" => Some(Include::WebSearchResults),
+                "message.input_image.image_url" => Some(Include::MessageInputImageUrl),
+                "computer_call_output.output.image_url" => Some(Include::ComputerCallOutputImageUrl),
                 "reasoning.encrypted_content" => Some(Include::ReasoningEncryptedContent),
+                // Legacy and current values for file search results
+                "file_search.results" | "file_search_call.results" => Some(Include::FileSearchResults),
                 _ => None, // Skip unknown includes
             })
             .collect();
@@ -250,6 +327,35 @@ impl RequestBuilder {
     #[must_use]
     pub fn background(mut self, background: bool) -> Self {
         self.request.background = Some(background);
+        self
+    }
+
+    /// Sets whether to store conversation state (default: true)
+    /// Set to false for stateless requests
+    #[must_use]
+    pub fn store(mut self, store: bool) -> Self {
+        self.request.store = Some(store);
+        self
+    }
+
+    /// Sets truncation configuration for automatic context management
+    #[must_use]
+    pub fn truncation(mut self, truncation: crate::types::TruncationSetting) -> Self {
+        self.request.truncation = Some(truncation);
+        self
+    }
+
+    /// Sets text generation configuration
+    #[must_use]
+    pub fn text(mut self, text: crate::types::TextConfig) -> Self {
+        self.request.text = Some(text);
+        self
+    }
+
+    /// Sets user identifier
+    #[must_use]
+    pub fn user(mut self, user: impl Into<String>) -> Self {
+        self.request.user = Some(user.into());
         self
     }
 

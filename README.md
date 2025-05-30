@@ -4,6 +4,8 @@
 [![Crates.io](https://img.shields.io/crates/v/open-ai-rust-responses-by-sshift.svg)](https://crates.io/crates/open-ai-rust-responses-by-sshift)
 [![Documentation](https://docs.rs/open-ai-rust-responses-by-sshift/badge.svg)](https://docs.rs/open-ai-rust-responses-by-sshift)
 
+> **🔥 v0.1.7 Update**: Major API compatibility fixes! All include fields, reasoning parameters, and model-specific settings now work correctly with the OpenAI API. [See troubleshooting](#-troubleshooting) for migration guide.
+
 A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reasoning capabilities, background processing, enhanced models, and production-ready streaming.
 
 ## ✨ Features
@@ -30,11 +32,12 @@ use open_ai_rust_responses_by_sshift::types::{ReasoningParams, Effort, SummarySe
 
 // Optimized configuration - fast and cost-effective
 let request = Request::builder()
-    .model(Model::O4Mini)  // Efficient reasoning model
+    .model(Model::O4Mini)  // Specialized reasoning model
     .input("Solve this complex problem step by step")
     .reasoning(ReasoningParams::new()
         .with_effort(Effort::Low)              // Fast responses
         .with_summary(SummarySetting::Auto))   // Auto-generated summaries
+    // Note: O4Mini doesn't support temperature (built-in optimization)
     .build();
 ```
 
@@ -44,7 +47,7 @@ use open_ai_rust_responses_by_sshift::types::BackgroundHandle;
 
 // Enable background mode for long-running tasks
 let request = Request::builder()
-    .model(Model::O4Mini)
+    .model(Model::O4Mini)  // Efficient for background tasks
     .input("Perform comprehensive analysis...")
     .reasoning(ReasoningParams::new().with_effort(Effort::Low))
     .background(true)  // Returns HTTP 202 with handle for polling
@@ -56,14 +59,14 @@ let response = client.responses.create(request).await?;
 
 ### 🎯 **Enhanced Model Support**
 ```rust
-// All latest models supported
-Model::O3              // Latest reasoning model
-Model::O4Mini          // Efficient reasoning (recommended)
-Model::O1              // Original reasoning model
-Model::O1Mini          // Compact reasoning
-Model::O1Preview       // Preview version
-Model::GPT4o          // Latest GPT-4 Omni
-Model::GPT4oMini      // Compact GPT-4 Omni
+// Recommended models for different use cases
+Model::GPT4oMini      // Best default choice (recommended for most use cases)
+Model::GPT4o          // Advanced conversations
+Model::O4Mini         // Efficient reasoning tasks
+Model::O3             // Complex reasoning (most capable)
+Model::O1             // Original reasoning model
+Model::O1Mini         // Compact reasoning
+Model::O1Preview      // Preview version
 Model::GPT4o20241120  // Specific version
 // ... and more
 ```
@@ -72,12 +75,14 @@ Model::GPT4o20241120  // Specific version
 ```rust
 use open_ai_rust_responses_by_sshift::types::Include;
 
-// Compile-time validated includes
+// Compile-time validated includes (API-compatible values)
 let request = Request::builder()
-    .model(Model::O4Mini)
+    .model(Model::GPT4oMini)
     .input("Search and analyze")
     .include(vec![
-        Include::FileSearchResults,  // Type-safe, autocompleted
+        Include::FileSearchResults,         // file_search_call.results
+        Include::WebSearchResults,          // web_search_call.results
+        Include::ReasoningEncryptedContent, // reasoning.encrypted_content
     ])
     .build();
 ```
@@ -127,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Create a simple request
     let request = Request::builder()
-        .model(Model::O4Mini)  // Efficient reasoning model
+        .model(Model::GPT4oMini)  // Recommended default model
         .input("Hello, how are you today?")
         .temperature(0.7)
         .build();
@@ -151,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // First message
     let request = Request::builder()
-        .model(Model::O4Mini)  // Optimized model choice
+        .model(Model::GPT4oMini)  // Recommended default
         .input("My name is Alice. What's a good recipe for pasta?")
         .build();
     
@@ -160,7 +165,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Continue conversation with response ID
     let request2 = Request::builder()
-        .model(Model::O4Mini)
+        .model(Model::GPT4oMini)
         .input("Can you make it vegetarian?")
         .previous_response_id(response1.id())
         .build();
@@ -190,7 +195,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?;
     
     let request = Request::builder()
-        .model(Model::O4Mini)  // Optimized for streaming
+        .model(Model::GPT4oMini)  // Excellent for streaming performance
         .input("Tell me a story about a robot.")
         .build();
     
@@ -269,7 +274,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // 2. Initial request with tools
     let request = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::GPT4oMini)  // Excellent for function calling
         .input("Calculate 15 * 7 + 23")
         .tools(vec![calculator_tool.clone()])
         .tool_choice(ToolChoice::auto())
@@ -293,7 +298,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // 4. Submit tool outputs by creating a new request
         // This is the correct pattern for the Responses API
         let continuation_request = Request::builder()
-            .model(Model::GPT4o)
+            .model(Model::GPT4oMini)
             .with_function_outputs(response.id(), function_outputs)
             .tools(vec![calculator_tool])
             .build();
@@ -466,6 +471,68 @@ The `--nocapture` flag is important for streaming tests because it allows you to
 For detailed test coverage and results, see [TEST_REPORT.md](./TEST_REPORT.md).
 
 ## 🔧 Troubleshooting
+
+### Common API Issues (Fixed in v0.1.7)
+
+#### Include Field Errors
+If you see errors like "Unknown include field", use the type-safe Include enum:
+
+```rust
+// ❌ Don't use raw strings (may break with API updates)
+.include_strings(vec!["file_search.results".to_string()])
+
+// ✅ Use type-safe includes (recommended)
+use open_ai_rust_responses_by_sshift::types::Include;
+.include(vec![Include::FileSearchResults])  // Maps to file_search_call.results
+```
+
+#### Temperature Parameter Errors with Reasoning Models
+Reasoning models (O4Mini, O3, O1 series) don't support temperature:
+
+```rust
+// ❌ This will cause API errors
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .temperature(0.7)  // Error: O4Mini doesn't support temperature
+    .build();
+
+// ✅ Correct usage for reasoning models
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .reasoning(ReasoningParams::new().with_effort(Effort::Low))
+    // No temperature parameter - built-in optimization
+    .build();
+
+// ✅ For general models that support temperature
+let request = Request::builder()
+    .model(Model::GPT4oMini)  // Recommended default
+    .temperature(0.7)  // GPT4oMini supports temperature
+    .build();
+```
+
+#### Container Parameter Errors
+The API doesn't support container parameters yet:
+
+```rust
+// ❌ This will cause API errors
+Tool::code_interpreter().with_container("custom")  // Not supported yet
+
+// ✅ Use default container
+Tool::code_interpreter()  // Works correctly
+```
+
+#### Reasoning Parameter Structure
+Reasoning parameters are now properly structured:
+
+```rust
+// ✅ Correct structure (fixed in v0.1.7)
+.reasoning(ReasoningParams::new()
+    .with_effort(Effort::Low)           // Inside ReasoningParams
+    .with_summary(SummarySetting::Auto))
+
+// ❌ Old structure (doesn't work)
+.reasoning_effort(Effort::Low)  // This field doesn't exist
+```
 
 ### Tests Show "ignored" - Is This an Error?
 
