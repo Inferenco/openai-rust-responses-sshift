@@ -1,3 +1,5 @@
+#![allow(deprecated)] // Tests intentionally use deprecated methods for compatibility testing
+
 #[cfg(test)]
 mod unit_tests {
     use crate::types::{Container, Include, StreamEvent};
@@ -725,8 +727,8 @@ mod unit_tests {
 
     #[test]
     fn test_request_with_all_new_fields() {
-        use crate::types::{ReasoningParams, Effort, SummarySetting};
-        
+        use crate::types::{Effort, ReasoningParams, SummarySetting};
+
         let request = crate::Request::builder()
             .model(crate::Model::GPT4o)
             .input("Hello")
@@ -738,9 +740,11 @@ mod unit_tests {
             .top_logprobs(5)
             .stream(true)
             .parallel_tool_calls(true)
-            .reasoning(ReasoningParams::new()
-                .with_effort(Effort::High)
-                .with_summary(SummarySetting::Auto))
+            .reasoning(
+                ReasoningParams::new()
+                    .with_effort(Effort::High)
+                    .with_summary(SummarySetting::Auto),
+            )
             .background(true)
             .store(false)
             .user("user123")
@@ -780,7 +784,7 @@ mod unit_tests {
         // Test serialization
         let json = serde_json::to_string(&tool).unwrap();
         assert!(json.contains("partial_images"));
-        assert!(json.contains("2")); // JSON numbers don't have quotes
+        assert!(json.contains('2')); // JSON numbers don't have quotes
     }
 
     #[test]
@@ -930,5 +934,81 @@ mod unit_tests {
 
         // Should prioritize output_text field over extracting from output items
         assert_eq!(response.output_text(), "Direct output text");
+    }
+
+    // ===== Image Generation Tests =====
+
+    #[test]
+    fn test_image_generate_request_builder() {
+        use crate::images::ImageGenerateRequest;
+
+        let request = ImageGenerateRequest::new("test prompt")
+            .with_size("1024x1024")
+            .with_quality("high")
+            .with_format("png")
+            .with_compression(80)
+            .with_seed(12345);
+
+        assert_eq!(request.model, "gpt-image-1");
+        assert_eq!(request.prompt, "test prompt");
+        assert_eq!(request.size, Some("1024x1024".to_string()));
+        assert_eq!(request.quality, Some("high".to_string()));
+        assert_eq!(request.output_format, Some("png".to_string()));
+        assert_eq!(request.output_compression, Some(80));
+        assert_eq!(request.seed, Some(12345));
+    }
+
+    #[test]
+    fn test_image_generation_function_tool() {
+        let tool = crate::Tool::image_generation_function();
+        assert_eq!(tool.tool_type, "function");
+        assert_eq!(tool.name, Some("generate_image".to_string()));
+        assert!(tool.description.is_some());
+        assert!(tool.parameters.is_some());
+
+        // Verify JSON schema contains required fields
+        let params = tool.parameters.unwrap();
+        assert!(params["properties"]["prompt"].is_object());
+        assert!(params["required"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::Value::String("prompt".to_string())));
+    }
+
+    #[test]
+    fn test_gpt_image1_model_serialization() {
+        let model = crate::Model::GPTImage1;
+        let serialized = serde_json::to_string(&model).unwrap();
+        assert_eq!(serialized, "\"gpt-image-1\"");
+
+        let deserialized: crate::Model = serde_json::from_str("\"gpt-image-1\"").unwrap();
+        assert_eq!(deserialized, crate::Model::GPTImage1);
+    }
+
+    #[test]
+    fn test_image_request_serialization() {
+        use crate::images::ImageGenerateRequest;
+
+        let request = ImageGenerateRequest::new("A red circle")
+            .with_size("1024x1024")
+            .with_quality("auto");
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("gpt-image-1"));
+        assert!(json.contains("A red circle"));
+        assert!(json.contains("1024x1024"));
+        assert!(json.contains("auto"));
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_deprecated_image_tools_still_work() {
+        // Test that deprecated tools still compile and work for backward compatibility
+        let tool = crate::Tool::image_generation(None);
+        assert_eq!(tool.tool_type, "image_generation");
+
+        let tool_with_partials = crate::Tool::image_generation_with_partials(None, 2);
+        assert_eq!(tool_with_partials.tool_type, "image_generation");
+        assert_eq!(tool_with_partials.partial_images, Some(2));
     }
 }

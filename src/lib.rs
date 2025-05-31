@@ -22,6 +22,7 @@
 
 mod error;
 pub mod files;
+pub mod images;
 pub mod messages;
 pub mod responses;
 #[cfg(test)]
@@ -35,6 +36,9 @@ pub use types::{
     FunctionCallInfo, Input, InputItem, MessageContent, Model, PaginatedList, PaginationParams,
     Request, RequestBuilder, Response, ResponseItem, StreamEvent, Tool, ToolCall, ToolChoice,
 };
+
+// Re-export image types
+pub use images::{ImageData, ImageGenerateRequest, ImageGenerateResponse};
 
 // Re-export error types
 pub use error::{Error, Result};
@@ -75,6 +79,9 @@ pub struct Client {
 
     /// Tools API endpoints
     pub tools: tools::Tools,
+
+    /// Images API endpoints
+    pub images: images::Images,
 }
 
 impl Client {
@@ -148,6 +155,7 @@ impl Client {
         let files = files::Files::new(http_client.clone(), base_url.clone());
         let vector_stores = vector_stores::VectorStores::new(http_client.clone(), base_url.clone());
         let tools = tools::Tools::new(http_client.clone(), base_url.clone());
+        let images = images::Images::new(http_client.clone(), base_url.clone());
 
         Self {
             responses,
@@ -155,6 +163,7 @@ impl Client {
             files,
             vector_stores,
             tools,
+            images,
         }
     }
 }

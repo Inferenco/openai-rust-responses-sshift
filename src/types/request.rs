@@ -304,10 +304,14 @@ impl RequestBuilder {
                 // Current API values
                 "web_search_call.results" => Some(Include::WebSearchResults),
                 "message.input_image.image_url" => Some(Include::MessageInputImageUrl),
-                "computer_call_output.output.image_url" => Some(Include::ComputerCallOutputImageUrl),
+                "computer_call_output.output.image_url" => {
+                    Some(Include::ComputerCallOutputImageUrl)
+                }
                 "reasoning.encrypted_content" => Some(Include::ReasoningEncryptedContent),
                 // Legacy and current values for file search results
-                "file_search.results" | "file_search_call.results" => Some(Include::FileSearchResults),
+                "file_search.results" | "file_search_call.results" => {
+                    Some(Include::FileSearchResults)
+                }
                 _ => None, // Skip unknown includes
             })
             .collect();

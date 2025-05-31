@@ -1,3 +1,5 @@
+#![allow(deprecated)] // Demo shows both new and deprecated methods for comparison
+
 //! Comprehensive OpenAI Responses API Demo
 //!
 //! This example demonstrates all major features of the enhanced SDK:
@@ -60,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .input("What are the three most important programming principles?")
         .instructions("Provide clear, practical explanations that a beginner can understand")
         .temperature(0.7)
-        .max_output_tokens(200) // Use preferred parameter
+        .max_output_tokens(500) // Use preferred parameter
         .user("comprehensive-demo") // Add user tracking
         .store(true) // Explicitly enable conversation storage
         .build();
@@ -99,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .input("Can you give me a practical example of the first principle?")
         .instructions("Provide a concrete coding example")
         .previous_response_id(response1.id.clone())
-        .max_output_tokens(150)
+        .max_output_tokens(500)
         .user("comprehensive-demo") // Maintain user identity
         .store(true) // Continue storing conversation
         .build();
@@ -136,7 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .model(Model::GPT4oMini) // Updated to use GPT-4o Mini
             .input("Write a short story about a robot learning to code. Include vivid descriptions that could be illustrated.")
             .instructions("Be creative and descriptive, consider visual elements")
-            .max_output_tokens(300) // Use preferred parameter
+            .max_output_tokens(500) // Use preferred parameter
             .temperature(0.8)
             .parallel_tool_calls(true) // Enable parallel execution
             .user("comprehensive-demo") // Add user tracking
@@ -228,7 +230,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .model(Model::GPT4oMini)
             .input("Write a short story about a robot learning to code")
             .instructions("Be creative and engaging")
-            .max_output_tokens(300)
+            .max_output_tokens(500)
             .temperature(0.8)
             .user("comprehensive-demo")
             .build();
@@ -465,7 +467,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .tools(tools.clone())
         .tool_choice(ToolChoice::auto())
         .parallel_tool_calls(true) // Enable parallel execution
-        .max_output_tokens(400) // Use preferred parameter
+        .max_output_tokens(500) // Use preferred parameter
         .user("comprehensive-demo") // Add user tracking
         .store(true) // Enable conversation storage
         .build();
@@ -677,15 +679,61 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🆕 Enhanced SDK Features Showcase");
     println!("================================");
 
-    // Image Generation Tool Demo
-    println!("\n🎨 Enhanced Image Generation with Partial Images");
-    println!("-----------------------------------------------");
+    // Simple Image Generation Demo
+    println!("\n🎨 Working Image Generation");
+    println!("---------------------------");
 
-    let image_tool = Tool::image_generation_with_partials(None, 3); // Remove container for now
-    println!("✅ Created enhanced image generation tool:");
-    println!("   Partial images: {:?}", image_tool.partial_images);
-    println!("   Note: Would generate up to 3 partial images during creation");
-    println!("   Container support coming soon in future API updates");
+    let image_request = Request::builder()
+        .model(Model::GPT4oMini)
+        .input("Please generate a simple image of a mountain landscape")
+        .tools(vec![Tool::image_generation_function()]) // ✅ Working function tool
+        .max_output_tokens(500)
+        .user("comprehensive-demo")
+        .build();
+
+    let img_response = client.responses.create(image_request).await?;
+    if !img_response.tool_calls().is_empty() {
+        println!("   🔧 AI called image generation tool");
+        let tool_call = &img_response.tool_calls()[0];
+        if tool_call.name == "generate_image" {
+            // Parse arguments and call Images API
+            let args: std::collections::HashMap<String, serde_json::Value> =
+                serde_json::from_str(&tool_call.arguments)?;
+            let prompt = args
+                .get("prompt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("A mountain landscape");
+            let mut image_req = open_ai_rust_responses_by_sshift::ImageGenerateRequest::new(prompt);
+            if let Some(size) = args.get("size").and_then(|v| v.as_str()) {
+                image_req = image_req.with_size(size);
+            }
+            if let Some(quality) = args.get("quality").and_then(|v| v.as_str()) {
+                image_req = image_req.with_quality(quality);
+            }
+            // Add more parameter mappings as needed
+            let image_result = client.images.generate(image_req).await?;
+            let image_url = image_result
+                .data
+                .first()
+                .and_then(|d| d.url.as_ref())
+                .cloned()
+                .unwrap_or_default();
+
+            // Send the function output back to the model
+            let followup = Request::builder()
+                .model(Model::GPT4oMini)
+                .with_function_outputs(
+                    img_response.id(),
+                    vec![(tool_call.call_id.clone(), image_url.clone())],
+                )
+                .build();
+            let final_response = client.responses.create(followup).await?;
+            println!("🖼️ Image URL: {}", image_url);
+            println!("📝 Final Response: {}", final_response.output_text());
+        }
+    } else {
+        println!("📝 Response: {}", img_response.output_text());
+    }
 
     // MCP (Model Context Protocol) Tool Demo with Enhanced Approval
     println!("\n🔌 MCP Server Integration with Approval Modes");
@@ -753,14 +801,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("------------------------------------");
 
     let reasoning_request = Request::builder()
-        .model(Model::O4Mini) // Use O4Mini for reasoning tasks
+        .model(Model::O4Mini) // Use O4Mini as requested
         .input("Solve this logic puzzle: Five friends sit in a row. Alice is not at either end. Bob is to the right of Charlie. Diana is between Alice and Eve. Charlie is not next to Alice. What is the seating order?")
         .instructions("Think step-by-step and show your logical reasoning process")
         .reasoning(ReasoningParams::new()
             .with_effort(Effort::High)
             .with_summary(SummarySetting::Auto))
         .include(enhanced_includes.clone())
-        .max_output_tokens(400)
+        .max_output_tokens(2000) // Reasoning models need much more tokens for thinking
         .user("comprehensive-demo")
         .store(false) // Use stateless mode for reasoning
         .build();
@@ -816,7 +864,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Tool::web_search_preview(),
             Tool::file_search(vec![vector_store.id.clone()]),
             enhanced_code_tool,
-            image_tool,
+            Tool::image_generation_with_partials(None, 3),
             mcp_auto,
         ])
         .include(enhanced_includes.clone())
@@ -892,7 +940,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .input("Summarize what we've learned today about programming principles and enhanced API usage")
         .instructions("You are a helpful coding mentor. Always end your responses with an encouraging note about the user's programming journey. Use the conversation context to provide personalized insights.")
         .previous_response_id(response2.id.clone()) // Continue from earlier conversation
-        .max_output_tokens(250) // Use preferred parameter
+        .max_output_tokens(500) // Use preferred parameter
         .user("comprehensive-demo") // Add user tracking
         .store(true) // Enable conversation storage
         .build();

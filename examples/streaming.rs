@@ -1,3 +1,5 @@
+#![allow(deprecated)] // Example demonstrates deprecated methods for backward compatibility
+
 //! Streaming example showing real-time response streaming
 //!
 //! Features enhanced streaming capabilities:
