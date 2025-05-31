@@ -46,6 +46,14 @@ pub struct Tool {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container: Option<Container>,
 
+    /// Number of partial images to stream (1-3, for image_generation tool)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub partial_images: Option<u8>,
+
+    /// Approval requirement for MCP tools (never/auto/always)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub require_approval: Option<String>,
+
     /// Server label for MCP tools
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_label: Option<String>,
@@ -115,6 +123,8 @@ impl Tool {
             parameters: Some(parameters),
             vector_store_ids: None,
             container: None,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -132,6 +142,8 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container: None,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -150,6 +162,8 @@ impl Tool {
             function: None,
             vector_store_ids: Some(vector_store_ids),
             container: None,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -166,6 +180,8 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container: None,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -183,6 +199,8 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container,
+            partial_images: None,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -192,6 +210,9 @@ impl Tool {
 
     /// Creates an image generation tool (NEW for May 2025)
     #[must_use]
+    #[deprecated(
+        note = "Use Tool::image_generation_function() for immediate compatibility. This will be enabled when OpenAI supports hosted image generation tools."
+    )]
     pub fn image_generation(container: Option<Container>) -> Self {
         Self {
             tool_type: "image_generation".to_string(),
@@ -200,6 +221,39 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container,
+            partial_images: None,
+            require_approval: None,
+            server_label: None,
+            server_url: None,
+            headers: None,
+            function: None,
+        }
+    }
+
+    /// Creates an image generation tool with partial images support
+    #[must_use]
+    #[deprecated(
+        note = "Use Tool::image_generation_function() for immediate compatibility. This will be enabled when OpenAI supports hosted image generation tools."
+    )]
+    pub fn image_generation_with_partials(
+        container: Option<Container>,
+        partial_images: u8,
+    ) -> Self {
+        let partial_images = if partial_images == 0 || partial_images > 3 {
+            None
+        } else {
+            Some(partial_images)
+        };
+
+        Self {
+            tool_type: "image_generation".to_string(),
+            name: None,
+            description: None,
+            parameters: None,
+            vector_store_ids: None,
+            container,
+            partial_images,
+            require_approval: None,
             server_label: None,
             server_url: None,
             headers: None,
@@ -221,11 +275,109 @@ impl Tool {
             parameters: None,
             vector_store_ids: None,
             container: None,
+            partial_images: None,
+            require_approval: Some("auto".to_string()), // Default approval mode
             server_label: Some(server_label.into()),
             server_url: Some(server_url.into()),
             headers,
             function: None,
         }
+    }
+
+    /// Creates an MCP tool with custom approval requirements
+    #[must_use]
+    pub fn mcp_with_approval(
+        server_label: impl Into<String>,
+        server_url: impl Into<String>,
+        require_approval: impl Into<String>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Self {
+        Self {
+            tool_type: "mcp".to_string(),
+            name: None,
+            description: None,
+            parameters: None,
+            vector_store_ids: None,
+            container: None,
+            partial_images: None,
+            require_approval: Some(require_approval.into()),
+            server_label: Some(server_label.into()),
+            server_url: Some(server_url.into()),
+            headers,
+            function: None,
+        }
+    }
+
+    /// Creates a pre-made image generation function tool
+    ///
+    /// This tool allows AI models to generate images by calling the Images API.
+    /// When this function is called, the wrapper automatically handles the
+    /// image generation and returns the result.
+    #[must_use]
+    pub fn image_generation_function() -> Self {
+        Self::function(
+            "generate_image",
+            "Generate high-quality images using DALL-E. Call this when the user requests image creation.",
+            serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "Detailed description of the image to generate. Be specific and descriptive."
+                    },
+                    "n": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10,
+                        "default": 1,
+                        "description": "Number of images to generate (1-10)"
+                    },
+                    "size": {
+                        "type": "string",
+                        "enum": ["1024x1024", "1024x1536", "1536x1024"],
+                        "default": "1024x1024",
+                        "description": "Size of the generated image"
+                    },
+                    "quality": {
+                        "type": "string",
+                        "enum": ["low", "medium", "high", "auto"],
+                        "default": "auto",
+                        "description": "Quality level of the generated image"
+                    },
+                    "style": {
+                        "type": "string",
+                        "enum": ["natural", "vivid"],
+                        "default": "natural",
+                        "description": "Style of the generated image"
+                    },
+                    "output_format": {
+                        "type": "string",
+                        "enum": ["png", "jpeg", "webp"],
+                        "default": "png",
+                        "description": "Output format for the image"
+                    },
+                    "output_compression": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100,
+                        "description": "Compression level (0-100, lower = higher quality)"
+                    },
+                    "background": {
+                        "type": "string",
+                        "description": "Background type (e.g., 'transparent')"
+                    },
+                    "seed": {
+                        "type": "integer",
+                        "description": "Seed for reproducibility. Same seed + prompt = same image"
+                    },
+                    "user": {
+                        "type": "string",
+                        "description": "User identifier for tracking and abuse monitoring"
+                    }
+                },
+                "required": ["prompt"]
+            })
+        )
     }
 }
 

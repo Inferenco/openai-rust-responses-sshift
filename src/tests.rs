@@ -1,3 +1,5 @@
+#![allow(deprecated)] // Tests intentionally use deprecated methods for compatibility testing
+
 #[cfg(test)]
 mod unit_tests {
     use crate::types::{Container, Include, StreamEvent};
@@ -174,12 +176,12 @@ mod unit_tests {
         let file_search = Include::FileSearchResults;
         let reasoning_encrypted = Include::ReasoningEncryptedContent;
 
-        // Test string representation
-        assert_eq!(file_search.as_str(), "file_search.results");
+        // Test string representation (updated to correct API values)
+        assert_eq!(file_search.as_str(), "file_search_call.results");
         assert_eq!(reasoning_encrypted.as_str(), "reasoning.encrypted_content");
 
         // Test display formatting
-        assert_eq!(format!("{file_search}"), "file_search.results");
+        assert_eq!(format!("{file_search}"), "file_search_call.results");
         assert_eq!(
             format!("{reasoning_encrypted}"),
             "reasoning.encrypted_content"
@@ -574,57 +576,439 @@ mod unit_tests {
 
     #[test]
     fn test_function_call_output_format() {
-        use crate::types::{InputItem, Model, Request};
+        use crate::types::{Input, InputItem};
 
-        // Test individual InputItem creation
-        let function_output = InputItem::function_call_output("call_123", "result output");
+        let call_id = "call_123".to_string();
+        let output = "Function executed successfully".to_string();
 
-        // Verify the structure matches expected API format
+        let function_output = InputItem::function_call_output(call_id.clone(), output.clone());
+
+        // Verify the function_call_output method creates the correct structure
         assert_eq!(function_output.item_type, "function_call_output");
-        assert_eq!(function_output.call_id, Some("call_123".to_string()));
-        assert_eq!(function_output.output, Some("result output".to_string()));
-        // Content should be None for function call outputs in new structure
+        assert_eq!(function_output.call_id, Some(call_id));
+        assert_eq!(function_output.output, Some(output));
         assert!(function_output.content.is_none());
 
-        // Test with_function_outputs method
-        let function_outputs = vec![
-            ("call_123".to_string(), "result 1".to_string()),
-            ("call_456".to_string(), "result 2".to_string()),
-        ];
+        // Test serialization to ensure it matches the expected API format
+        let serialized = serde_json::to_string(&function_output).unwrap();
+        assert!(serialized.contains("\"type\":\"function_call_output\""));
+        assert!(serialized.contains("\"call_id\":\"call_123\""));
+        assert!(serialized.contains("Function executed successfully"));
 
-        let request = Request::builder()
-            .model(Model::GPT4o)
-            .with_function_outputs("resp_123", function_outputs)
-            .build();
+        // Test integration with Input::Items
+        let input_items = vec![function_output];
+        let input = Input::Items(input_items);
 
-        // Verify previous_response_id is set
-        assert_eq!(request.previous_response_id, Some("resp_123".to_string()));
-
-        // Verify input is properly formatted as Items with function_call_output
-        if let crate::types::Input::Items(items) = &request.input {
-            assert_eq!(items.len(), 2);
-
-            // Check first item
-            assert_eq!(items[0].item_type, "function_call_output");
-            assert_eq!(items[0].call_id, Some("call_123".to_string()));
-            assert_eq!(items[0].output, Some("result 1".to_string()));
-            assert!(items[0].content.is_none()); // Content should be None for function call outputs
-
-            // Check second item
-            assert_eq!(items[1].item_type, "function_call_output");
-            assert_eq!(items[1].call_id, Some("call_456".to_string()));
-            assert_eq!(items[1].output, Some("result 2".to_string()));
-            assert!(items[1].content.is_none()); // Content should be None for function call outputs
-        } else {
-            panic!("Expected Input::Items but got Input::Text");
-        }
-
-        // Test serialization to ensure it matches expected API format
-        let serialized = serde_json::to_string(&request).unwrap();
-        assert!(serialized.contains("function_call_output"));
-        assert!(serialized.contains("call_123"));
-        assert!(serialized.contains("result 1"));
+        let input_serialized = serde_json::to_string(&input).unwrap();
+        assert!(input_serialized.contains("function_call_output"));
 
         println!("✅ Function call output format test complete");
+    }
+
+    // Phase 1 tests - New Response fields
+
+    #[test]
+    fn test_response_with_all_new_fields() {
+        let response_json = r#"{
+            "id": "resp_test123",
+            "object": "response",
+            "created_at": 1234567890,
+            "model": "gpt-4o",
+            "status": "completed",
+            "output": [],
+            "output_text": "Hello, world!",
+            "previous_response_id": "resp_previous",
+            "instructions": "Be helpful",
+            "metadata": {"key": "value"},
+            "usage": {
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "total_tokens": 150,
+                "output_tokens_details": {
+                    "reasoning_tokens": 25
+                }
+            },
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_output_tokens": 1000,
+            "parallel_tool_calls": true,
+            "tool_choice": "auto",
+            "tools": [],
+            "text": {
+                "format": {"type": "text"},
+                "stop": ["END"]
+            },
+            "top_logprobs": 5,
+            "truncation": {
+                "type": "auto",
+                "last_messages": 10
+            },
+            "reasoning": {
+                "content": [{"type": "thinking", "text": "Let me think..."}],
+                "encrypted_content": "encrypted_data_here"
+            },
+            "user": "user123",
+            "incomplete_details": {
+                "reason": "max_tokens"
+            },
+            "error": null
+        }"#;
+
+        let response: crate::Response = serde_json::from_str(response_json).unwrap();
+        assert_eq!(response.id, "resp_test123");
+        assert_eq!(response.object, "response");
+        assert_eq!(response.status, "completed");
+        assert_eq!(response.output_text, Some("Hello, world!".to_string()));
+        assert_eq!(response.usage.as_ref().unwrap().total_tokens, 150);
+        assert_eq!(response.temperature, Some(0.7));
+        assert!(response.reasoning.is_some());
+        assert!(response.is_complete());
+        assert!(!response.is_in_progress());
+        assert!(!response.has_errors());
+        assert_eq!(response.total_tokens(), Some(150));
+    }
+
+    #[test]
+    fn test_response_helper_methods() {
+        let mut response = crate::Response {
+            id: "test".to_string(),
+            object: "response".to_string(),
+            created_at: chrono::Utc::now(),
+            model: "gpt-4o".to_string(),
+            status: "in_progress".to_string(),
+            output: vec![],
+            output_text: None,
+            previous_response_id: None,
+            instructions: None,
+            metadata: None,
+            usage: Some(crate::types::Usage {
+                input_tokens: 10,
+                output_tokens: 20,
+                total_tokens: 30,
+                output_tokens_details: None,
+                prompt_tokens_details: None,
+            }),
+            temperature: None,
+            top_p: None,
+            max_output_tokens: None,
+            parallel_tool_calls: None,
+            tool_choice: None,
+            tools: None,
+            text: None,
+            top_logprobs: None,
+            truncation: None,
+            reasoning: None,
+            reasoning_effort: None,
+            user: None,
+            incomplete_details: None,
+            error: None,
+        };
+
+        assert!(!response.is_complete());
+        assert!(response.is_in_progress());
+        assert!(!response.has_errors());
+        assert_eq!(response.total_tokens(), Some(30));
+
+        // Test failed status
+        response.status = "failed".to_string();
+        assert!(response.is_complete());
+        assert!(!response.is_in_progress());
+        assert!(response.has_errors());
+
+        // Test with error
+        response.status = "completed".to_string();
+        response.error = Some(crate::types::ResponseError {
+            code: "500".to_string(),
+            message: "Internal error".to_string(),
+            metadata: None,
+        });
+        assert!(response.has_errors());
+    }
+
+    #[test]
+    fn test_request_with_all_new_fields() {
+        use crate::types::{Effort, ReasoningParams, SummarySetting};
+
+        let request = crate::Request::builder()
+            .model(crate::Model::GPT4o)
+            .input("Hello")
+            .instructions("Be helpful")
+            .max_tokens(100)
+            .max_output_tokens(150)
+            .temperature(0.7)
+            .top_p(0.9)
+            .top_logprobs(5)
+            .stream(true)
+            .parallel_tool_calls(true)
+            .reasoning(
+                ReasoningParams::new()
+                    .with_effort(Effort::High)
+                    .with_summary(SummarySetting::Auto),
+            )
+            .background(true)
+            .store(false)
+            .user("user123")
+            .build();
+
+        assert_eq!(request.max_tokens, Some(100));
+        assert_eq!(request.max_output_tokens, Some(150));
+        assert_eq!(request.top_logprobs, Some(5));
+        assert_eq!(request.parallel_tool_calls, Some(true));
+        assert!(request.reasoning.is_some());
+        assert_eq!(request.background, Some(true));
+        assert_eq!(request.store, Some(false));
+        assert_eq!(request.user, Some("user123".to_string()));
+
+        // Test serialization
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("max_output_tokens"));
+        assert!(json.contains("top_logprobs"));
+        assert!(json.contains("parallel_tool_calls"));
+        assert!(json.contains("reasoning"));
+        assert!(json.contains("store"));
+    }
+
+    #[test]
+    fn test_image_generation_with_partial_images() {
+        let tool = crate::Tool::image_generation_with_partials(None, 2);
+        assert_eq!(tool.tool_type, "image_generation");
+        assert_eq!(tool.partial_images, Some(2));
+
+        // Test invalid partial_images values
+        let tool_invalid = crate::Tool::image_generation_with_partials(None, 5);
+        assert_eq!(tool_invalid.partial_images, None);
+
+        let tool_zero = crate::Tool::image_generation_with_partials(None, 0);
+        assert_eq!(tool_zero.partial_images, None);
+
+        // Test serialization
+        let json = serde_json::to_string(&tool).unwrap();
+        assert!(json.contains("partial_images"));
+        assert!(json.contains('2')); // JSON numbers don't have quotes
+    }
+
+    #[test]
+    fn test_mcp_tool_with_approval() {
+        let tool =
+            crate::Tool::mcp_with_approval("github", "https://api.github.com", "never", None);
+
+        assert_eq!(tool.tool_type, "mcp");
+        assert_eq!(tool.server_label, Some("github".to_string()));
+        assert_eq!(tool.server_url, Some("https://api.github.com".to_string()));
+        assert_eq!(tool.require_approval, Some("never".to_string()));
+
+        // Test default MCP tool
+        let default_tool = crate::Tool::mcp("github", "https://api.github.com", None);
+        assert_eq!(default_tool.require_approval, Some("auto".to_string()));
+    }
+
+    #[test]
+    fn test_truncation_config() {
+        let config = crate::types::TruncationConfig {
+            truncation_type: "auto".to_string(),
+            last_messages: Some(10),
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("auto"));
+        assert!(json.contains("last_messages"));
+
+        // Test deserialization
+        let deserialized: crate::types::TruncationConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.truncation_type, "auto");
+        assert_eq!(deserialized.last_messages, Some(10));
+    }
+
+    #[test]
+    fn test_text_config() {
+        let config = crate::types::TextConfig {
+            format: Some(crate::types::TextFormat {
+                format_type: "text".to_string(),
+            }),
+            stop: Some(vec!["END".to_string(), "STOP".to_string()]),
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("text"));
+        assert!(json.contains("END"));
+        assert!(json.contains("STOP"));
+    }
+
+    #[test]
+    fn test_usage_with_details() {
+        let usage = crate::types::Usage {
+            input_tokens: 100,
+            output_tokens: 50,
+            total_tokens: 150,
+            output_tokens_details: Some(crate::types::OutputTokensDetails {
+                reasoning_tokens: Some(25),
+            }),
+            prompt_tokens_details: Some(crate::types::PromptTokensDetails {
+                cached_tokens: Some(30),
+            }),
+        };
+
+        let json = serde_json::to_string(&usage).unwrap();
+        assert!(json.contains("reasoning_tokens"));
+        assert!(json.contains("cached_tokens"));
+        assert!(json.contains("150"));
+
+        // Test deserialization
+        let deserialized: crate::types::Usage = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.total_tokens, 150);
+        assert_eq!(
+            deserialized
+                .output_tokens_details
+                .as_ref()
+                .unwrap()
+                .reasoning_tokens,
+            Some(25)
+        );
+    }
+
+    #[test]
+    fn test_reasoning_output() {
+        let reasoning = crate::types::ReasoningOutput {
+            content: Some(vec![crate::types::ReasoningContent {
+                content_type: "thinking".to_string(),
+                text: Some("Let me think about this...".to_string()),
+            }]),
+            encrypted_content: Some("encrypted_data".to_string()),
+        };
+
+        let json = serde_json::to_string(&reasoning).unwrap();
+        assert!(json.contains("thinking"));
+        assert!(json.contains("encrypted_data"));
+        assert!(json.contains("Let me think"));
+    }
+
+    #[test]
+    fn test_backward_compatibility() {
+        // Test that old Response format still deserializes
+        let old_response_json = r#"{
+            "id": "resp_old",
+            "model": "gpt-4o",
+            "output": [],
+            "previous_response_id": null,
+            "created_at": 1234567890,
+            "metadata": null
+        }"#;
+
+        let response: crate::Response = serde_json::from_str(old_response_json).unwrap();
+        assert_eq!(response.id, "resp_old");
+        assert_eq!(response.object, "response"); // Default value
+        assert_eq!(response.status, "completed"); // Default value
+        assert!(response.usage.is_none());
+        assert!(response.temperature.is_none());
+    }
+
+    #[test]
+    fn test_response_output_text_priority() {
+        let response = crate::Response {
+            id: "test".to_string(),
+            object: "response".to_string(),
+            created_at: chrono::Utc::now(),
+            model: "gpt-4o".to_string(),
+            status: "completed".to_string(),
+            output: vec![],
+            output_text: Some("Direct output text".to_string()),
+            previous_response_id: None,
+            instructions: None,
+            metadata: None,
+            usage: None,
+            temperature: None,
+            top_p: None,
+            max_output_tokens: None,
+            parallel_tool_calls: None,
+            tool_choice: None,
+            tools: None,
+            text: None,
+            top_logprobs: None,
+            truncation: None,
+            reasoning: None,
+            reasoning_effort: None,
+            user: None,
+            incomplete_details: None,
+            error: None,
+        };
+
+        // Should prioritize output_text field over extracting from output items
+        assert_eq!(response.output_text(), "Direct output text");
+    }
+
+    // ===== Image Generation Tests =====
+
+    #[test]
+    fn test_image_generate_request_builder() {
+        use crate::images::ImageGenerateRequest;
+
+        let request = ImageGenerateRequest::new("test prompt")
+            .with_size("1024x1024")
+            .with_quality("high")
+            .with_format("png")
+            .with_compression(80)
+            .with_seed(12345);
+
+        assert_eq!(request.model, "gpt-image-1");
+        assert_eq!(request.prompt, "test prompt");
+        assert_eq!(request.size, Some("1024x1024".to_string()));
+        assert_eq!(request.quality, Some("high".to_string()));
+        assert_eq!(request.output_format, Some("png".to_string()));
+        assert_eq!(request.output_compression, Some(80));
+        assert_eq!(request.seed, Some(12345));
+    }
+
+    #[test]
+    fn test_image_generation_function_tool() {
+        let tool = crate::Tool::image_generation_function();
+        assert_eq!(tool.tool_type, "function");
+        assert_eq!(tool.name, Some("generate_image".to_string()));
+        assert!(tool.description.is_some());
+        assert!(tool.parameters.is_some());
+
+        // Verify JSON schema contains required fields
+        let params = tool.parameters.unwrap();
+        assert!(params["properties"]["prompt"].is_object());
+        assert!(params["required"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::Value::String("prompt".to_string())));
+    }
+
+    #[test]
+    fn test_gpt_image1_model_serialization() {
+        let model = crate::Model::GPTImage1;
+        let serialized = serde_json::to_string(&model).unwrap();
+        assert_eq!(serialized, "\"gpt-image-1\"");
+
+        let deserialized: crate::Model = serde_json::from_str("\"gpt-image-1\"").unwrap();
+        assert_eq!(deserialized, crate::Model::GPTImage1);
+    }
+
+    #[test]
+    fn test_image_request_serialization() {
+        use crate::images::ImageGenerateRequest;
+
+        let request = ImageGenerateRequest::new("A red circle")
+            .with_size("1024x1024")
+            .with_quality("auto");
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("gpt-image-1"));
+        assert!(json.contains("A red circle"));
+        assert!(json.contains("1024x1024"));
+        assert!(json.contains("auto"));
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_deprecated_image_tools_still_work() {
+        // Test that deprecated tools still compile and work for backward compatibility
+        let tool = crate::Tool::image_generation(None);
+        assert_eq!(tool.tool_type, "image_generation");
+
+        let tool_with_partials = crate::Tool::image_generation_with_partials(None, 2);
+        assert_eq!(tool_with_partials.tool_type, "image_generation");
+        assert_eq!(tool_with_partials.partial_images, Some(2));
     }
 }

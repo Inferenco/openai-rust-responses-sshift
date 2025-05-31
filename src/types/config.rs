@@ -141,6 +141,11 @@ pub enum Model {
     #[serde(rename = "gpt-3.5-turbo-instruct")]
     GPT35TurboInstruct,
 
+    // === Image Generation Models ===
+    /// GPT Image 1 model - For Images API only (not Responses API)
+    #[serde(rename = "gpt-image-1")]
+    GPTImage1,
+
     /// Custom model string for future models or specialized deployments
     #[serde(untagged)]
     Custom(String),
@@ -180,6 +185,9 @@ impl From<String> for Model {
             "gpt-3.5-turbo-0125" => Self::GPT35Turbo0125,
             "gpt-3.5-turbo-1106" => Self::GPT35Turbo1106,
             "gpt-3.5-turbo-instruct" => Self::GPT35TurboInstruct,
+
+            // Image Generation Models
+            "gpt-image-1" => Self::GPTImage1,
 
             // Custom fallback
             _ => Self::Custom(s),
@@ -227,6 +235,9 @@ impl std::fmt::Display for Model {
             Model::GPT35Turbo0125 => write!(f, "gpt-3.5-turbo-0125"),
             Model::GPT35Turbo1106 => write!(f, "gpt-3.5-turbo-1106"),
             Model::GPT35TurboInstruct => write!(f, "gpt-3.5-turbo-instruct"),
+
+            // Image Generation Models
+            Model::GPTImage1 => write!(f, "gpt-image-1"),
 
             // Custom fallback
             Model::Custom(s) => write!(f, "{s}"),

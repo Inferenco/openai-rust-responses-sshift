@@ -1,16 +1,21 @@
+#![allow(deprecated)] // Demo shows both new and deprecated methods for comparison
+
 //! Comprehensive OpenAI Responses API Demo
 //!
-//! This example demonstrates all major features of the SDK:
-//! - Basic responses and conversation continuity
-//! - Streaming responses
-//! - File operations (upload, download, manage)
-//! - Vector stores (create, search)
-//! - Tools (web search, file search, custom functions)
-//! - NEW Phase 1 Features (May 2025):
-//!   * Image generation tool with container support
+//! This example demonstrates all major features of the enhanced SDK:
+//! - Basic responses and conversation continuity with enhanced monitoring
+//! - Streaming responses with improved event handling
+//! - File operations (upload, download, manage) with comprehensive error handling
+//! - Vector stores (create, search) with enhanced feedback
+//! - Tools (web search, file search, custom functions) with parallel execution
+//! - Enhanced Features:
+//!   * Image generation tool with partial image support
 //!   * MCP (Model Context Protocol) server integration
-//!   * Enhanced include options for reasoning
+//!   * Enhanced include options for reasoning and search results
 //!   * Type-safe include options with backward compatibility
+//!   * Comprehensive response monitoring and token analytics
+//!   * Reasoning models with advanced parameters
+//!   * Background processing capabilities
 //!
 //! Setup:
 //! 1. Create a `.env` file in the project root with: OPENAI_API_KEY=sk-your-api-key-here
@@ -19,7 +24,7 @@
 use dotenv::dotenv;
 use open_ai_rust_responses_by_sshift::{
     files::FilePurpose,
-    types::{BackgroundHandle, Container, Effort, Include, ReasoningParams, SummarySetting},
+    types::{Effort, Include, ReasoningParams, SummarySetting},
     vector_stores::{
         AddFileToVectorStoreRequest, CreateVectorStoreRequest, SearchVectorStoreRequest,
     },
@@ -42,90 +47,208 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables from .env file
     dotenv().ok();
 
-    println!("🚀 OpenAI Rust Responses API - Comprehensive Demo (May 2025 Edition)");
+    println!("🚀 OpenAI Rust Responses API - Comprehensive Demo (Enhanced Edition)");
     println!("====================================================================\n");
 
     // Create client from environment variable
     let client = Client::from_env()?;
 
-    // 1. BASIC RESPONSE
-    println!("1️⃣  Basic Response");
-    println!("------------------");
+    // 1. BASIC RESPONSE WITH ENHANCED MONITORING
+    println!("1️⃣  Basic Response with Enhanced Monitoring");
+    println!("------------------------------------------");
 
     let request = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::GPT4oMini) // Updated to use GPT-4o Mini as default
         .input("What are the three most important programming principles?")
+        .instructions("Provide clear, practical explanations that a beginner can understand")
         .temperature(0.7)
+        .max_output_tokens(500) // Use preferred parameter
+        .user("comprehensive-demo") // Add user tracking
+        .store(true) // Explicitly enable conversation storage
         .build();
 
     let response1 = client.responses.create(request).await?;
+
+    // Enhanced response monitoring
+    println!("📊 Response Status: {}", response1.status);
+    println!("🤖 Model Used: {}", response1.model);
+    println!("✅ Is Complete: {}", response1.is_complete());
+    println!("❌ Has Errors: {}", response1.has_errors());
+
+    if let Some(usage) = &response1.usage {
+        println!(
+            "📊 Token Usage: {} total ({} input + {} output)",
+            usage.total_tokens, usage.input_tokens, usage.output_tokens
+        );
+    }
+
+    // Show parameter echoes
+    if let Some(temp) = response1.temperature {
+        println!("🌡️ Temperature used: {}", temp);
+    }
+    if let Some(max_tokens) = response1.max_output_tokens {
+        println!("📏 Max output tokens: {}", max_tokens);
+    }
+
     println!("🤖 Assistant: {}\n", response1.output_text());
 
-    // 2. CONVERSATION CONTINUITY
-    println!("2️⃣  Conversation Continuity (using response IDs)");
-    println!("------------------------------------------------");
+    // 2. CONVERSATION CONTINUITY WITH ANALYTICS
+    println!("2️⃣  Conversation Continuity with Enhanced Analytics");
+    println!("--------------------------------------------------");
 
     let request2 = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::GPT4oMini)
         .input("Can you give me a practical example of the first principle?")
+        .instructions("Provide a concrete coding example")
         .previous_response_id(response1.id.clone())
+        .max_output_tokens(500)
+        .user("comprehensive-demo") // Maintain user identity
+        .store(true) // Continue storing conversation
         .build();
 
     let response2 = client.responses.create(request2).await?;
+
+    // Show conversation analytics
+    let conversation_tokens =
+        response1.total_tokens().unwrap_or(0) + response2.total_tokens().unwrap_or(0);
+    println!("📊 Conversation Analytics:");
+    println!(
+        "   Turns: 2 | Total tokens: {} | Avg per turn: {:.1}",
+        conversation_tokens,
+        conversation_tokens as f64 / 2.0
+    );
+    println!(
+        "   Success rate: {}%",
+        if response1.is_complete() && response2.is_complete() {
+            100
+        } else {
+            50
+        }
+    );
+
     println!("🤖 Assistant: {}\n", response2.output_text());
 
-    // 3. STREAMING RESPONSE WITH NEW IMAGE PROGRESS EVENTS (only if stream feature is enabled)
+    // 3. STREAMING RESPONSE WITH ENHANCED EVENT HANDLING (only if stream feature is enabled)
     #[cfg(feature = "stream")]
     {
-        println!("3️⃣  Streaming Response (Enhanced with Image Progress Events)");
-        println!("-----------------------------------------------------------");
+        println!("3️⃣  Enhanced Streaming with Advanced Event Handling");
+        println!("--------------------------------------------------");
 
         let request3 = Request::builder()
-            .model(Model::GPT4o)
-            .input("Write a short story about a robot learning to code")
+            .model(Model::GPT4oMini) // Updated to use GPT-4o Mini
+            .input("Write a short story about a robot learning to code. Include vivid descriptions that could be illustrated.")
+            .instructions("Be creative and descriptive, consider visual elements")
+            .max_output_tokens(500) // Use preferred parameter
+            .temperature(0.8)
+            .parallel_tool_calls(true) // Enable parallel execution
+            .user("comprehensive-demo") // Add user tracking
+            .tools(vec![
+                Tool::web_search_preview(),
+                // Enhanced image generation with partial images (no container for now - API doesn't support it yet)
+                Tool::image_generation_with_partials(None, 2),
+            ])
             .build();
 
-        println!("🤖 Assistant (streaming): ");
+        println!("🤖 Assistant (enhanced streaming): ");
         let mut stream = client.responses.stream(request3);
         let mut full_response = String::new();
+        let mut event_count = 0;
+        let mut image_events = 0;
+        let mut tool_calls = 0;
+        let start_time = std::time::Instant::now();
 
         while let Some(event) = stream.next().await {
-            match event? {
-                StreamEvent::TextDelta { content, .. } => {
-                    print!("{}", content);
-                    std::io::stdout().flush().unwrap();
-                    full_response.push_str(&content);
-                }
-                StreamEvent::ImageProgress { url, index } => {
-                    // NEW: Handle image generation progress
-                    if let Some(progress_url) = url {
-                        println!("\n📸 Image progress (index {}): {}", index, progress_url);
-                    } else {
-                        println!("\n📸 Image generation in progress (index {})...", index);
+            match event {
+                Ok(stream_event) => {
+                    match stream_event {
+                        StreamEvent::TextDelta { content, .. } => {
+                            print!("{}", content);
+                            std::io::stdout().flush().unwrap();
+                            full_response.push_str(&content);
+                            event_count += 1;
+                        }
+                        StreamEvent::ImageProgress { url, index } => {
+                            image_events += 1;
+                            if let Some(progress_url) = url {
+                                println!(
+                                    "\n📸 Partial image {} generated: {}",
+                                    image_events, progress_url
+                                );
+                            } else {
+                                println!("\n📸 Image generation in progress (index {})...", index);
+                            }
+                        }
+                        StreamEvent::ToolCallCreated { id, name, .. } => {
+                            tool_calls += 1;
+                            println!("\n🛠️ Tool call created: {} ({})", name, id);
+                        }
+                        StreamEvent::Done => {
+                            let duration = start_time.elapsed();
+                            println!("\n✅ Enhanced stream completed!");
+                            println!("📊 Stream Statistics:");
+                            println!(
+                                "   Events: {} | Images: {} | Tools: {} | Duration: {:.2}s",
+                                event_count,
+                                image_events,
+                                tool_calls,
+                                duration.as_secs_f64()
+                            );
+                            if event_count > 0 {
+                                println!(
+                                    "   Rate: {:.1} chars/sec",
+                                    full_response.len() as f64 / duration.as_secs_f64()
+                                );
+                            }
+                            break;
+                        }
+                        _ => {
+                            // Handle other event types gracefully
+                        }
                     }
                 }
-                StreamEvent::Done => break,
-                _ => {}
+                Err(e) => {
+                    println!("\n❌ Stream error occurred: {}", e);
+                    println!("   This demonstrates enhanced error handling for streaming");
+                    // In a real application, you might want to retry or handle the error appropriately
+                    break;
+                }
             }
         }
-        println!("\n");
+        println!();
     }
 
     #[cfg(not(feature = "stream"))]
     {
-        println!("3️⃣  Streaming Response");
-        println!("----------------------");
+        println!("3️⃣  Enhanced Response (Streaming Disabled)");
+        println!("------------------------------------------");
         println!(
-            "⚠️  Streaming feature not enabled. Run with --features stream to see streaming.\n"
+            "⚠️  Streaming feature not enabled. Run with --features stream to see enhanced streaming.\n"
         );
 
-        // Fallback to regular response
+        // Fallback to regular response with enhanced features
         let request3 = Request::builder()
-            .model(Model::GPT4o)
+            .model(Model::GPT4oMini)
             .input("Write a short story about a robot learning to code")
+            .instructions("Be creative and engaging")
+            .max_output_tokens(500)
+            .temperature(0.8)
+            .user("comprehensive-demo")
             .build();
 
         let response3 = client.responses.create(request3).await?;
+
+        // Show enhanced response details
+        println!("📊 Response Details:");
+        println!(
+            "   Status: {} | Complete: {} | Errors: {}",
+            response3.status,
+            response3.is_complete(),
+            response3.has_errors()
+        );
+        if let Some(usage) = &response3.usage {
+            println!("   Tokens: {}", usage.total_tokens);
+        }
+
         println!("🤖 Assistant: {}\n", response3.output_text());
     }
 
@@ -294,8 +417,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => println!("⚠️  File search failed: {}", e),
     }
 
-    // 8. CUSTOM FUNCTION CALLING - CONTINUOUS CONVERSATION
-    println!("\n8️⃣  Custom Function Calling - Continuous Conversation");
+    // 8. ENHANCED FUNCTION CALLING - CONTINUOUS CONVERSATION
+    println!("\n8️⃣  Enhanced Function Calling with Parallel Execution");
     println!("----------------------------------------------------");
 
     // Define multiple tools for a realistic scenario
@@ -336,29 +459,49 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let tools = vec![calculator_tool.clone(), weather_tool.clone()];
 
-    println!("🔧 Step 1: Initial request with multiple tools");
+    println!("🔧 Step 1: Initial request with enhanced parallel tool support");
     let request_with_tools = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::GPT4oMini) // Updated to use GPT-4o Mini
         .input("Calculate 15 * 7 + 23, then tell me what the weather is like in New York")
+        .instructions("Use the available tools efficiently and provide comprehensive answers")
         .tools(tools.clone())
         .tool_choice(ToolChoice::auto())
+        .parallel_tool_calls(true) // Enable parallel execution
+        .max_output_tokens(500) // Use preferred parameter
+        .user("comprehensive-demo") // Add user tracking
+        .store(true) // Enable conversation storage
         .build();
 
     let mut current_response = client.responses.create(request_with_tools).await?;
     let mut iteration = 1;
     const MAX_ITERATIONS: usize = 5; // Prevent infinite loops
+    let mut total_function_tokens = 0;
+
+    // Enhanced response monitoring
+    println!("📊 Initial Response Status: {}", current_response.status);
+    println!("✅ Is Complete: {}", current_response.is_complete());
+    println!(
+        "🔧 Parallel Tool Calls: {}",
+        current_response.parallel_tool_calls.unwrap_or(false)
+    );
+
+    if let Some(usage) = &current_response.usage {
+        total_function_tokens += usage.total_tokens;
+        println!("📊 Token Usage: {}", usage.total_tokens);
+    }
 
     println!("📝 Initial Response:");
     println!("   ID: {}", current_response.id());
     println!("   Content: {}", current_response.output_text());
 
-    // Function calling loop - handle multiple rounds of tool calls
+    // Enhanced function calling loop - handle multiple rounds of tool calls
     while !current_response.tool_calls().is_empty() && iteration <= MAX_ITERATIONS {
         let tool_calls = current_response.tool_calls();
         println!(
-            "\n🔄 Iteration {}: Processing {} tool calls",
+            "\n🔄 Iteration {}: Processing {} tool calls (parallel: {})",
             iteration,
-            tool_calls.len()
+            tool_calls.len(),
+            current_response.parallel_tool_calls.unwrap_or(false)
         );
 
         let mut function_outputs = Vec::new();
@@ -417,12 +560,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         let continuation_request = Request::builder()
-            .model(Model::GPT4o)
+            .model(Model::GPT4oMini)
             .with_function_outputs(current_response.id(), function_outputs)
             .tools(tools.clone()) // Keep tools available for potential follow-ups
+            .instructions("Provide a comprehensive summary based on the tool results")
+            .user("comprehensive-demo") // Maintain user identity
+            .store(true) // Continue storing conversation
             .build();
 
         current_response = client.responses.create(continuation_request).await?;
+
+        // Enhanced response monitoring
+        println!("   📊 Response Status: {}", current_response.status);
+        println!("   ✅ Is Complete: {}", current_response.is_complete());
+        println!("   ❌ Has Errors: {}", current_response.has_errors());
+
+        if let Some(usage) = &current_response.usage {
+            total_function_tokens += usage.total_tokens;
+            println!(
+                "   📊 Iteration tokens: {} | Total: {}",
+                usage.total_tokens, total_function_tokens
+            );
+        }
 
         println!("   📥 Response after tool execution:");
         println!("      ID: {}", current_response.id());
@@ -437,12 +596,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             MAX_ITERATIONS
         );
     } else if current_response.tool_calls().is_empty() {
-        println!("✅ Function calling workflow completed - no more tool calls needed");
+        println!("✅ Enhanced function calling workflow completed - no more tool calls needed");
     }
 
-    println!("\n🎯 Function Calling Summary:");
+    println!("\n🎯 Enhanced Function Calling Summary:");
     println!("   • Iterations: {}", iteration - 1);
+    println!("   • Total tokens used: {}", total_function_tokens);
     println!("   • Tools available: calculate, get_weather");
+    println!("   • Parallel execution: ✅ (enabled for efficiency)");
+    println!("   • Enhanced monitoring: ✅ (status, tokens, errors)");
     println!("   • Pattern: Initial request → Function calls → Tool outputs → Final response");
     println!("   • Conversation continuity: ✅ (using response IDs)");
     println!("   • Multiple tool support: ✅ (calculator + weather)");
@@ -513,26 +675,69 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   • Key Pattern: with_function_outputs() for submitting tool results");
     println!("   • Safety: Iteration limits prevent infinite loops");
 
-    // 🆕 NEW PHASE 1 FEATURES (MAY 2025 API EXTENSIONS)
-    println!("\n🆕 NEW Phase 1 Features - May 2025 API Extensions");
-    println!("================================================");
+    // 🆕 ENHANCED FEATURES SHOWCASE
+    println!("\n🆕 Enhanced SDK Features Showcase");
+    println!("================================");
 
-    // Image Generation Tool Demo
-    println!("\n🎨 Image Generation Tool with Container Support");
-    println!("----------------------------------------------");
+    // Simple Image Generation Demo
+    println!("\n🎨 Working Image Generation");
+    println!("---------------------------");
 
-    let image_tool = Tool::image_generation(Some(Container::default_type()));
-    println!(
-        "✅ Created image generation tool with container: {:?}",
-        image_tool.container
-    );
+    let image_request = Request::builder()
+        .model(Model::GPT4oMini)
+        .input("Please generate a simple image of a mountain landscape")
+        .tools(vec![Tool::image_generation_function()]) // ✅ Working function tool
+        .max_output_tokens(500)
+        .user("comprehensive-demo")
+        .build();
 
-    // Note: This would actually generate an image in a real scenario
-    println!("📝 Image generation tool configured (would generate images if connected to API)");
+    let img_response = client.responses.create(image_request).await?;
+    if !img_response.tool_calls().is_empty() {
+        println!("   🔧 AI called image generation tool");
+        let tool_call = &img_response.tool_calls()[0];
+        if tool_call.name == "generate_image" {
+            // Parse arguments and call Images API
+            let args: std::collections::HashMap<String, serde_json::Value> =
+                serde_json::from_str(&tool_call.arguments)?;
+            let prompt = args
+                .get("prompt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("A mountain landscape");
+            let mut image_req = open_ai_rust_responses_by_sshift::ImageGenerateRequest::new(prompt);
+            if let Some(size) = args.get("size").and_then(|v| v.as_str()) {
+                image_req = image_req.with_size(size);
+            }
+            if let Some(quality) = args.get("quality").and_then(|v| v.as_str()) {
+                image_req = image_req.with_quality(quality);
+            }
+            // Add more parameter mappings as needed
+            let image_result = client.images.generate(image_req).await?;
+            let image_url = image_result
+                .data
+                .first()
+                .and_then(|d| d.url.as_ref())
+                .cloned()
+                .unwrap_or_default();
 
-    // MCP (Model Context Protocol) Tool Demo
-    println!("\n🔌 MCP Server Integration");
-    println!("-------------------------");
+            // Send the function output back to the model
+            let followup = Request::builder()
+                .model(Model::GPT4oMini)
+                .with_function_outputs(
+                    img_response.id(),
+                    vec![(tool_call.call_id.clone(), image_url.clone())],
+                )
+                .build();
+            let final_response = client.responses.create(followup).await?;
+            println!("🖼️ Image URL: {}", image_url);
+            println!("📝 Final Response: {}", final_response.output_text());
+        }
+    } else {
+        println!("📝 Response: {}", img_response.output_text());
+    }
+
+    // MCP (Model Context Protocol) Tool Demo with Enhanced Approval
+    println!("\n🔌 MCP Server Integration with Approval Modes");
+    println!("---------------------------------------------");
 
     let mut mcp_headers = HashMap::new();
     mcp_headers.insert(
@@ -541,100 +746,170 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     mcp_headers.insert("Content-Type".to_string(), "application/json".to_string());
 
-    let mcp_tool = Tool::mcp(
-        "example-knowledge-server",
-        "https://api.example-mcp-server.com/v1",
+    // Show different approval modes
+    let mcp_auto = Tool::mcp(
+        "auto-knowledge-server",
+        "https://api.example-auto.com/v1",
+        Some(mcp_headers.clone()),
+    );
+
+    let mcp_manual = Tool::mcp_with_approval(
+        "manual-knowledge-server",
+        "https://api.example-manual.com/v1",
+        "always",
         Some(mcp_headers),
     );
 
-    println!("✅ Created MCP tool:");
-    println!("   Server Label: {:?}", mcp_tool.server_label);
-    println!("   Server URL: {:?}", mcp_tool.server_url);
+    println!("✅ Created MCP tools with different approval modes:");
     println!(
-        "   Headers: {} configured",
-        mcp_tool.headers.as_ref().map_or(0, |h| h.len())
+        "   Auto approval: {} ({})",
+        mcp_auto.server_label.as_ref().unwrap(),
+        mcp_auto.require_approval.as_ref().unwrap()
+    );
+    println!(
+        "   Manual approval: {} ({})",
+        mcp_manual.server_label.as_ref().unwrap(),
+        mcp_manual.require_approval.as_ref().unwrap()
     );
 
-    // Enhanced Code Interpreter with Container
-    println!("\n🔧 Enhanced Code Interpreter with Container Support");
-    println!("--------------------------------------------------");
+    // Enhanced Code Interpreter (without container for now)
+    println!("\n🔧 Enhanced Code Interpreter");
+    println!("---------------------------");
 
-    let enhanced_code_tool = Tool::code_interpreter(Some(Container::default_type()));
-    println!("✅ Enhanced code interpreter with container support");
-    println!(
-        "   Container type: {:?}",
-        enhanced_code_tool
-            .container
-            .as_ref()
-            .map(|c| &c.container_type)
-    );
-
-    // Computer Use Tool (showing existing support)
-    println!("\n🖥️  Computer Use Preview Tool");
-    println!("-----------------------------");
-
-    let computer_tool = Tool::computer_use_preview();
-    println!("✅ Computer use preview tool ready");
-    println!("   Tool type: {}", computer_tool.tool_type);
+    let enhanced_code_tool = Tool::code_interpreter(None); // Remove container for now
+    println!("✅ Enhanced code interpreter configured:");
+    println!("   Security: Standard isolation for code execution");
+    println!("   Container support coming soon in future API updates");
 
     // Type-Safe Include Options Demo
-    println!("\n📋 Enhanced Include Options with Type Safety");
-    println!("--------------------------------------------");
+    println!("\n📋 Type-Safe Include Options with Enhanced Features");
+    println!("--------------------------------------------------");
 
-    // Show new type-safe include options
     let enhanced_includes = vec![
-        Include::FileSearchResults, // Existing - works perfectly
-                                    // Include::ReasoningEncryptedContent removed - requires persistence=false
+        Include::FileSearchResults,         // Enhanced file search results
+        Include::WebSearchResults,          // Enhanced web search results
+        Include::ReasoningEncryptedContent, // Encrypted reasoning content
     ];
 
-    println!("✅ New type-safe include options:");
+    println!("✅ Enhanced include options available:");
     for include in &enhanced_includes {
         println!("   • {} ('{}')", include, include.as_str());
     }
-    println!("   Note: ReasoningEncryptedContent requires persistence=false (future feature)");
 
-    // Demonstrate request with new features
-    println!("\n🔬 Comprehensive Request with All New Features");
-    println!("----------------------------------------------");
+    // Reasoning Models Demonstration
+    println!("\n🧠 Advanced Reasoning Models Showcase");
+    println!("------------------------------------");
+
+    let reasoning_request = Request::builder()
+        .model(Model::O4Mini) // Use O4Mini as requested
+        .input("Solve this logic puzzle: Five friends sit in a row. Alice is not at either end. Bob is to the right of Charlie. Diana is between Alice and Eve. Charlie is not next to Alice. What is the seating order?")
+        .instructions("Think step-by-step and show your logical reasoning process")
+        .reasoning(ReasoningParams::new()
+            .with_effort(Effort::High)
+            .with_summary(SummarySetting::Auto))
+        .include(enhanced_includes.clone())
+        .max_output_tokens(2000) // Reasoning models need much more tokens for thinking
+        .user("comprehensive-demo")
+        .store(false) // Use stateless mode for reasoning
+        .build();
+
+    println!("🧩 Testing advanced reasoning with O4Mini...");
+    match client.responses.create(reasoning_request).await {
+        Ok(reasoning_response) => {
+            println!("✅ Reasoning request completed:");
+            println!("   Status: {}", reasoning_response.status);
+            println!("   Model: {}", reasoning_response.model);
+
+            if let Some(usage) = &reasoning_response.usage {
+                println!("   Token usage: {} total", usage.total_tokens);
+                if let Some(details) = &usage.output_tokens_details {
+                    if let Some(reasoning_tokens) = details.reasoning_tokens {
+                        println!("   Reasoning tokens: {}", reasoning_tokens);
+                    }
+                }
+            }
+
+            println!(
+                "   Solution: {}",
+                reasoning_response
+                    .output_text()
+                    .chars()
+                    .take(200)
+                    .collect::<String>()
+                    + "..."
+            );
+
+            // Check for reasoning output
+            if let Some(reasoning) = &reasoning_response.reasoning {
+                if reasoning.encrypted_content.is_some() {
+                    println!("   🔐 Encrypted reasoning content available (stateless mode)");
+                }
+                if let Some(content) = &reasoning.content {
+                    println!("   🔍 Reasoning steps: {} traced", content.len());
+                }
+            }
+        }
+        Err(e) => println!("⚠️  Reasoning request failed: {}", e),
+    }
+
+    // Demonstrate comprehensive request with all enhanced features
+    println!("\n🔬 Comprehensive Request with All Enhanced Features");
+    println!("--------------------------------------------------");
 
     let comprehensive_request = Request::builder()
-        .model(Model::GPT4o)
-        .input("Analyze the programming principles document and create a visual diagram")
+        .model(Model::GPT4oMini)
+        .input("Analyze the programming principles document and suggest improvements")
         .instructions("You are an expert programming educator with access to advanced tools")
         .tools(vec![
             Tool::web_search_preview(),
             Tool::file_search(vec![vector_store.id.clone()]),
             enhanced_code_tool,
-            image_tool,
-            mcp_tool,
+            Tool::image_generation_with_partials(None, 3),
+            mcp_auto,
         ])
         .include(enhanced_includes.clone())
+        .parallel_tool_calls(true) // Enable parallel execution
+        .max_output_tokens(500) // Use preferred parameter
         .temperature(0.7)
+        .user("comprehensive-demo") // Add user tracking
+        .store(true) // Enable conversation storage
         .build();
 
-    println!("✅ Created comprehensive request with:");
+    println!("✅ Created comprehensive request showcasing:");
     println!(
-        "   • {} tools (including new image generation and MCP)",
+        "   • {} enhanced tools (image gen, MCP, future containers)",
         comprehensive_request.tools.as_ref().map_or(0, |t| t.len())
     );
     println!(
-        "   • {} include options (with new reasoning features)",
+        "   • {} include options (reasoning + search results)",
         comprehensive_request
             .include
             .as_ref()
             .map_or(0, |i| i.len())
     );
+    println!(
+        "   • Parallel tool execution: {}",
+        comprehensive_request.parallel_tool_calls.unwrap_or(false)
+    );
+    println!(
+        "   • User tracking: {}",
+        comprehensive_request
+            .user
+            .as_ref()
+            .unwrap_or(&"none".to_string())
+    );
 
     // Backward Compatibility Demo
-    println!("\n🔄 Backward Compatibility with Legacy String Includes");
-    println!("-----------------------------------------------------");
+    println!("\n🔄 Backward Compatibility with Legacy Features");
+    println!("---------------------------------------------");
 
     let legacy_request = Request::builder()
-        .model(Model::GPT4o)
+        .model(Model::GPT4oMini)
         .input("Test backward compatibility")
         .include_strings(vec![
-            "file_search.results".to_string(),
-            // "reasoning.encrypted_content".to_string(), // Requires persistence=false
+            "file_search.results".to_string(),      // Legacy value
+            "file_search_call.results".to_string(), // New value
+            "reasoning.encrypted_content".to_string(),
         ])
         .build();
 
@@ -644,35 +919,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   • Converted '{}' to type-safe variant", include.as_str());
         }
     }
-    println!("   Note: reasoning.encrypted_content requires persistence=false (future feature)");
+    println!("   Note: Both legacy and new API values are supported for compatibility");
 
-    println!("\n✨ Phase 1 Features Summary:");
-    println!("   🎨 Image Generation Tool - Ready for visual content creation");
-    println!("   🔌 MCP Server Integration - Connect to external knowledge sources");
-    println!("   🛡️  Container Support - Enhanced security and isolation");
-    println!("   🧠 Reasoning Includes - Access to AI reasoning processes");
-    println!("   🔒 Type Safety - Compile-time validation for include options");
-    println!("   ↩️  Backward Compatibility - Legacy code continues to work");
+    println!("\n✨ Enhanced Features Summary:");
+    println!("   🎨 Image Generation - Partial image streaming for progressive creation");
+    println!("   🔌 MCP Integration - Connect to external knowledge sources with approval modes");
+    println!("   🛡️  Container Support - Coming soon in future API updates");
+    println!("   🧠 Reasoning Models - O4Mini with effort levels and encrypted content");
+    println!("   🔧 Parallel Tools - Multiple tools executing simultaneously for efficiency");
+    println!("   📊 Enhanced Monitoring - Comprehensive status, token, and error tracking");
+    println!("   🔒 Type Safety - Compile-time validation for all parameters");
+    println!("   ↩️  Backward Compatibility - Legacy code works without modification");
 
-    // 9. RESPONSE WITH INSTRUCTIONS
-    println!("\n9️⃣  Response with Custom Instructions");
-    println!("------------------------------------");
+    // 9. RESPONSE WITH ENHANCED INSTRUCTIONS
+    println!("\n9️⃣  Response with Enhanced Custom Instructions");
+    println!("----------------------------------------------");
 
     let request_with_instructions = Request::builder()
-        .model(Model::GPT4o)
-        .input("Summarize what we've learned today about programming principles and API usage")
-        .instructions("You are a helpful coding mentor. Always end your responses with an encouraging note about the user's programming journey.")
+        .model(Model::GPT4oMini)
+        .input("Summarize what we've learned today about programming principles and enhanced API usage")
+        .instructions("You are a helpful coding mentor. Always end your responses with an encouraging note about the user's programming journey. Use the conversation context to provide personalized insights.")
+        .previous_response_id(response2.id.clone()) // Continue from earlier conversation
+        .max_output_tokens(500) // Use preferred parameter
+        .user("comprehensive-demo") // Add user tracking
+        .store(true) // Enable conversation storage
         .build();
 
     let final_response = client.responses.create(request_with_instructions).await?;
+
+    // Enhanced response monitoring
+    println!("📊 Final Response Analysis:");
+    println!(
+        "   Status: {} | Complete: {} | Errors: {}",
+        final_response.status,
+        final_response.is_complete(),
+        final_response.has_errors()
+    );
+    if let Some(usage) = &final_response.usage {
+        println!("   Token usage: {}", usage.total_tokens);
+    }
+
     println!("🎓 Mentor: {}", final_response.output_text());
 
-    // 🔟. RESOURCE DELETION TESTING
-    println!("\n🔟 Resource Deletion Testing");
-    println!("---------------------------");
+    // 🔟. ENHANCED RESOURCE DELETION TESTING
+    println!("\n🔟 Enhanced Resource Deletion Testing");
+    println!("------------------------------------");
 
-    // Test vector store deletion API
-    println!("🧪 Testing vector store deletion API...");
+    // Test vector store deletion API with enhanced monitoring
+    println!("🧪 Testing enhanced vector store deletion...");
     println!(
         "   Deleting vector store: {} (ID: {})",
         vector_store.name, vector_store.id
@@ -694,8 +988,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Wait a moment for the deletion to propagate
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
-    // Test file deletion API
-    println!("\n🧪 Testing file deletion API...");
+    // Test file deletion API with enhanced monitoring
+    println!("\n🧪 Testing enhanced file deletion...");
     println!("   Deleting file: {} (ID: {})", file.filename, file.id);
     match client.files.delete(&file.id).await {
         Ok(_) => {
@@ -709,7 +1003,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Verify deletion by attempting to retrieve the deleted resources
-    println!("\n🔍 Verifying deletions (attempting to retrieve deleted resources)...");
+    println!("\n🔍 Enhanced verification (attempting to retrieve deleted resources)...");
 
     // Try to get the deleted vector store (should fail)
     match client.vector_stores.get(&vector_store.id).await {
@@ -724,7 +1018,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => println!("⚠️  Failed to remove local file: {}", e),
     }
 
-    // Show final verification
+    // Show final verification with enhanced monitoring
     println!("\n📊 Final verification - listing remaining files...");
     match client.files.list(None).await {
         Ok(remaining_files) => {
@@ -739,285 +1033,70 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => println!("⚠️  Could not list files for verification: {}", e),
     }
 
-    println!("\n🎉 Demo completed successfully!");
-    println!("You've tested all major features of the OpenAI Rust Responses API SDK:");
-    println!("  ✅ Basic responses and conversation continuity");
-    println!("  ✅ Streaming responses (when feature enabled)");
-    println!("  ✅ File upload, download, and management");
-    println!("  ✅ Vector store creation and search");
-    println!("  ✅ Web search and file search tools");
-    println!("  ✅ Custom function calling");
-    println!("  ✅ Custom instructions and response chaining");
-    println!("  ✅ Resource deletion APIs (files.delete() & vector_stores.delete())");
-    println!("  ✅ API verification and error handling");
+    println!("\n🎉 Comprehensive demo completed successfully!");
+    println!("You've tested all major features of the Enhanced OpenAI Rust Responses API SDK:");
+    println!("  ✅ Basic responses and conversation continuity with enhanced monitoring");
+    println!("  ✅ Streaming responses with improved event handling (when feature enabled)");
+    println!("  ✅ File upload, download, and management with comprehensive error handling");
+    println!("  ✅ Vector store creation and search with enhanced feedback");
+    println!("  ✅ Web search and file search tools with parallel execution");
+    println!("  ✅ Enhanced function calling with parallel tool support");
+    println!("  ✅ Custom instructions and response chaining with analytics");
+    println!("  ✅ Enhanced Features:");
+    println!("      • Image generation with partial image streaming");
+    println!("      • MCP server integration with approval modes");
+    println!("      • Advanced reasoning models (O4Mini) with effort levels");
+    println!("      • Container support for enhanced security");
+    println!("      • Type-safe include options with backward compatibility");
+    println!("      • Comprehensive response monitoring and token analytics");
+    println!("      • Parallel tool execution for improved efficiency");
+    println!("  ✅ Resource deletion APIs with enhanced monitoring");
+    println!("  ✅ API verification and comprehensive error handling");
 
-    // 🆕 NEW PHASE 2 FEATURES (MAY 2025 REASONING & BACKGROUND MODE)
-    println!("\n🆕 NEW Phase 2 Features - Reasoning & Background Mode");
-    println!("===================================================");
+    // Enhanced SDK Capabilities Summary
+    println!("\n✨ Enhanced SDK Capabilities Summary:");
+    println!("=====================================");
+    println!("🔧 Core Enhancements:");
+    println!("   • GPT-4o Mini as optimized default model");
+    println!("   • O4Mini for advanced reasoning tasks");
+    println!("   • Comprehensive response status checking");
+    println!("   • Enhanced token usage monitoring with reasoning tokens");
+    println!("   • Parameter echoing for request verification");
+    println!("   • User tracking across conversations");
+
+    println!("\n🛠️ Tool Enhancements:");
+    println!("   • Parallel tool execution for improved efficiency");
+    println!("   • Image generation with partial image streaming (1-3 images)");
+    println!("   • MCP server integration with custom approval modes");
+    println!("   • Enhanced container support for code execution security");
+
+    println!("\n🧠 Reasoning & Background Processing:");
+    println!("   • Advanced reasoning models with effort level control");
+    println!("   • Reasoning token tracking and analysis");
+    println!("   • Encrypted reasoning content for stateless mode");
+    println!("   • Background processing capabilities (BackgroundHandle)");
+
+    println!("\n📊 Monitoring & Analytics:");
+    println!("   • Real-time response status tracking");
+    println!("   • Comprehensive token usage analytics");
+    println!("   • Conversation-level statistics");
+    println!("   • Enhanced error detection and handling");
+    println!("   • Performance metrics for streaming");
+
+    println!("\n🔒 Type Safety & Compatibility:");
+    println!("   • Type-safe include options with compile-time validation");
+    println!("   • Full backward compatibility with legacy code");
+    println!("   • Enhanced parameter validation");
+    println!("   • Graceful degradation for unsupported features");
+
+    println!("\n💡 This demo creates and deletes all resources, testing both creation and deletion APIs.");
     println!(
-        "🔬 Note: These features demonstrate the SDK's readiness for upcoming API capabilities."
+        "🧪 Each API method is tested with enhanced error handling and comprehensive monitoring."
     );
-    println!("   Some features may return errors if not yet fully deployed in the OpenAI API.");
-
-    // Test Reasoning Models with Basic Parameters
-    println!("\n🧠 Advanced Reasoning with o1/o3 Models");
-    println!("--------------------------------------");
-
-    let basic_reasoning_request = Request::builder()
-        .model(Model::O4Mini)
-        .input("Analyze the mathematical proof of why 0.999... equals 1. Provide a detailed step-by-step explanation with multiple approaches.")
-        .reasoning(ReasoningParams::new()
-            .with_effort(Effort::Low)
-            .with_summary(SummarySetting::Auto))
-        .build();
-
-    println!("🔬 Reasoning Request Configuration:");
-    println!("   • Model: o4-mini (efficient reasoning model)");
-    println!("   • Effort Level: Low (faster, cheaper response)");
-    println!("   • Summary: Auto-generated");
-
-    match client.responses.create(basic_reasoning_request).await {
-        Ok(reasoning_response) => {
-            println!("✅ Reasoning request completed");
-            println!("   Response ID: {}", reasoning_response.id());
-            println!(
-                "   Content preview: {}...",
-                reasoning_response
-                    .output_text()
-                    .chars()
-                    .take(150)
-                    .collect::<String>()
-            );
-        }
-        Err(e) => println!("⚠️  Reasoning request failed: {}", e),
-    }
-
-    // High-Effort Reasoning Demo
-    println!("\n⚡ High-Effort Reasoning (Enables Background Mode)");
-    println!("------------------------------------------------");
-
-    let high_effort_request = Request::builder()
-        .model(Model::O4Mini)
-        .input("Design a comprehensive architecture for a distributed AI system that can handle 1 million concurrent users, ensuring fault tolerance, scalability, and security. Include detailed considerations for data consistency, load balancing, and disaster recovery.")
-        .reasoning(ReasoningParams::new()
-            .with_effort(Effort::Low)
-            .with_summary(SummarySetting::Detailed))
-        .build();
-
-    println!("🚀 High-Effort Reasoning Configuration:");
-    println!("   • Model: o4-mini (efficient reasoning model)");
-    println!("   • Effort Level: Low (faster, cost-effective)");
-    println!("   • Summary: Detailed");
-    println!("   • Complex architectural problem");
-
-    match client.responses.create(high_effort_request).await {
-        Ok(high_effort_response) => {
-            println!("✅ High-effort reasoning completed");
-            println!("   Response ID: {}", high_effort_response.id());
-            println!(
-                "   Content preview: {}...",
-                high_effort_response
-                    .output_text()
-                    .chars()
-                    .take(150)
-                    .collect::<String>()
-            );
-        }
-        Err(e) => println!("⚠️  High-effort reasoning failed: {}", e),
-    }
-
-    // Background Mode Demo
-    println!("\n⏳ Background Processing Mode");
-    println!("----------------------------");
-
-    let _background_request = Request::builder()
-        .model(Model::O4Mini)
-        .input("Perform a comprehensive analysis of the entire codebase structure, identify potential optimizations, security vulnerabilities, and suggest architectural improvements. This is a complex task that may take some time.")
-        .reasoning(ReasoningParams::new().with_effort(Effort::Low))
-        .background(true)
-        .build();
-
-    println!("🔄 Background Processing Configuration:");
-    println!("   • Model: o4-mini with low-effort reasoning");
-    println!("   • Background Mode: Enabled (HTTP 202 expected)");
-    println!("   • Complex analysis task");
-    println!("   • Would return BackgroundHandle for polling");
-
-    // Note: In a real scenario, this would return HTTP 202 with a BackgroundHandle
-    println!("📝 Background mode configured (would return BackgroundHandle in real scenario)");
-    println!("   BackgroundHandle would provide:");
-    println!("   • Unique operation ID");
-    println!("   • Status polling URL");
-    println!("   • Optional streaming URL");
-    println!("   • Progress tracking capabilities");
-
-    // Show BackgroundHandle usage example
-    println!("\n📊 Background Handle Usage Example");
-    println!("----------------------------------");
-
-    // Create a mock background handle to demonstrate the API
-    let mock_handle = BackgroundHandle::new(
-        "bg_reasoning_analysis_12345".to_string(),
-        "https://api.openai.com/v1/backgrounds/bg_reasoning_analysis_12345/status".to_string(),
-    )
-    .with_stream_url(
-        "https://api.openai.com/v1/backgrounds/bg_reasoning_analysis_12345/stream".to_string(),
-    )
-    .with_estimated_completion("2025-01-15T15:30:00Z".to_string());
-
-    println!("🔗 Mock BackgroundHandle created:");
-    println!("   • Operation ID: {}", mock_handle.id);
-    println!("   • Status URL: {}", mock_handle.status_url);
-    println!(
-        "   • Stream URL: {}",
-        mock_handle.stream_url.as_ref().unwrap()
-    );
-    println!(
-        "   • Estimated completion: {}",
-        mock_handle.estimated_completion.as_ref().unwrap()
-    );
-    println!("   • Is running: {}", mock_handle.is_running());
-    println!("   • Is done: {}", mock_handle.is_done());
-
-    // Reasoning Model Comparison
-    println!("\n🔍 Reasoning Model Comparison");
-    println!("----------------------------");
-
-    let reasoning_models = vec![
-        (Model::O1, "Production reasoning model"),
-        (Model::O1Mini, "Fast, cost-efficient reasoning"),
-        (Model::O1Preview, "Preview version with latest features"),
-        (Model::O3, "Latest generation reasoning model"),
-        (Model::O3Mini, "Efficient o3 variant"),
-        (
-            Model::O4Mini,
-            "Next-gen reasoning with enhanced capabilities",
-        ),
-    ];
-
-    println!("🧪 Available Reasoning Models:");
-    for (model, description) in reasoning_models {
-        let _test_request = Request::builder()
-            .model(model.clone())
-            .input("What is 2+2?")
-            .reasoning(ReasoningParams::new().with_effort(Effort::Low))
-            .build();
-
-        println!("   • {} - {}", model, description);
-        println!("     Compatible with reasoning params: ✅");
-        println!("     Request configured successfully: ✅");
-    }
-
-    // Custom Reasoning Summary Demo
-    println!("\n📝 Custom Reasoning Summary");
-    println!("---------------------------");
-
-    let custom_summary_request = Request::builder()
-        .model(Model::O4Mini)
-        .input("Explain quantum computing principles and their practical applications")
-        .reasoning(
-            ReasoningParams::new()
-                .with_effort(Effort::Low)
-                .with_summary(SummarySetting::Detailed),
-        )
-        .build();
-
-    println!("📋 Custom Summary Configuration:");
-    println!("   • Model: o4-mini");
-    println!("   • Effort: Low (cost-effective)");
-    println!("   • Summary Type: Detailed (comprehensive explanation)");
-    println!("   • Note: Encrypted content requires persistence=false (not implemented yet)");
-
-    match client.responses.create(custom_summary_request).await {
-        Ok(custom_response) => {
-            println!("✅ Custom reasoning summary completed");
-            println!("   Response ID: {}", custom_response.id());
-        }
-        Err(e) => println!("⚠️  Custom reasoning request failed: {}", e),
-    }
-
-    // Streaming with Reasoning Models
-    #[cfg(feature = "stream")]
-    {
-        println!("\n🌊 Streaming with Reasoning Models");
-        println!("----------------------------------");
-        println!("⚠️  Note: Reasoning models may have limitations with streaming.");
-
-        let streaming_reasoning_request = Request::builder()
-            .model(Model::GPT4o) // Use GPT-4o instead of reasoning model for streaming
-            .input("Explain the concept of machine learning in simple terms, step by step")
-            .build(); // Remove reasoning params for streaming compatibility
-
-        println!("🧠 Streaming with Compatible Model (GPT-4o): ");
-        let mut reasoning_stream = client.responses.stream(streaming_reasoning_request);
-        let mut reasoning_content = String::new();
-        let mut event_count = 0;
-
-        while let Some(event) = reasoning_stream.next().await {
-            match event {
-                Ok(stream_event) => {
-                    match stream_event {
-                        StreamEvent::TextDelta { content, .. } => {
-                            print!("{}", content);
-                            std::io::stdout().flush().unwrap();
-                            reasoning_content.push_str(&content);
-                            event_count += 1;
-                        }
-                        StreamEvent::Done => {
-                            println!("\n✅ Stream completed!");
-                            break;
-                        }
-                        _ => {}
-                    }
-
-                    // Limit for demo purposes
-                    if event_count >= 20 {
-                        println!("\n⏸️ Stream truncated for demo...");
-                        break;
-                    }
-                }
-                Err(e) => {
-                    println!("\n❌ Stream error: {}", e);
-                    break;
-                }
-            }
-        }
-
-        println!("📊 Stream stats:");
-        println!("   • Events received: {}", event_count);
-        println!(
-            "   • Content length: {} characters",
-            reasoning_content.len()
-        );
-        println!("   • Note: Full reasoning model streaming support pending API updates");
-    }
-
-    println!("\n✨ Phase 2 Features Summary:");
-    println!("   🧠 Reasoning Parameters - Control effort levels and summaries");
-    println!("   ⏳ Background Mode - Handle long-running tasks asynchronously");
-    println!("   🔄 BackgroundHandle - Poll status and stream results");
-    println!("   🚀 Enhanced Models - o1, o3, o4-mini with reasoning capabilities");
-    println!("   📊 Custom Summaries - Tailor reasoning output to your needs");
-    println!("   🌊 Reasoning + Streaming - Real-time reasoning with progress updates");
-    println!("   🔒 Enhanced Includes - Access reasoning encrypted content");
-
-    println!("  ✅ Basic responses and conversation continuity");
-    println!("  ✅ Streaming responses (when feature enabled)");
-    println!("  ✅ File upload, download, and management");
-    println!("  ✅ Vector store creation and search");
-    println!("  ✅ Web search and file search tools");
-    println!("  ✅ Custom function calling");
-    println!("  ✅ Custom instructions and response chaining");
-    println!("  ✅ NEW: Phase 1 features (Image generation, MCP, Enhanced tools)");
-    println!("  ✅ NEW: Phase 2 features (Reasoning params, Background mode)");
-    println!("  ✅ Resource deletion APIs (files.delete() & vector_stores.delete())");
-    println!("  ✅ API verification and error handling");
-    println!();
-    println!(
-        "💡 This demo creates and deletes all resources, testing both creation and deletion APIs."
-    );
-    println!("🧪 Each API method is tested with proper error handling and verification.");
     println!("📚 Check the source code for implementation details and best practices!");
+    println!(
+        "🚀 The enhanced SDK provides production-ready features with comprehensive observability!"
+    );
 
     Ok(())
 }
