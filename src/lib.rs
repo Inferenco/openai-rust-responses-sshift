@@ -40,6 +40,12 @@ pub use types::{
 // Re-export image types
 pub use images::{ImageData, ImageGenerateRequest, ImageGenerateResponse};
 
+// Re-export vector store types
+pub use vector_stores::{
+    AddFileToVectorStoreRequest, CreateVectorStoreRequest, SearchVectorStoreRequest,
+    SearchVectorStoreResponse, VectorStore, VectorStoreFileDeleteResponse,
+};
+
 // Re-export error types
 pub use error::{Error, Result};
 

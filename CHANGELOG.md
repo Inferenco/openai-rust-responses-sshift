@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2025-01-15
+
+### 🐛 Fixed
+- **Vector Store File Deletion**: Fixed `delete_file` method response parsing
+  - Created `VectorStoreFileDeleteResponse` struct to handle actual API response
+  - Fixed incorrect expectation of `VectorStore` object return type
+  - API correctly returns `{id: "file-xxx", object: "vector_store.file.deleted", deleted: true}`
+  - Method now returns `Result<VectorStoreFileDeleteResponse>` instead of `Result<VectorStore>`
+- **API Compatibility**: Resolved deserialization errors when deleting files from vector stores
+  - The OpenAI API response doesn't include a `name` field as expected by `VectorStore` struct
+  - New response struct matches the actual API specification
+
+### ✨ Enhanced
+- **Comprehensive Demo**: Added proper vector store file deletion testing
+  - Demonstrates correct cleanup sequence: 1) Remove files from vector stores, 2) Delete vector stores, 3) Delete files
+  - Shows proper usage of `VectorStoreFileDeleteResponse` fields
+  - Added educational output explaining the difference between removing files from vector stores vs. deleting files
+- **Type Exports**: Added `VectorStoreFileDeleteResponse` to public API exports
+- **Documentation**: Updated vector store file deletion examples to show correct return type
+
+### 🔧 Backward Compatibility
+- **Breaking Change**: `vector_stores.delete_file()` now returns `VectorStoreFileDeleteResponse` instead of `VectorStore`
+  - This is a necessary fix to match the actual OpenAI API response structure
+  - Users should update code to handle the new response type:
+    ```rust
+    // Old (broken):
+    let vector_store = client.vector_stores.delete_file("vs_123", "file_456").await?;
+    
+    // New (working):
+    let delete_response = client.vector_stores.delete_file("vs_123", "file_456").await?;
+    println!("Deleted: {} (success: {})", delete_response.id, delete_response.deleted);
+    ```
+
 ## [0.1.7] - 2025-01-XX (Current Development)
 
 ### 🚀 Major Phase 1 Implementation - Full OpenAI May 2025 Spec Compatibility

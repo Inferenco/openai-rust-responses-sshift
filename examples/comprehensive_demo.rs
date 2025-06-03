@@ -965,8 +965,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🔟 Enhanced Resource Deletion Testing");
     println!("------------------------------------");
 
+    // Test vector store file deletion first (proper cleanup order)
+    println!("🧪 Testing vector store file deletion...");
+    println!(
+        "   Removing file: {} from vector store: {} (ID: {})",
+        file.filename, vector_store.name, vector_store.id
+    );
+    
+    match client.vector_stores.delete_file(&vector_store.id, &file.id).await {
+        Ok(delete_response) => {
+            println!("✅ Vector store file deletion API works correctly");
+            println!(
+                "   File '{}' removed from vector store successfully",
+                delete_response.id
+            );
+            println!(
+                "   Deletion confirmed: {} | Object type: {}",
+                delete_response.deleted, delete_response.object
+            );
+            println!("   Note: File still exists in Files API - only removed from vector store");
+        }
+        Err(e) => {
+            println!("❌ Vector store file deletion failed: {}", e);
+            println!("   This indicates an issue with the vector_stores.delete_file() method");
+            println!("   Proceeding with vector store deletion anyway...");
+        }
+    }
+
+    // Wait a moment for the deletion to propagate
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
     // Test vector store deletion API with enhanced monitoring
-    println!("🧪 Testing enhanced vector store deletion...");
+    println!("\n🧪 Testing enhanced vector store deletion...");
     println!(
         "   Deleting vector store: {} (ID: {})",
         vector_store.name, vector_store.id
@@ -1050,7 +1080,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("      • Type-safe include options with backward compatibility");
     println!("      • Comprehensive response monitoring and token analytics");
     println!("      • Parallel tool execution for improved efficiency");
-    println!("  ✅ Resource deletion APIs with enhanced monitoring");
+    println!("  ✅ Resource deletion APIs with enhanced monitoring:");
+    println!("      • Vector store file deletion (delete_file method)");
+    println!("      • Vector store deletion (delete method)");
+    println!("      • File deletion (files.delete method)");
     println!("  ✅ API verification and comprehensive error handling");
 
     // Enhanced SDK Capabilities Summary
@@ -1090,6 +1123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   • Graceful degradation for unsupported features");
 
     println!("\n💡 This demo creates and deletes all resources, testing both creation and deletion APIs.");
+    println!("🔧 Proper cleanup sequence: 1) Remove files from vector stores, 2) Delete vector stores, 3) Delete files");
     println!(
         "🧪 Each API method is tested with enhanced error handling and comprehensive monitoring."
     );

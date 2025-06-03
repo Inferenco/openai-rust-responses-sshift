@@ -98,6 +98,19 @@ pub struct SearchVectorStoreResponse {
     pub data: Vec<SearchVectorStoreResult>,
 }
 
+/// Response from deleting a file from a vector store
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VectorStoreFileDeleteResponse {
+    /// ID of the deleted file
+    pub id: String,
+
+    /// Object type (always "vector_store.file.deleted")
+    pub object: String,
+
+    /// Whether the file was successfully deleted
+    pub deleted: bool,
+}
+
 impl VectorStores {
     /// Creates a new Vector Stores API client
     pub(crate) fn new(client: HttpClient, base_url: String) -> Self {
@@ -213,7 +226,7 @@ impl VectorStores {
     /// # Errors
     ///
     /// Returns an error if the request fails to send or has a non-200 status code.
-    pub async fn delete_file(&self, vector_store_id: &str, file_id: &str) -> Result<VectorStore> {
+    pub async fn delete_file(&self, vector_store_id: &str, file_id: &str) -> Result<VectorStoreFileDeleteResponse> {
         let response = self
             .client
             .delete(format!(

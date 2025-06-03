@@ -4,7 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/open-ai-rust-responses-by-sshift.svg)](https://crates.io/crates/open-ai-rust-responses-by-sshift)
 [![Documentation](https://docs.rs/open-ai-rust-responses-by-sshift/badge.svg)](https://docs.rs/open-ai-rust-responses-by-sshift)
 
-> **🔥 v0.1.7 Update**: Major Phase 1 implementation complete! 85% OpenAI May 2025 spec coverage including working image generation, comprehensive field updates, and optimized token handling. [See changelog](#-changelog) for full details.
+> **🔥 v0.1.8 Update**: Fixed vector store file deletion API compatibility. The `delete_file` method now correctly handles the actual OpenAI API response structure. [See changelog](#-changelog) for details.
 
 A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reasoning capabilities, background processing, enhanced models, production-ready streaming, and **working image generation**.
 
@@ -162,11 +162,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.1.7"
+open-ai-rust-responses-by-sshift = "0.1.8"
 tokio = { version = "1.0", features = ["full"] }
 
 # Optional: Enable streaming
-# open-ai-rust-responses-by-sshift = { version = "0.1.7", features = ["stream"] }
+# open-ai-rust-responses-by-sshift = { version = "0.1.8", features = ["stream"] }
 ```
 
 ### Basic Usage
@@ -269,7 +269,7 @@ Enable the `stream` feature:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.1.7", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.1.8", features = ["stream"] }
 ```
 
 ```rust
