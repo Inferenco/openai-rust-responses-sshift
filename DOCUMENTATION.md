@@ -1,6 +1,6 @@
 # Open AI Rust Responses by SShift - Documentation
 
-> **🔥 v0.1.7 Major Update**: Phase 1 implementation complete! 85% OpenAI May 2025 spec coverage including working image generation, 21 new response fields, optimized token handling, and comprehensive API compatibility fixes. All examples now run without errors.
+> **🔥 v0.1.8 Update**: Fixed vector store file deletion API compatibility. The `delete_file` method now correctly handles the actual OpenAI API response structure and returns `VectorStoreFileDeleteResponse` instead of incorrectly expecting a `VectorStore` object.
 
 This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, production-ready streaming, and **working image generation**.
 
@@ -71,14 +71,14 @@ Add the library to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.1.7"
+open-ai-rust-responses-by-sshift = "0.1.8"
 ```
 
 If you want to use streaming responses, make sure to include the `stream` feature (enabled by default):
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.1.7", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.1.8", features = ["stream"] }
 ```
 
 ## Authentication
@@ -278,7 +278,8 @@ let results = client.vector_stores.search("vs_abc123", request).await?;
 ### Removing a File from a Vector Store
 
 ```rust
-let updated_store = client.vector_stores.delete_file("vs_abc123", "file_abc123").await?;
+let delete_response = client.vector_stores.delete_file("vs_abc123", "file_abc123").await?;
+println!("Deleted file: {}, Success: {}", delete_response.id, delete_response.deleted);
 ```
 
 ## Tools API
@@ -1211,7 +1212,7 @@ Example of using a specific TLS implementation:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.1.7", default-features = false, features = ["stream", "native-tls"] }
+open-ai-rust-responses-by-sshift = { version = "0.1.8", default-features = false, features = ["stream", "native-tls"] }
 ```
 
 This will use the native TLS implementation instead of rustls.
