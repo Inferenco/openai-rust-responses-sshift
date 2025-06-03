@@ -971,8 +971,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "   Removing file: {} from vector store: {} (ID: {})",
         file.filename, vector_store.name, vector_store.id
     );
-    
-    match client.vector_stores.delete_file(&vector_store.id, &file.id).await {
+
+    match client
+        .vector_stores
+        .delete_file(&vector_store.id, &file.id)
+        .await
+    {
         Ok(delete_response) => {
             println!("✅ Vector store file deletion API works correctly");
             println!(

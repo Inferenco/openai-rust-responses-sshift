@@ -226,7 +226,11 @@ impl VectorStores {
     /// # Errors
     ///
     /// Returns an error if the request fails to send or has a non-200 status code.
-    pub async fn delete_file(&self, vector_store_id: &str, file_id: &str) -> Result<VectorStoreFileDeleteResponse> {
+    pub async fn delete_file(
+        &self,
+        vector_store_id: &str,
+        file_id: &str,
+    ) -> Result<VectorStoreFileDeleteResponse> {
         let response = self
             .client
             .delete(format!(
