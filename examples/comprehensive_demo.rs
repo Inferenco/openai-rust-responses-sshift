@@ -143,8 +143,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .user("comprehensive-demo") // Add user tracking
             .tools(vec![
                 Tool::web_search_preview(),
-                // Enhanced image generation with partial images (no container for now - API doesn't support it yet)
-                Tool::image_generation_with_partials(None, 2),
+                Tool::image_generation(),
             ])
             .build();
 
