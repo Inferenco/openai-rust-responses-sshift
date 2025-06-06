@@ -48,14 +48,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .user("streaming-example") // Add user tracking
             .tools(vec![
                 Tool::web_search_preview(),
-                // Enhanced image generation with partial images
-                Tool::image_generation_with_partials(Some(Container::default_type()), 2),
+                Tool::image_generation(),
             ])
             .build();
 
         println!("📤 Starting enhanced streaming request...");
-        println!("🔧 Tools available: web search, image generation (with 2 partial images)");
-        println!("✨ Features: parallel tools, enhanced monitoring, partial image streaming");
+        println!("🔧 Tools available: web search, image generation");
+        println!("✨ Features: parallel tools, enhanced monitoring");
         println!("📖 Response:\n");
         print!("   "); // Indent for the response
 
@@ -65,7 +64,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut total_chars = 0;
         let mut image_events = 0;
         let mut tool_calls = 0;
-        let mut partial_images = 0;
         let mut error_events = 0;
         let start_time = std::time::Instant::now();
 
@@ -97,18 +95,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     StreamEvent::ToolCallCompleted { id, index: _ } => {
                         println!("\n✅ Tool call completed: {}", id);
                     }
-                    // Enhanced image generation progress
-                    StreamEvent::ImageProgress { url, index } => {
+                    // Note: ImageProgress event is for the deprecated partials tool.
+                    // The new built-in tool returns the full image in an ImageGenerationCall.
+                    // This event is kept for backward compatibility tests but won't be triggered by Tool::image_generation().
+                    StreamEvent::ImageProgress { .. } => {
                         image_events += 1;
-                        if let Some(progress_url) = url {
-                            partial_images += 1;
-                            println!(
-                                "\n📸 Partial image {} generated: {}",
-                                partial_images, progress_url
-                            );
-                        } else {
-                            println!("\n📸 Image generation in progress ({})...", index);
-                        }
+                        println!("\n📸 (Legacy) Image progress event received.");
                     }
                     StreamEvent::Done => {
                         println!("\n\n🏁 Stream completed!");
@@ -137,8 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   📦 Total text chunks: {}", total_chunks);
         println!("   📝 Total characters: {}", total_chars);
         println!("   🛠️ Tool calls made: {}", tool_calls);
-        println!("   📸 Image events: {}", image_events);
-        println!("   🖼️ Partial images generated: {}", partial_images);
+        println!("   📸 (Legacy) Image events: {}", image_events);
         println!("   ❌ Error events: {}", error_events);
         println!("   ⏱️ Stream duration: {:.2}s", duration.as_secs_f64());
 
@@ -184,7 +175,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   ✅ Done event check: {}", StreamEvent::Done.is_done());
 
         println!("\n✨ Streaming Enhancements:");
-        println!("   📸 Partial Image Streaming - Progressive visual content generation");
+        println!("   🖼️ Built-in Image Generation - Full image data in a single response item");
         println!("   🔧 Parallel Tool Execution - Multiple tools running simultaneously");
         println!("   📝 Enhanced Text Events - Better granular control and monitoring");
         println!("   🛠️ Helper Methods - Convenient event data extraction");

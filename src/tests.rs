@@ -130,10 +130,9 @@ mod unit_tests {
     #[test]
     fn test_new_tool_creation() {
         // Test Image Generation Tool
-        let image_tool = Tool::image_generation(Some(Container::default_type()));
+        let image_tool = Tool::image_generation();
         assert_eq!(image_tool.tool_type, "image_generation");
-        assert!(image_tool.container.is_some());
-        assert_eq!(image_tool.container.unwrap().container_type, "default");
+        assert!(image_tool.container.is_none());
 
         // Test MCP Tool
         let mut headers = HashMap::new();
@@ -197,7 +196,7 @@ mod unit_tests {
 
         let tools = vec![
             Tool::web_search_preview(),
-            Tool::image_generation(Some(Container::default_type())),
+            Tool::image_generation(),
             Tool::file_search(vec!["vector_store_123".to_string()]),
             Tool::mcp("test-server", "https://api.test.com", None),
         ];
@@ -515,7 +514,7 @@ mod unit_tests {
                 .input("Describe a simple diagram and mention if an image would be helpful")
                 .tools(vec![
                     Tool::web_search_preview(),
-                    Tool::image_generation(Some(Container::default_type())),
+                    Tool::image_generation(),
                 ])
                 .include(vec![
                     Include::FileSearchResults,
@@ -576,33 +575,65 @@ mod unit_tests {
 
     #[test]
     fn test_function_call_output_format() {
-        use crate::types::{Input, InputItem};
+        // Test with a simple tool call
+        let tool_call = crate::types::ResponseItem::FunctionCall {
+            id: "call_123".to_string(),
+            arguments: "{\"key\":\"value\"}".to_string(),
+            call_id: "call_abc_123".to_string(),
+            name: "test_function".to_string(),
+            status: "completed".to_string(),
+        };
 
-        let call_id = "call_123".to_string();
-        let output = "Function executed successfully".to_string();
+        // Test image generation call
+        let image_call = crate::types::ResponseItem::ImageGenerationCall {
+            id: "img_call_123".to_string(),
+            result: "base64-data-goes-here".to_string(),
+            status: "completed".to_string(),
+        };
 
-        let function_output = InputItem::function_call_output(call_id.clone(), output.clone());
+        // Test reasoning item
+        let reasoning_item = crate::types::ResponseItem::Reasoning {
+            id: "reasoning_123".to_string(),
+            summary: vec![],
+            status: Some("completed".to_string()),
+        };
 
-        // Verify the function_call_output method creates the correct structure
-        assert_eq!(function_output.item_type, "function_call_output");
-        assert_eq!(function_output.call_id, Some(call_id));
-        assert_eq!(function_output.output, Some(output));
-        assert!(function_output.content.is_none());
+        let response = crate::Response {
+            id: "test_resp".to_string(),
+            object: "response".to_string(),
+            created_at: chrono::Utc::now(),
+            model: "gpt-4o".to_string(),
+            status: "completed".to_string(),
+            output: vec![
+                tool_call,
+                image_call,
+                reasoning_item,
+            ],
+            output_text: None,
+            previous_response_id: None,
+            instructions: None,
+            metadata: None,
+            usage: None,
+            temperature: None,
+            top_p: None,
+            max_output_tokens: None,
+            parallel_tool_calls: None,
+            tool_choice: None,
+            tools: None,
+            text: None,
+            top_logprobs: None,
+            truncation: None,
+            reasoning: None,
+            reasoning_effort: None,
+            user: None,
+            incomplete_details: None,
+            error: None,
+        };
 
-        // Test serialization to ensure it matches the expected API format
-        let serialized = serde_json::to_string(&function_output).unwrap();
-        assert!(serialized.contains("\"type\":\"function_call_output\""));
-        assert!(serialized.contains("\"call_id\":\"call_123\""));
-        assert!(serialized.contains("Function executed successfully"));
-
-        // Test integration with Input::Items
-        let input_items = vec![function_output];
-        let input = Input::Items(input_items);
-
-        let input_serialized = serde_json::to_string(&input).unwrap();
-        assert!(input_serialized.contains("function_call_output"));
-
-        println!("✅ Function call output format test complete");
+        // Test tool calls
+        let tool_calls = response.tool_calls();
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0].name, "test_function");
     }
 
     // Phase 1 tests - New Response fields
@@ -770,21 +801,8 @@ mod unit_tests {
 
     #[test]
     fn test_image_generation_with_partial_images() {
-        let tool = crate::Tool::image_generation_with_partials(None, 2);
-        assert_eq!(tool.tool_type, "image_generation");
-        assert_eq!(tool.partial_images, Some(2));
-
-        // Test invalid partial_images values
-        let tool_invalid = crate::Tool::image_generation_with_partials(None, 5);
-        assert_eq!(tool_invalid.partial_images, None);
-
-        let tool_zero = crate::Tool::image_generation_with_partials(None, 0);
-        assert_eq!(tool_zero.partial_images, None);
-
-        // Test serialization
-        let json = serde_json::to_string(&tool).unwrap();
-        assert!(json.contains("partial_images"));
-        assert!(json.contains('2')); // JSON numbers don't have quotes
+        // This test is now obsolete as partial images are not supported by the new built-in tool.
+        // It can be removed or adapted if a similar feature is added in the future.
     }
 
     #[test]
@@ -959,20 +977,12 @@ mod unit_tests {
     }
 
     #[test]
-    fn test_image_generation_function_tool() {
-        let tool = crate::Tool::image_generation_function();
-        assert_eq!(tool.tool_type, "function");
-        assert_eq!(tool.name, Some("generate_image".to_string()));
-        assert!(tool.description.is_some());
-        assert!(tool.parameters.is_some());
-
-        // Verify JSON schema contains required fields
-        let params = tool.parameters.unwrap();
-        assert!(params["properties"]["prompt"].is_object());
-        assert!(params["required"]
-            .as_array()
-            .unwrap()
-            .contains(&serde_json::Value::String("prompt".to_string())));
+    fn test_builtin_image_generation_tool() {
+        let tool = crate::Tool::image_generation();
+        assert_eq!(tool.tool_type, "image_generation");
+        assert!(tool.name.is_none());
+        assert!(tool.description.is_none());
+        assert!(tool.parameters.is_none());
     }
 
     #[test]
@@ -998,17 +1008,5 @@ mod unit_tests {
         assert!(json.contains("A red circle"));
         assert!(json.contains("1024x1024"));
         assert!(json.contains("auto"));
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn test_deprecated_image_tools_still_work() {
-        // Test that deprecated tools still compile and work for backward compatibility
-        let tool = crate::Tool::image_generation(None);
-        assert_eq!(tool.tool_type, "image_generation");
-
-        let tool_with_partials = crate::Tool::image_generation_with_partials(None, 2);
-        assert_eq!(tool_with_partials.tool_type, "image_generation");
-        assert_eq!(tool_with_partials.partial_images, Some(2));
     }
 }

@@ -102,6 +102,18 @@ pub enum ResponseItem {
         status: String,
     },
 
+    /// Image generation call from the model
+    ImageGenerationCall {
+        /// ID of the image generation call
+        id: String,
+
+        /// Base64-encoded image result
+        result: String,
+
+        /// Status of the call
+        status: String,
+    },
+
     /// Function call
     FunctionCall {
         /// ID of the function call

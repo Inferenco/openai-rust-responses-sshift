@@ -32,12 +32,11 @@ use open_ai_rust_responses_by_sshift::{
 };
 use serde_json::json;
 use std::collections::HashMap;
+use std::io::Write;
+use base64::Engine;
 
 #[cfg(feature = "stream")]
 use open_ai_rust_responses_by_sshift::StreamEvent;
-
-#[cfg(feature = "stream")]
-use std::io::Write;
 
 #[cfg(feature = "stream")]
 use futures::StreamExt;
@@ -686,53 +685,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let image_request = Request::builder()
         .model(Model::GPT4oMini)
         .input("Please generate a simple image of a mountain landscape")
-        .tools(vec![Tool::image_generation_function()]) // ✅ Working function tool
+        .tools(vec![Tool::image_generation()]) // ✅ Use the new built-in tool
         .max_output_tokens(500)
         .user("comprehensive-demo")
         .build();
 
     let img_response = client.responses.create(image_request).await?;
-    if !img_response.tool_calls().is_empty() {
-        println!("   🔧 AI called image generation tool");
-        let tool_call = &img_response.tool_calls()[0];
-        if tool_call.name == "generate_image" {
-            // Parse arguments and call Images API
-            let args: std::collections::HashMap<String, serde_json::Value> =
-                serde_json::from_str(&tool_call.arguments)?;
-            let prompt = args
-                .get("prompt")
-                .and_then(|v| v.as_str())
-                .unwrap_or("A mountain landscape");
-            let mut image_req = open_ai_rust_responses_by_sshift::ImageGenerateRequest::new(prompt);
-            if let Some(size) = args.get("size").and_then(|v| v.as_str()) {
-                image_req = image_req.with_size(size);
-            }
-            if let Some(quality) = args.get("quality").and_then(|v| v.as_str()) {
-                image_req = image_req.with_quality(quality);
-            }
-            // Add more parameter mappings as needed
-            let image_result = client.images.generate(image_req).await?;
-            let image_url = image_result
-                .data
-                .first()
-                .and_then(|d| d.url.as_ref())
-                .cloned()
-                .unwrap_or_default();
-
-            // Send the function output back to the model
-            let followup = Request::builder()
-                .model(Model::GPT4oMini)
-                .with_function_outputs(
-                    img_response.id(),
-                    vec![(tool_call.call_id.clone(), image_url.clone())],
-                )
-                .build();
-            let final_response = client.responses.create(followup).await?;
-            println!("🖼️ Image URL: {}", image_url);
-            println!("📝 Final Response: {}", final_response.output_text());
+    let mut image_saved = false;
+    for item in &img_response.output {
+        if let open_ai_rust_responses_by_sshift::ResponseItem::ImageGenerationCall { result, .. } = item {
+            println!("   🖼️ Image data found, decoding and saving...");
+            let image_bytes = base64::engine::general_purpose::STANDARD.decode(result)?;
+            let file_name = "mountain_landscape.png";
+            let mut file = std::fs::File::create(file_name)?;
+            file.write_all(&image_bytes)?;
+            println!("   ✅ Image saved to {}", file_name);
+            image_saved = true;
+            break;
         }
-    } else {
-        println!("📝 Response: {}", img_response.output_text());
+    }
+
+    if !image_saved {
+        println!("   ⚠️ No image generation output found in response.");
+        println!("   📝 Response: {}", img_response.output_text());
     }
 
     // MCP (Model Context Protocol) Tool Demo with Enhanced Approval
@@ -864,7 +839,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Tool::web_search_preview(),
             Tool::file_search(vec![vector_store.id.clone()]),
             enhanced_code_tool,
-            Tool::image_generation_with_partials(None, 3),
+            Tool::image_generation(),
             mcp_auto,
         ])
         .include(enhanced_includes.clone())

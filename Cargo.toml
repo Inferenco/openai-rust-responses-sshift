@@ -1,9 +1,9 @@
 [package]
 name = "open-ai-rust-responses-by-sshift"
-version = "0.1.8"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.82.0"
-description = "Rust SDK for OpenAI Responses API with web search, files, vector stores, and tools support"
+description = "A feature-rich, async-first Rust wrapper for the OpenAI Responses API, with built-in support for streaming, function calling, file handling, and enhanced response monitoring"
 license = "MIT"
 repository = "https://github.com/Singularity-Shift/openai-rust-responses-sshift"
 readme = "README.md"
@@ -26,6 +26,8 @@ async-fn-stream = { version = "0.2", optional = true }
 tokio = { version = "1.0", features = ["rt", "macros", "fs"], optional = true }
 log = "0.4"
 mime_guess = "2.0"
+dotenv = { version = "0.15", optional = true }
+base64 = { version = "0.22", optional = true }
 
 [features]
 default = ["rustls"]
@@ -46,6 +48,8 @@ tokio-test = "0.4"
 mockito = "1.0"
 serde_test = "1.0"
 dotenv = "0.15"
+anyhow = "1.0"
+base64 = "0.22"
 
 [package.metadata.docs.rs]
 all-features = true
