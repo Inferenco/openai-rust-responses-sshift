@@ -1,11 +1,14 @@
-//! Image generation example using the pre-made function tool
+//! Image generation example using both direct API and the built-in tool
 //!
 //! This example shows:
 //! - Direct Images API usage
-//! - Conversation-integrated image generation
-//! - Automatic tool handling by the wrapper
+//! - Conversation-integrated image generation using the built-in tool
 
-use open_ai_rust_responses_by_sshift::{Client, ImageGenerateRequest, Model, Request, Tool};
+use base64::{engine::general_purpose, Engine as _};
+use open_ai_rust_responses_by_sshift::{
+    Client, ImageGenerateRequest, Model, Request, ResponseItem, Tool,
+};
+use std::io::Write;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -23,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(image_response) => {
             if let Some(image) = image_response.data.first() {
                 if let Some(url) = &image.url {
-                    println!("   Generated image: {}", url);
+                    println!("   Generated image URL: {}", url);
                 } else if let Some(_b64) = &image.b64_json {
                     println!("   Generated image (base64 data available)");
                 }
@@ -34,19 +37,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Method 2: Conversation-integrated image generation
-    println!("\n💬 Conversation with image generation:");
+    // Method 2: Conversation-integrated image generation with the built-in tool
+    println!("\n💬 Conversation with built-in image generation:");
     let request = Request::builder()
         .model(Model::GPT4oMini)
-        .input("Please generate an image of a futuristic city skyline and describe what you see")
+        .input("Please generate an image of a futuristic city skyline")
         .tools(vec![
-            Tool::image_generation_function(), // Pre-made tool!
+            Tool::image_generation(), // Use the new built-in tool!
         ])
         .build();
 
     match client.responses.create(request).await {
         Ok(response) => {
-            println!("   Response: {:?}", response.output);
+            let mut image_saved = false;
+            for item in &response.output {
+                if let ResponseItem::ImageGenerationCall { result, .. } = item {
+                    println!("   🖼️ Image data found, decoding and saving...");
+                    let image_bytes = general_purpose::STANDARD.decode(result)?;
+                    let file_name = "futuristic_city.png";
+                    let mut file = std::fs::File::create(file_name)?;
+                    file.write_all(&image_bytes)?;
+                    println!("   ✅ Image saved successfully as '{}'", file_name);
+                    image_saved = true;
+                    break;
+                }
+            }
+            if !image_saved {
+                println!("   ⚠️ No image generation output found in the response.");
+                println!("      Final response: {}", response.output_text());
+            }
         }
         Err(e) => {
             println!("   Error in conversation: {}", e);
@@ -54,8 +73,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\n✅ Demo completed!");
-    println!("Note: The conversation method uses a function tool that the AI can call");
-    println!("      to generate images when requested. The wrapper handles this automatically.");
+    println!("Note: The conversation method now uses the built-in `image_generation` tool.");
+    println!("      The model handles the generation and returns the image data directly.");
 
     Ok(())
 }

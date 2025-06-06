@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2024-07-22
+
+### ✨ Features
+- **Added Built-in Image Generation Tool**: Implemented support for the new `Tool::image_generation()` built-in tool. The model now handles image generation directly and returns a base64-encoded image in the new `ImageGenerationCall` response item.
+
+### 💥 Breaking Changes
+- **Removed Deprecated Image Tools**: Removed the jury-rigged `Tool::image_generation_function()` and the `Tool::image_generation_with_partials()` methods. Please use the new `Tool::image_generation()` for AI-driven image generation or the direct `client.images.generate()` method for explicit API calls.
+
+### ♻️ Changed
+- Updated `examples/image_generation.rs` and `examples/comprehensive_demo.rs` to use the new built-in image generation tool, simplifying the workflow and removing manual tool-handling logic for images.
+- Added `examples/image_generation_builtin.rs` to specifically demonstrate the new feature.
+
 ## [0.1.8] - 2025-01-15
 
 ### 🐛 Fixed
