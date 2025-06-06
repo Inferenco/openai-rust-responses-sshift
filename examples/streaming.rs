@@ -27,7 +27,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "stream")]
     {
         use futures::StreamExt;
-        use open_ai_rust_responses_by_sshift::types::Container;
         use open_ai_rust_responses_by_sshift::types::StreamEvent;
         use open_ai_rust_responses_by_sshift::{Client, Model, Request, Tool};
 
