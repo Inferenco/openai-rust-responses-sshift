@@ -4,7 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/open-ai-rust-responses-by-sshift.svg)](https://crates.io/crates/open-ai-rust-responses-by-sshift)
 [![Documentation](https://docs.rs/open-ai-rust-responses-by-sshift/badge.svg)](https://docs.rs/open-ai-rust-responses-by-sshift)
 
-> **🔥 v0.1.8 Update**: Fixed vector store file deletion API compatibility. The `delete_file` method now correctly handles the actual OpenAI API response structure. [See changelog](#-changelog) for details.
+> **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
 
 A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reasoning capabilities, background processing, enhanced models, production-ready streaming, and **working image generation**.
 
@@ -14,8 +14,8 @@ A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reaso
 - **🌊 Production-Ready Streaming**: HTTP chunked responses with proper parsing and real-time text generation
 - **📁 File Operations**: Upload, download, and manage files with full MIME support
 - **🔍 Vector Stores**: Semantic search and knowledge retrieval with attribute filtering
-- **🛠️ Advanced Tools**: Web search, file search, custom functions, **image generation**, and MCP integration
-- **🎨 Image Generation**: Working implementation via direct API and AI-triggered function tools
+- **🛠️ Advanced Tools**: Web search, file search, custom functions, **built-in image generation**, and MCP integration
+- **🎨 Image Generation**: Working implementation via direct API and the new built-in tool
 - **🧠 Reasoning Parameters**: Low/high effort reasoning with auto/concise/detailed summaries
 - **🔄 Background Processing**: Async operation handling for long-running tasks
 - **🎯 Enhanced Models**: Support for o3, o4-mini, all o1 variants, and GPT-4o family
@@ -28,31 +28,28 @@ A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reaso
 
 This SDK includes cutting-edge features with full API parity:
 
-### 🎨 **Image Generation** (NEW!)
+### 🎨 **Image Generation** (Overhauled in v0.2.0)
 ```rust
 use open_ai_rust_responses_by_sshift::{Client, ImageGenerateRequest};
 
-// Direct image generation via Images API
+// Method 1: Direct image generation via Images API
 let image_request = ImageGenerateRequest::new("A serene mountain landscape")
     .with_size("1024x1024")
-    .with_quality("high")
-    .with_seed(12345);  // For reproducibility
-
+    .with_quality("high");
 let image_response = client.images.generate(image_request).await?;
 println!("Image URL: {}", image_response.data[0].url.as_ref().unwrap());
 
-// AI-triggered image generation via function tool
+// Method 2: AI-triggered image generation via the new built-in tool
 let request = Request::builder()
     .model(Model::GPT4oMini)
     .input("Create an image of a futuristic city")
-    .tools(vec![Tool::image_generation_function()])  // Pre-made function tool
+    .tools(vec![Tool::image_generation()]) // Use the new, simple tool
     .build();
 
-// The AI will call the image generation tool automatically
+// The model handles image generation and returns the data directly
 let response = client.responses.create(request).await?;
+// See examples/image_generation_builtin.rs for how to save the image
 ```
-
-> **Note**: Native OpenAI hosted `image_generation` tool support is pending official API release. Current implementation uses a function tool bridge pattern for seamless integration.
 
 ### 🧠 **Reasoning Parameters**
 ```rust
@@ -162,11 +159,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.1.8"
+open-ai-rust-responses-by-sshift = "0.2.0"
 tokio = { version = "1.0", features = ["full"] }
 
 # Optional: Enable streaming
-# open-ai-rust-responses-by-sshift = { version = "0.1.8", features = ["stream"] }
+# open-ai-rust-responses-by-sshift = { version = "0.2.0", features = ["stream"] }
 ```
 
 ### Basic Usage
@@ -253,7 +250,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let request = Request::builder()
         .model(Model::GPT4oMini)
         .input("Create an image of a robot learning to paint")
-        .tools(vec![Tool::image_generation_function()])  // Pre-made tool
+        .tools(vec![Tool::image_generation()])  // Use the new built-in tool
         .build();
     
     let response = client.responses.create(request).await?;
@@ -269,7 +266,7 @@ Enable the `stream` feature:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.1.8", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.2.0", features = ["stream"] }
 ```
 
 ```rust

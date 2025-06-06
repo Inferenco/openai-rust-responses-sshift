@@ -1,6 +1,6 @@
 # Open AI Rust Responses by SShift - Documentation
 
-> **🔥 v0.1.8 Update**: Fixed vector store file deletion API compatibility. The `delete_file` method now correctly handles the actual OpenAI API response structure and returns `VectorStoreFileDeleteResponse` instead of incorrectly expecting a `VectorStore` object.
+> **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
 
 This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, production-ready streaming, and **working image generation**.
 
@@ -15,7 +15,7 @@ This document provides comprehensive documentation for the Open AI Rust Response
 7. [Files API](#files-api)
 8. [Vector Stores API](#vector-stores-api)
 9. [Tools API](#tools-api)
-10. [**Image Generation**](#image-generation) *(NEW!)*
+10. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
 11. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
 12. [**Reasoning Parameters**](#reasoning-parameters)
 13. [**Background Processing**](#background-processing)
@@ -71,14 +71,14 @@ Add the library to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.1.8"
+open-ai-rust-responses-by-sshift = "0.2.0"
 ```
 
 If you want to use streaming responses, make sure to include the `stream` feature (enabled by default):
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.1.8", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.2.0", features = ["stream"] }
 ```
 
 ## Authentication
@@ -298,7 +298,7 @@ let results = client.tools.web_search("latest news about AI").await?;
 let results = client.tools.file_search("vs_abc123", "quantum computing").await?;
 ```
 
-## **Image Generation** *(NEW in v0.1.7)*
+## **Image Generation** *(Overhauled in v0.2.0)*
 
 The SDK now includes comprehensive image generation support through two methods:
 
@@ -339,77 +339,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Method 2: AI-Triggered Image Generation
+### Method 2: Built-in Image Generation
+
+The model can now generate images directly when you include the built-in `image_generation` tool. It returns the image data as a base64-encoded string within a new `ImageGenerationCall` response item.
 
 ```rust
-use open_ai_rust_responses_by_sshift::{Client, Request, Model, Tool};
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, Tool, ResponseItem};
+use base64::{Engine as _, engine::general_purpose};
+use std::io::Write;
+use std::fs::File;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?;
     
-    // Use the pre-made image generation function tool
+    // Create a request using the built-in image_generation tool
     let request = Request::builder()
         .model(Model::GPT4oMini)
-        .input("Create a detailed image of a futuristic city with flying cars")
-        .tools(vec![Tool::image_generation_function()])  // Pre-made function tool
-        .max_output_tokens(500)
+        .input("Generate an image of a rusty robot programming on a vintage computer")
+        .tools(vec![Tool::image_generation()])
         .build();
-    
-    // The AI will analyze the request and call the image generation tool
+
     let response = client.responses.create(request).await?;
-    
-    // Check if the AI called the image generation tool
-    if !response.tool_calls().is_empty() {
-        let tool_call = &response.tool_calls()[0];
-        if tool_call.name == "generate_image" {
-            // Parse the AI's parameters
-            let args: serde_json::Value = serde_json::from_str(&tool_call.arguments)?;
-            println!("AI requested image with prompt: {}", args["prompt"]);
-            
-            // The wrapper can handle the actual image generation
-            // See examples/image_generation.rs for complete implementation
+
+    // Find the image data in the response output
+    for item in &response.output {
+        if let ResponseItem::ImageGenerationCall { result, .. } = item {
+            // Decode the base64 string
+            let image_bytes = general_purpose::STANDARD.decode(result)?;
+            let mut file = File::create("robot.png")?;
+            file.write_all(&image_bytes)?;
+            println!("Image saved to robot.png");
+            break;
         }
     }
     
     Ok(())
 }
 ```
-
-### Image Generation Parameters
-
-The `generate_image` function tool accepts all Images API parameters:
-
-```json
-{
-    "prompt": "Detailed description of the image",
-    "n": 1,                    // Number of images (1-10)
-    "size": "1024x1024",       // Image dimensions
-    "quality": "high",         // standard or high
-    "style": "natural",        // natural or vivid
-    "output_format": "png",    // png, jpg, or webp
-    "output_compression": 90,  // 0-100 for jpg/webp
-    "background": "white",     // For transparent images
-    "seed": 12345,            // For reproducibility
-    "user": "user-123"        // User tracking
-}
-```
-
-### Important Notes
-
-> **Note**: Native OpenAI hosted `image_generation` tool support is pending official API release. The current implementation uses a function tool bridge pattern that provides seamless integration. When OpenAI releases the hosted tool, you'll be able to use:
-> ```rust
-> Tool::image_generation(None)  // Future API (not yet available)
-> ```
-
-### Complete Example with Round-Trip
-
-```rust
-// See examples/image_generation.rs for a complete working example that shows:
-// 1. Direct API image generation
-// 2. AI-triggered generation with function tools
-// 3. Handling the complete round-trip with function outputs
-```
+The built-in tool does not take parameters. The model infers the image content from the `input` prompt. To control image parameters like size, quality, etc., use the Direct Images API (Method 1).
 
 ## **Function Calling (Tools)**
 
@@ -1212,7 +1180,7 @@ Example of using a specific TLS implementation:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.1.8", default-features = false, features = ["stream", "native-tls"] }
+open-ai-rust-responses-by-sshift = { version = "0.2.0", default-features = false, features = ["stream", "native-tls"] }
 ```
 
 This will use the native TLS implementation instead of rustls.
@@ -1263,7 +1231,9 @@ cargo run --example streaming --features stream
 # Function calling
 cargo run --example function_calling
 
-# Image generation (NEW in v0.1.7)
+# Built-in image generation
+cargo run --example image_generation_builtin
+# Direct API image generation
 cargo run --example image_generation
 
 # Comprehensive demo of all features (requires API key)
@@ -1297,16 +1267,12 @@ The `comprehensive_demo.rs` example showcases all major SDK features:
 
 This demo creates temporary resources for testing and cleans them up afterward, making it safe to run multiple times.
 
-### Image Generation Example (NEW)
+### Image Generation Examples
 
-The `image_generation.rs` example demonstrates:
-
-- **Direct API Usage**: Generate images using the Images API directly
-- **AI-Triggered Generation**: Let the AI decide when and how to generate images
-- **Function Tool Integration**: Complete round-trip with function outputs
-- **Parameter Control**: All image generation parameters (size, quality, style, etc.)
+The `image_generation_builtin.rs` example demonstrates using the new, simple, built-in tool.
+The `image_generation.rs` example demonstrates both direct API usage and the built-in tool side-by-side.
 
 ```bash
-# Run the image generation example
-cargo run --example image_generation
+# Run the built-in tool example
+cargo run --example image_generation_builtin
 ```
