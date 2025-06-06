@@ -21,6 +21,7 @@
 //! 1. Create a `.env` file in the project root with: OPENAI_API_KEY=sk-your-api-key-here
 //! 2. Run with: `cargo run --example comprehensive_demo --features stream`
 
+use base64::Engine;
 use dotenv::dotenv;
 use open_ai_rust_responses_by_sshift::{
     files::FilePurpose,
@@ -33,7 +34,6 @@ use open_ai_rust_responses_by_sshift::{
 use serde_json::json;
 use std::collections::HashMap;
 use std::io::Write;
-use base64::Engine;
 
 #[cfg(feature = "stream")]
 use open_ai_rust_responses_by_sshift::StreamEvent;
@@ -693,7 +693,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let img_response = client.responses.create(image_request).await?;
     let mut image_saved = false;
     for item in &img_response.output {
-        if let open_ai_rust_responses_by_sshift::ResponseItem::ImageGenerationCall { result, .. } = item {
+        if let open_ai_rust_responses_by_sshift::ResponseItem::ImageGenerationCall {
+            result, ..
+        } = item
+        {
             println!("   🖼️ Image data found, decoding and saving...");
             let image_bytes = base64::engine::general_purpose::STANDARD.decode(result)?;
             let file_name = "mountain_landscape.png";

@@ -8,10 +8,10 @@
 //! 1. Create a `.env` file in the project root with: OPENAI_API_KEY=sk-your-api-key-here
 //! 2. Run with: `cargo run --example image_generation_builtin`
 
-use open_ai_rust_responses_by_sshift::{Client, Model, Request, Tool, ResponseItem};
+use base64::{engine::general_purpose, Engine as _};
+use open_ai_rust_responses_by_sshift::{Client, Model, Request, ResponseItem, Tool};
 use std::fs::File;
 use std::io::Write;
-use base64::{Engine as _, engine::general_purpose};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -63,4 +63,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
-} 
+}

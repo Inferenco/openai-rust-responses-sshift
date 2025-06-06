@@ -4,8 +4,10 @@
 //! - Direct Images API usage
 //! - Conversation-integrated image generation using the built-in tool
 
-use open_ai_rust_responses_by_sshift::{Client, ImageGenerateRequest, Model, Request, ResponseItem, Tool};
-use base64::{Engine as _, engine::general_purpose};
+use base64::{engine::general_purpose, Engine as _};
+use open_ai_rust_responses_by_sshift::{
+    Client, ImageGenerateRequest, Model, Request, ResponseItem, Tool,
+};
 use std::io::Write;
 
 #[tokio::main]

@@ -512,10 +512,7 @@ mod unit_tests {
             let request = Request::builder()
                 .model(Model::GPT4o)
                 .input("Describe a simple diagram and mention if an image would be helpful")
-                .tools(vec![
-                    Tool::web_search_preview(),
-                    Tool::image_generation(),
-                ])
+                .tools(vec![Tool::web_search_preview(), Tool::image_generation()])
                 .include(vec![
                     Include::FileSearchResults,
                     Include::ReasoningEncryptedContent,
@@ -604,11 +601,7 @@ mod unit_tests {
             created_at: chrono::Utc::now(),
             model: "gpt-4o".to_string(),
             status: "completed".to_string(),
-            output: vec![
-                tool_call,
-                image_call,
-                reasoning_item,
-            ],
+            output: vec![tool_call, image_call, reasoning_item],
             output_text: None,
             previous_response_id: None,
             instructions: None,
