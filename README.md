@@ -5,6 +5,7 @@
 [![Documentation](https://docs.rs/open-ai-rust-responses-by-sshift/badge.svg)](https://docs.rs/open-ai-rust-responses-by-sshift)
 
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
+> **🎉 v0.2.1 Update**: Vision input landed! Supply images with `input_image_url(...)` and get descriptions from GPT-4o.
 
 A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reasoning capabilities, background processing, enhanced models, production-ready streaming, and **working image generation**.
 
@@ -16,6 +17,7 @@ A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reaso
 - **🔍 Vector Stores**: Semantic search and knowledge retrieval with attribute filtering
 - **🛠️ Advanced Tools**: Web search, file search, custom functions, **built-in image generation**, and MCP integration
 - **🎨 Image Generation**: Working implementation via direct API and the new built-in tool
+- **📸 Image Input (Vision)**: Describe user-supplied images with GPT-4o Vision
 - **🧠 Reasoning Parameters**: Low/high effort reasoning with auto/concise/detailed summaries
 - **🔄 Background Processing**: Async operation handling for long-running tasks
 - **🎯 Enhanced Models**: Support for o3, o4-mini, all o1 variants, and GPT-4o family
@@ -49,6 +51,36 @@ let request = Request::builder()
 // The model handles image generation and returns the data directly
 let response = client.responses.create(request).await?;
 // See examples/image_generation_builtin.rs for how to save the image
+```
+
+### 📸 **Image Input (Vision)** (New in v0.2.1)
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+
+    // Public demo image
+    let image_url = "https://storage.googleapis.com/sshift-gpt-bucket/ledger-app/generated-image-1746132697428.png";
+
+    let request = Request::builder()
+        .model(Model::GPT4o)            // GPT-4o or GPT-4oMini for vision
+        .input_image_url(image_url)     // New helper does all the heavy lifting
+        .instructions("Describe the image in detail, mentioning colours, objects, and composition.")
+        .build();
+
+    let response = client.responses.create(request).await?;
+    println!("Description: {}", response.output_text());
+
+    Ok(())
+}
+```
+
+Run it:
+
+```bash
+cargo run --example image_input --features stream
 ```
 
 ### 🧠 **Reasoning Parameters**
@@ -159,11 +191,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.2.0"
+open-ai-rust-responses-by-sshift = "0.2.1"
 tokio = { version = "1.0", features = ["full"] }
 
 # Optional: Enable streaming
-# open-ai-rust-responses-by-sshift = { version = "0.2.0", features = ["stream"] }
+# open-ai-rust-responses-by-sshift = { version = "0.2.1", features = ["stream"] }
 ```
 
 ### Basic Usage
@@ -266,7 +298,7 @@ Enable the `stream` feature:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.2.0", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.2.1", features = ["stream"] }
 ```
 
 ```rust
@@ -438,6 +470,7 @@ Check out the `examples/` directory for comprehensive examples:
 - [`streaming.rs`](examples/streaming.rs) - Real-time streaming
 - [`function_calling.rs`](examples/function_calling.rs) - Function calling and tool outputs
 - [`image_generation.rs`](examples/image_generation.rs) - **Image generation via direct API and AI tools**
+- [`image_input.rs`](examples/image_input.rs) - **Image input / vision description**
 - [`comprehensive_demo.rs`](examples/comprehensive_demo.rs) - **Complete feature showcase** (files, vector stores, tools, images, etc.)
 
 ### Quick Start with Full Demo
@@ -486,6 +519,7 @@ This crate provides comprehensive coverage of the OpenAI Responses API:
 | Vector Stores | ✅ | Create, search, manage |
 | Tools | ✅ | Built-in and custom function calling |
 | Image Generation | ✅ | Direct API + AI function tools (hosted tool pending) |
+| Image Input (Vision) | ✅ | Describe user-supplied images |
 | Phase 1 Spec | ✅ | 85% May 2025 spec coverage |
 
 ## 🚦 Error Handling

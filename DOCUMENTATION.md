@@ -1,6 +1,7 @@
 # Open AI Rust Responses by SShift - Documentation
 
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
+> **🎉 v0.2.1 Update**: Vision input (image understanding) now supported! Use `input_image_url(...)` to send pictures to GPT-4o and get rich descriptions back.
 
 This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, production-ready streaming, and **working image generation**.
 
@@ -16,17 +17,18 @@ This document provides comprehensive documentation for the Open AI Rust Response
 8. [Vector Stores API](#vector-stores-api)
 9. [Tools API](#tools-api)
 10. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
-11. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
-12. [**Reasoning Parameters**](#reasoning-parameters)
-13. [**Background Processing**](#background-processing)
-14. [**Enhanced Models**](#enhanced-models)
-15. [**Type-Safe Includes**](#type-safe-includes)
-16. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
-17. [Production-Ready Streaming](#production-ready-streaming)
-18. [Error Handling](#error-handling)
-19. [Advanced Configuration](#advanced-configuration)
-20. [Feature Flags](#feature-flags)
-21. [Testing and Examples](#testing-and-examples)
+11. [**Image Input (Vision)**](#image-input-vision) *(New in v0.2.1)*
+12. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
+13. [**Reasoning Parameters**](#reasoning-parameters)
+14. [**Background Processing**](#background-processing)
+15. [**Enhanced Models**](#enhanced-models)
+16. [**Type-Safe Includes**](#type-safe-includes)
+17. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
+18. [Production-Ready Streaming](#production-ready-streaming)
+19. [Error Handling](#error-handling)
+20. [Advanced Configuration](#advanced-configuration)
+21. [Feature Flags](#feature-flags)
+22. [Testing and Examples](#testing-and-examples)
 
 ## Quick Start
 
@@ -71,14 +73,14 @@ Add the library to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.2.0"
+open-ai-rust-responses-by-sshift = "0.2.1"
 ```
 
 If you want to use streaming responses, make sure to include the `stream` feature (enabled by default):
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.2.0", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.2.1", features = ["stream"] }
 ```
 
 ## Authentication
@@ -378,6 +380,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 The built-in tool does not take parameters. The model infers the image content from the `input` prompt. To control image parameters like size, quality, etc., use the Direct Images API (Method 1).
+
+## **Image Input (Vision)** *(New in v0.2.1)*
+
+The SDK can now send user-supplied images to multimodal models like **GPT-4o** and receive textual descriptions or other vision-based results.
+
+### Quick Example
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+
+    let image_url = "https://storage.googleapis.com/sshift-gpt-bucket/ledger-app/generated-image-1746132697428.png";
+
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input_image_url(image_url)
+        .instructions("Describe the image in detail, mentioning colours, objects, and composition.")
+        .build();
+
+    let response = client.responses.create(request).await?;
+    println!("Description: {}", response.output_text());
+
+    Ok(())
+}
+```
+
+Under the hood, `.input_image_url(...)` constructs a `message` payload with a single `content` item of type `input_image` and the provided URL, matching the OpenAI Responses API specification.
+
+For granular control you can build messages manually:
+
+```rust
+use open_ai_rust_responses_by_sshift::types::InputItem;
+
+let content = vec![
+    InputItem::content_image("https://example.com/cat.png"),
+    InputItem::content_text("Describe this cat, please"),
+];
+
+let message = InputItem::message("user", content);
+```
+
+See the runnable example in [`examples/image_input.rs`](examples/image_input.rs).
 
 ## **Function Calling (Tools)**
 
@@ -1180,7 +1227,7 @@ Example of using a specific TLS implementation:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.2.0", default-features = false, features = ["stream", "native-tls"] }
+open-ai-rust-responses-by-sshift = { version = "0.2.1", default-features = false, features = ["stream", "native-tls"] }
 ```
 
 This will use the native TLS implementation instead of rustls.
