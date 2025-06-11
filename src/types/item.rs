@@ -18,7 +18,7 @@ pub struct InputItem {
     #[serde(rename = "type")]
     pub item_type: String,
 
-    /// Content of the input item
+    /// Content of the input item (for non-message types)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<serde_json::Value>,
 
@@ -29,6 +29,22 @@ pub struct InputItem {
     /// Output for function call outputs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output: Option<String>,
+
+    /// Image URL for input_image type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
+
+    /// Detail level for input_image type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+
+    /// Role for message type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+
+    /// Text for input_text type  
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
 }
 
 impl InputItem {
@@ -39,6 +55,10 @@ impl InputItem {
             content: Some(serde_json::Value::String(content.into())),
             call_id: None,
             output: None,
+            image_url: None,
+            detail: None,
+            role: None,
+            text: None,
         }
     }
 
@@ -49,7 +69,55 @@ impl InputItem {
             content: None,
             call_id: Some(call_id.into()),
             output: Some(output.into()),
+            image_url: None,
+            detail: None,
+            role: None,
+            text: None,
         }
+    }
+
+    /// Creates an image URL input item (vision)
+    pub fn image_url(url: impl Into<String>) -> Self {
+        Self {
+            item_type: "input_image".to_string(),
+            content: None,
+            call_id: None,
+            output: None,
+            image_url: Some(url.into()),
+            detail: Some("auto".to_string()),
+            role: None,
+            text: None,
+        }
+    }
+
+    /// Creates a message input item with role and content
+    pub fn message(role: impl Into<String>, content: Vec<serde_json::Value>) -> Self {
+        Self {
+            item_type: "message".to_string(),
+            content: Some(serde_json::Value::Array(content)),
+            call_id: None,
+            output: None,
+            image_url: None,
+            detail: None,
+            role: Some(role.into()),
+            text: None,
+        }
+    }
+
+    /// Creates a content item for input_image (used inside message content)
+    pub fn content_image(url: impl Into<String>) -> serde_json::Value {
+        serde_json::json!({
+            "type": "input_image",
+            "image_url": url.into()
+        })
+    }
+
+    /// Creates a content item for input_text (used inside message content)  
+    pub fn content_text(text: impl Into<String>) -> serde_json::Value {
+        serde_json::json!({
+            "type": "input_text",
+            "text": text.into()
+        })
     }
 }
 

@@ -1002,4 +1002,36 @@ mod unit_tests {
         assert!(json.contains("1024x1024"));
         assert!(json.contains("auto"));
     }
+
+    #[test]
+    fn test_input_item_image_url_builder() {
+        use crate::types::InputItem;
+        let url = "https://example.com/sample.png";
+        let content_item = InputItem::content_image(url);
+        assert_eq!(content_item["type"], "input_image");
+        assert_eq!(content_item["image_url"], url);
+    }
+
+    #[test]
+    fn test_request_builder_input_image_url() {
+        let url = "https://example.com/sample.png";
+        let request = crate::Request::builder()
+            .model(crate::Model::GPT4o)
+            .input_image_url(url)
+            .build();
+
+        match request.input {
+            crate::Input::Items(items) => {
+                assert_eq!(items.len(), 1);
+                assert_eq!(items[0].item_type, "message");
+                assert_eq!(items[0].role.as_ref().unwrap(), "user");
+
+                let content = items[0].content.as_ref().unwrap().as_array().unwrap();
+                assert_eq!(content.len(), 1);
+                assert_eq!(content[0]["type"], "input_image");
+                assert_eq!(content[0]["image_url"], url);
+            }
+            crate::Input::Text(_) => panic!("Expected input items with message"),
+        }
+    }
 }

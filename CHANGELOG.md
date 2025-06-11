@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-06-11
+
+### ✨ Features
+- **Vision (Image Input)**: Added support for user-supplied image analysis.
+  - New `InputItem::content_image()` helper for content items.
+  - New `InputItem::message()` and `RequestBuilder::input_image_url()` for easy message creation.
+  - Fully compatible with GPT-4o multimodal capabilities.
+
+### 🆕 Examples
+- Added `examples/image_input.rs` and updated `examples/comprehensive_demo.rs` with an image input demo.
+
+### ✅ Tests
+- Added unit tests verifying the new builders and request structure.
+
+### 🐛 Fixed
+- Corrected message structure for image inputs (now wrapped in a `message` item with `role: "user"`).
+
+### 📝 Documentation
+- Updated README.md and DOCUMENTATION.md with Vision usage instructions and code samples.
+
 ## [0.2.0] - 2024-07-22
 
 ### ✨ Features

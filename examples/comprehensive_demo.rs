@@ -712,6 +712,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   📝 Response: {}", img_response.output_text());
     }
 
+    // Image Input (Vision) Demo using `input_image_url`
+    println!("\n🖼️  Image Input (Vision) Demo");
+    println!("---------------------------");
+
+    let supplied_image_url = "https://storage.googleapis.com/sshift-gpt-bucket/ledger-app/generated-image-1746132697428.png";
+    println!("📤 Supplying image for description: {}", supplied_image_url);
+
+    let vision_request = Request::builder()
+        .model(Model::GPT4o) // Use GPT-4o for multimodal capabilities
+        .input_image_url(supplied_image_url)
+        .instructions("Describe the image in detail, mentioning colors, objects, and overall scene composition.")
+        // Ask the API to echo the image URL back so users see how to include `Include` options
+        .include(vec![Include::MessageInputImageUrl])
+        .max_output_tokens(300)
+        .user("comprehensive-demo")
+        .build();
+
+    match client.responses.create(vision_request).await {
+        Ok(vision_response) => {
+            println!("✅ Vision description received:");
+            println!("   {}", vision_response.output_text());
+        }
+        Err(e) => println!("⚠️  Vision request failed: {}", e),
+    }
+
     // MCP (Model Context Protocol) Tool Demo with Enhanced Approval
     println!("\n🔌 MCP Server Integration with Approval Modes");
     println!("---------------------------------------------");

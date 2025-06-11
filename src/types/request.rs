@@ -382,6 +382,17 @@ impl RequestBuilder {
         self
     }
 
+    /// Sets the input as a single image URL in a user message
+    #[must_use]
+    pub fn input_image_url(mut self, url: impl Into<String>) -> Self {
+        let message = crate::types::InputItem::message(
+            "user",
+            vec![crate::types::InputItem::content_image(url)],
+        );
+        self.request.input = crate::types::Input::Items(vec![message]);
+        self
+    }
+
     /// Builds the request
     #[must_use]
     pub fn build(self) -> Request {
