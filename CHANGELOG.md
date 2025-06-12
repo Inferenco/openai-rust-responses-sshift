@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-06-12
+
+### ✨ Features
+- **Vision (Multi-Image Input)**: Added helpers for sending multiple images in a single request.
+  - `RequestBuilder::input_image_urls<I, S>()` for batch creation.
+  - `RequestBuilder::push_image_url()` for incremental building.
+- Updated `InputItem` utilities to support comparison and album use-cases.
+
+### 🆕 Examples
+- `examples/image_input.rs` now demonstrates single-image description **and** two-image comparison.
+
+### ✅ Tests
+- New unit tests cover `input_image_urls` and `push_image_url` helpers.
+
+### 📝 Documentation
+- DOCUMENTATION.md updated with multi-image usage docs and v0.2.2 banner.
+
 ## [0.2.1] - 2025-06-11
 
 ### ✨ Features

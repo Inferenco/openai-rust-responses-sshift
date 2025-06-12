@@ -2,6 +2,7 @@
 
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
 > **🎉 v0.2.1 Update**: Vision input (image understanding) now supported! Use `input_image_url(...)` to send pictures to GPT-4o and get rich descriptions back.
+> **🚀 v0.2.2 Update**: Multi-image vision support added! Use `input_image_urls(&[...])` or chain `push_image_url()` for albums and comparisons.
 
 This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, production-ready streaming, and **working image generation**.
 
@@ -17,7 +18,7 @@ This document provides comprehensive documentation for the Open AI Rust Response
 8. [Vector Stores API](#vector-stores-api)
 9. [Tools API](#tools-api)
 10. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
-11. [**Image Input (Vision)**](#image-input-vision) *(New in v0.2.1)*
+11. [**Image Input (Vision)**](#image-input-vision) *(Updated in v0.2.2)*
 12. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
 13. [**Reasoning Parameters**](#reasoning-parameters)
 14. [**Background Processing**](#background-processing)
@@ -73,14 +74,14 @@ Add the library to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.2.1"
+open-ai-rust-responses-by-sshift = "0.2.2"
 ```
 
 If you want to use streaming responses, make sure to include the `stream` feature (enabled by default):
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.2.1", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.2.2", features = ["stream"] }
 ```
 
 ## Authentication
@@ -381,7 +382,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 The built-in tool does not take parameters. The model infers the image content from the `input` prompt. To control image parameters like size, quality, etc., use the Direct Images API (Method 1).
 
-## **Image Input (Vision)** *(New in v0.2.1)*
+## **Image Input (Vision)** *(Updated in v0.2.2)*
 
 The SDK can now send user-supplied images to multimodal models like **GPT-4o** and receive textual descriptions or other vision-based results.
 
@@ -423,6 +424,35 @@ let content = vec![
 
 let message = InputItem::message("user", content);
 ```
+
+See the runnable example in [`examples/image_input.rs`](examples/image_input.rs).
+
+### Multi-Image Comparison *(v0.2.2)*
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+
+    let first = "https://example.com/one.png";
+    let second = "https://example.com/two.png";
+
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input_image_urls(&[first, second])
+        .instructions("Compare the two images, outlining key similarities and differences.")
+        .build();
+
+    let response = client.responses.create(request).await?;
+    println!("Comparison: {}", response.output_text());
+
+    Ok(())
+}
+```
+
+Both helper paths – `input_image_urls([...])` or chained `push_image_url(...)` – create a single user message with multiple `input_image` items, matching the Responses API spec.
 
 See the runnable example in [`examples/image_input.rs`](examples/image_input.rs).
 
@@ -1227,7 +1257,7 @@ Example of using a specific TLS implementation:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.2.1", default-features = false, features = ["stream", "native-tls"] }
+open-ai-rust-responses-by-sshift = { version = "0.2.2", default-features = false, features = ["stream", "native-tls"] }
 ```
 
 This will use the native TLS implementation instead of rustls.
