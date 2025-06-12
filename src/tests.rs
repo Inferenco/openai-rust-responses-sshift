@@ -1013,7 +1013,32 @@ mod unit_tests {
     }
 
     #[test]
-    fn test_request_builder_input_image_url() {
+    fn test_request_builder_input_image_urls() {
+        let urls = vec!["https://example.com/one.png", "https://example.com/two.png"];
+        let request = crate::Request::builder()
+            .model(crate::Model::GPT4o)
+            .input_image_urls(urls.clone())
+            .build();
+
+        match request.input {
+            crate::Input::Items(items) => {
+                assert_eq!(items.len(), 1);
+                assert_eq!(items[0].item_type, "message");
+                assert_eq!(items[0].role.as_ref().unwrap(), "user");
+
+                let content = items[0].content.as_ref().unwrap().as_array().unwrap();
+                assert_eq!(content.len(), urls.len());
+                for (i, url) in urls.iter().enumerate() {
+                    assert_eq!(content[i]["type"], "input_image");
+                    assert_eq!(content[i]["image_url"], *url);
+                }
+            }
+            crate::Input::Text(_) => panic!("Expected input items with message"),
+        }
+    }
+
+    #[test]
+    fn test_request_builder_input_image_url_single() {
         let url = "https://example.com/sample.png";
         let request = crate::Request::builder()
             .model(crate::Model::GPT4o)
@@ -1030,6 +1055,35 @@ mod unit_tests {
                 assert_eq!(content.len(), 1);
                 assert_eq!(content[0]["type"], "input_image");
                 assert_eq!(content[0]["image_url"], url);
+            }
+            crate::Input::Text(_) => panic!("Expected input items with message"),
+        }
+    }
+
+    #[test]
+    fn test_request_builder_push_image_url() {
+        let urls = vec![
+            "https://example.com/first.png",
+            "https://example.com/second.png",
+            "https://example.com/third.png",
+        ];
+        let mut builder = crate::Request::builder().model(crate::Model::GPT4o);
+        for url in &urls {
+            builder = builder.push_image_url(*url);
+        }
+        let request = builder.build();
+
+        match request.input {
+            crate::Input::Items(items) => {
+                assert_eq!(items.len(), 1);
+                assert_eq!(items[0].item_type, "message");
+
+                let content = items[0].content.as_ref().unwrap().as_array().unwrap();
+                assert_eq!(content.len(), urls.len());
+                for (i, url) in urls.iter().enumerate() {
+                    assert_eq!(content[i]["type"], "input_image");
+                    assert_eq!(content[i]["image_url"], *url);
+                }
             }
             crate::Input::Text(_) => panic!("Expected input items with message"),
         }

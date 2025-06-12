@@ -393,6 +393,53 @@ impl RequestBuilder {
         self
     }
 
+    /// Sets the input as multiple image URLs in a single user message
+    #[must_use]
+    pub fn input_image_urls<I, S>(mut self, urls: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let content: Vec<serde_json::Value> = urls
+            .into_iter()
+            .map(|u| crate::types::InputItem::content_image(u))
+            .collect();
+        let message = crate::types::InputItem::message("user", content);
+        self.request.input = crate::types::Input::Items(vec![message]);
+        self
+    }
+
+    /// Appends a single image URL to the current user message. If no message
+    /// exists yet it behaves like `input_image_url`.
+    #[must_use]
+    pub fn push_image_url(mut self, url: impl Into<String>) -> Self {
+        match &mut self.request.input {
+            crate::types::Input::Items(items)
+                if !items.is_empty() && items[0].item_type == "message" =>
+            {
+                if let Some(serde_json::Value::Array(content)) = items[0].content.as_mut() {
+                    content.push(crate::types::InputItem::content_image(url));
+                } else {
+                    // Fallback: rebuild the message content correctly
+                    let message = crate::types::InputItem::message(
+                        "user",
+                        vec![crate::types::InputItem::content_image(url)],
+                    );
+                    *items = vec![message];
+                }
+            }
+            _ => {
+                // No existing message – create one
+                let message = crate::types::InputItem::message(
+                    "user",
+                    vec![crate::types::InputItem::content_image(url)],
+                );
+                self.request.input = crate::types::Input::Items(vec![message]);
+            }
+        }
+        self
+    }
+
     /// Builds the request
     #[must_use]
     pub fn build(self) -> Request {

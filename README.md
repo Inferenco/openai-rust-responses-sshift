@@ -6,6 +6,7 @@
 
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
 > **🎉 v0.2.1 Update**: Vision input landed! Supply images with `input_image_url(...)` and get descriptions from GPT-4o.
+> **🚀 v0.2.2 Update**: Multi-image vision! Compare or analyse multiple pictures with `input_image_urls` or `push_image_url`.
 
 A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reasoning capabilities, background processing, enhanced models, production-ready streaming, and **working image generation**.
 
@@ -53,7 +54,7 @@ let response = client.responses.create(request).await?;
 // See examples/image_generation_builtin.rs for how to save the image
 ```
 
-### 📸 **Image Input (Vision)** (New in v0.2.1)
+### 📸 **Image Input (Vision)** (Updated in v0.2.2)
 ```rust
 use open_ai_rust_responses_by_sshift::{Client, Request, Model};
 
@@ -191,11 +192,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.2.1"
+open-ai-rust-responses-by-sshift = "0.2.2"
 tokio = { version = "1.0", features = ["full"] }
 
 # Optional: Enable streaming
-# open-ai-rust-responses-by-sshift = { version = "0.2.1", features = ["stream"] }
+# open-ai-rust-responses-by-sshift = { version = "0.2.2", features = ["stream"] }
 ```
 
 ### Basic Usage
@@ -298,7 +299,7 @@ Enable the `stream` feature:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.2.1", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.2.2", features = ["stream"] }
 ```
 
 ```rust
@@ -442,7 +443,7 @@ See [`examples/function_calling.rs`](examples/function_calling.rs) for a complet
 
 ```bash
 # Required
-OPENAI_API_KEY=sk-your-api-key-here
+OPENAI_API_KEY=sk-your-api-key
 
 # Optional
 OPENAI_BASE_URL=https://api.openai.com/v1  # Custom base URL
