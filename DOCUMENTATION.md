@@ -19,17 +19,18 @@ This document provides comprehensive documentation for the Open AI Rust Response
 9. [Tools API](#tools-api)
 10. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
 11. [**Image Input (Vision)**](#image-input-vision) *(Updated in v0.2.2)*
-12. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
-13. [**Reasoning Parameters**](#reasoning-parameters)
-14. [**Background Processing**](#background-processing)
-15. [**Enhanced Models**](#enhanced-models)
-16. [**Type-Safe Includes**](#type-safe-includes)
-17. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
-18. [Production-Ready Streaming](#production-ready-streaming)
-19. [Error Handling](#error-handling)
-20. [Advanced Configuration](#advanced-configuration)
-21. [Feature Flags](#feature-flags)
-22. [Testing and Examples](#testing-and-examples)
+12. [**Code Interpreter**](#code-interpreter) *(New in v0.2.3)*
+13. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
+14. [**Reasoning Parameters**](#reasoning-parameters)
+15. [**Background Processing**](#background-processing)
+16. [**Enhanced Models**](#enhanced-models)
+17. [**Type-Safe Includes**](#type-safe-includes)
+18. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
+19. [Production-Ready Streaming](#production-ready-streaming)
+20. [Error Handling](#error-handling)
+21. [Advanced Configuration](#advanced-configuration)
+22. [Feature Flags](#feature-flags)
+23. [Testing and Examples](#testing-and-examples)
 
 ## Quick Start
 
@@ -455,6 +456,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Both helper paths – `input_image_urls([...])` or chained `push_image_url(...)` – create a single user message with multiple `input_image` items, matching the Responses API spec.
 
 See the runnable example in [`examples/image_input.rs`](examples/image_input.rs).
+
+## **Code Interpreter** *(New in v0.2.3)*
+
+The SDK now supports the official built-in code interpreter tool, allowing you to execute Python code in a secure container and retrieve the output as part of the response.
+
+### Quick Example
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, Tool};
+use open_ai_rust_responses_by_sshift::types::Container;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input("Calculate the 47th digit of pi using Python.")
+        .tools(vec![Tool::code_interpreter(Some(Container::auto_type()))])
+        .build();
+    let response = client.responses.create(request).await?;
+    println!("Result: {}", response.output_text());
+    Ok(())
+}
+```
+
+- The code interpreter tool requires a container with type `"auto"` (see `Container::auto_type()`).
+- See `examples/code_interpreter.rs` for a full workflow and output parsing.
+- The response includes both the code execution metadata and the final answer as a message.
 
 ## **Function Calling (Tools)**
 
@@ -1353,3 +1382,6 @@ The `image_generation.rs` example demonstrates both direct API usage and the bui
 # Run the built-in tool example
 cargo run --example image_generation_builtin
 ```
+
+# Code Interpreter example
+cargo run --example code_interpreter

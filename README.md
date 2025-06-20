@@ -26,6 +26,7 @@ A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reaso
 - **🔒 Type Safety**: Comprehensive error handling, type-safe includes, and compile-time validation
 - **📊 Full API Parity**: 85% coverage of OpenAI May 2025 specification with 100% backward compatibility
 - **📚 Rich Documentation**: Extensive examples and API documentation
+- **🧑‍💻 Code Interpreter Tool**: Run Python code and get results directly from the model.
 
 ## 🆕 Advanced Capabilities
 
@@ -82,6 +83,25 @@ Run it:
 
 ```bash
 cargo run --example image_input --features stream
+```
+
+### 🧑‍💻 Code Interpreter Tool (NEW in v0.2.3)
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, Tool};
+use open_ai_rust_responses_by_sshift::types::Container;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input("Calculate the 47th digit of pi using Python.")
+        .tools(vec![Tool::code_interpreter(Some(Container::auto_type()))])
+        .build();
+    let response = client.responses.create(request).await?;
+    println!("Result: {}", response.output_text());
+    Ok(())
+}
 ```
 
 ### 🧠 **Reasoning Parameters**
@@ -485,6 +505,9 @@ Run the comprehensive demo to see all features:
 ```bash
 cargo run --example comprehensive_demo --features stream
 ```
+
+# Code Interpreter example
+cargo run --example code_interpreter
 
 **This demo showcases ALL major features:**
 - 🔄 **Conversation Continuity** - Response ID linking with 100% success rate
