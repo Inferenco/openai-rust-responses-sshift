@@ -1,12 +1,13 @@
 # OpenAI Rust Responses by SShift
 
-[![CI](https://github.com/Singularity-Shift/openai-rust-responses-sshift/workflows/CI/badge.svg)](https://github.com/Singularity-Shift/openai-rust-responses-sshift/actions)
-[![Crates.io](https://img.shields.io/crates/v/open-ai-rust-responses-by-sshift.svg)](https://crates.io/crates/open-ai-rust-responses-by-sshift)
-[![Documentation](https://docs.rs/open-ai-rust-responses-by-sshift/badge.svg)](https://docs.rs/open-ai-rust-responses-by-sshift)
-
+> **🧑‍💻 v0.2.3 Update**: Code Interpreter tool support! Run Python code in a secure container and get results directly from the model. See the new example and docs.
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
 > **🎉 v0.2.1 Update**: Vision input landed! Supply images with `input_image_url(...)` and get descriptions from GPT-4o.
 > **🚀 v0.2.2 Update**: Multi-image vision! Compare or analyse multiple pictures with `input_image_urls` or `push_image_url`.
+
+[![CI](https://github.com/Singularity-Shift/openai-rust-responses-sshift/workflows/CI/badge.svg)](https://github.com/Singularity-Shift/openai-rust-responses-sshift/actions)
+[![Crates.io](https://img.shields.io/crates/v/open-ai-rust-responses-by-sshift.svg)](https://crates.io/crates/open-ai-rust-responses-by-sshift)
+[![Documentation](https://docs.rs/open-ai-rust-responses-by-sshift/badge.svg)](https://docs.rs/open-ai-rust-responses-by-sshift)
 
 A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reasoning capabilities, background processing, enhanced models, production-ready streaming, and **working image generation**.
 

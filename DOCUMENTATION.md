@@ -1,5 +1,6 @@
 # Open AI Rust Responses by SShift - Documentation
 
+> **🧑‍💻 v0.2.3 Update**: Code Interpreter tool support! Run Python code in a secure container and get results directly from the model. See the new example and docs.
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
 > **🎉 v0.2.1 Update**: Vision input (image understanding) now supported! Use `input_image_url(...)` to send pictures to GPT-4o and get rich descriptions back.
 > **🚀 v0.2.2 Update**: Multi-image vision support added! Use `input_image_urls(&[...])` or chain `push_image_url()` for albums and comparisons.
