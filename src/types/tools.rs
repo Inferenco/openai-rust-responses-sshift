@@ -17,6 +17,14 @@ impl Container {
             container_type: "default".to_string(),
         }
     }
+
+    /// Creates an auto container configuration (required for code_interpreter)
+    #[must_use]
+    pub fn auto_type() -> Self {
+        Self {
+            container_type: "auto".to_string(),
+        }
+    }
 }
 
 /// Tool definition for the OpenAI Responses API

@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2025-06-13
+
+### ✨ Features
+- **Code Interpreter Tool**: Added complete support for OpenAI's code interpreter tool.
+  - New `Container::auto_type()` method for proper code interpreter configuration.
+  - Added `CodeInterpreterCall` response item variant to handle code execution results.
+  - Container type "auto" now properly supported (was incorrectly using "default").
+  - Full integration with OpenAI Responses API for Python code execution.
+
+### 🆕 Examples
+- Added `examples/code_interpreter.rs` - standalone example that calculates the 47th digit of pi using Python.
+- Example demonstrates complete workflow: request creation, API call, response parsing, and result extraction.
+
+### 🔧 Enhanced
+- **Container Support**: Enhanced container configuration options.
+  - Added `Container::auto_type()` method alongside existing `default_type()`.
+  - Fixed container type requirements for code interpreter tool (requires "auto", not "default").
+  - Maintained backward compatibility with existing container methods.
+
+### ✅ Tests
+- All existing tests continue to pass (45/45).
+- Code formatted with `cargo fmt` and linted with `cargo clippy`.
+- Non-breaking changes - fully backward compatible.
+
+### 📝 Documentation
+- Updated tool documentation to reflect proper container usage.
+- Added comprehensive code interpreter example with detailed comments.
+
 ## [0.2.2] - 2025-06-12
 
 ### ✨ Features

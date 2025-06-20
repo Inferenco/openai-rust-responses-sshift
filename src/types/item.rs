@@ -182,6 +182,18 @@ pub enum ResponseItem {
         status: String,
     },
 
+    /// Code interpreter call from the model
+    CodeInterpreterCall {
+        /// ID of the code interpreter call
+        id: String,
+
+        /// Container ID for the code execution environment
+        container_id: String,
+
+        /// Status of the call
+        status: String,
+    },
+
     /// Function call
     FunctionCall {
         /// ID of the function call
