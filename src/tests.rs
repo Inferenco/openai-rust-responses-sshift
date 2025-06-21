@@ -1208,7 +1208,7 @@ mod unit_tests {
                     .unwrap()
                     .contains("data:image/jpeg;base64,"));
             }
-            _ => panic!("Expected items input"),
+            crate::Input::Text(_) => panic!("Expected items input"),
         }
 
         // Test base64 with detail
@@ -1222,7 +1222,7 @@ mod unit_tests {
                 let content = items[0].content.as_ref().unwrap().as_array().unwrap();
                 assert_eq!(content[0]["detail"], "high");
             }
-            _ => panic!("Expected items input"),
+            crate::Input::Text(_) => panic!("Expected items input"),
         }
 
         // Test file ID input
@@ -1238,7 +1238,7 @@ mod unit_tests {
                 assert_eq!(content[0]["type"], "input_image");
                 assert_eq!(content[0]["file_id"], file_id);
             }
-            _ => panic!("Expected items input"),
+            crate::Input::Text(_) => panic!("Expected items input"),
         }
 
         // Test URL with detail
@@ -1253,7 +1253,7 @@ mod unit_tests {
                 let content = items[0].content.as_ref().unwrap().as_array().unwrap();
                 assert_eq!(content[0]["detail"], "low");
             }
-            _ => panic!("Expected items input"),
+            crate::Input::Text(_) => panic!("Expected items input"),
         }
     }
 }
