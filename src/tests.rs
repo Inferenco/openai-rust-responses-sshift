@@ -1088,4 +1088,172 @@ mod unit_tests {
             crate::Input::Text(_) => panic!("Expected input items with message"),
         }
     }
+
+    #[test]
+    fn test_enhanced_image_generation_tools() {
+        use crate::types::Tool;
+
+        // Test basic image generation tool
+        let basic_tool = Tool::image_generation();
+        assert_eq!(basic_tool.tool_type, "image_generation");
+        assert!(basic_tool.container.is_none());
+        assert!(basic_tool.partial_images.is_none());
+
+        // Note: Advanced image generation methods were removed in v0.2.4
+        // as they are not yet supported by the OpenAI API.
+        // The basic Tool::image_generation() method works perfectly
+        // for image-guided generation workflows.
+    }
+
+    #[test]
+    fn test_image_input_base64() {
+        use crate::types::InputItem;
+
+        let base64_data = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9jU77ygAAAABJRU5ErkJggg==";
+        let mime_type = "image/png";
+
+        // Test basic base64 input
+        let item = InputItem::image_base64(base64_data, mime_type);
+        assert_eq!(item.item_type, "input_image");
+        assert!(item.image_url.is_some());
+        assert!(item
+            .image_url
+            .as_ref()
+            .unwrap()
+            .starts_with("data:image/png;base64,"));
+        assert_eq!(item.detail, Some("auto".to_string()));
+
+        // Test base64 input with detail
+        let item_with_detail = InputItem::image_base64_with_detail(base64_data, mime_type, "high");
+        assert_eq!(item_with_detail.detail, Some("high".to_string()));
+
+        // Test content helpers
+        let content = InputItem::content_image_base64(base64_data, mime_type);
+        assert_eq!(content["type"], "input_image");
+        assert!(content["image_url"]
+            .as_str()
+            .unwrap()
+            .starts_with("data:image/png;base64,"));
+
+        let content_with_detail =
+            InputItem::content_image_base64_with_detail(base64_data, mime_type, "low");
+        assert_eq!(content_with_detail["detail"], "low");
+    }
+
+    #[test]
+    fn test_image_input_file_id() {
+        use crate::types::InputItem;
+
+        let file_id = "file-abc123";
+
+        // Test basic file ID input
+        let item = InputItem::image_file_id(file_id);
+        assert_eq!(item.item_type, "input_image");
+        assert_eq!(item.text, Some(file_id.to_string()));
+        assert!(item.image_url.is_none());
+        assert_eq!(item.detail, Some("auto".to_string()));
+
+        // Test file ID input with detail
+        let item_with_detail = InputItem::image_file_id_with_detail(file_id, "high");
+        assert_eq!(item_with_detail.detail, Some("high".to_string()));
+
+        // Test content helpers
+        let content = InputItem::content_image_file_id(file_id);
+        assert_eq!(content["type"], "input_image");
+        assert_eq!(content["file_id"], file_id);
+
+        let content_with_detail = InputItem::content_image_file_id_with_detail(file_id, "low");
+        assert_eq!(content_with_detail["detail"], "low");
+    }
+
+    #[test]
+    fn test_image_input_detail_levels() {
+        use crate::types::InputItem;
+
+        let url = "https://example.com/test.jpg";
+
+        // Test URL with detail
+        let high_detail = InputItem::image_url_with_detail(url, "high");
+        assert_eq!(high_detail.detail, Some("high".to_string()));
+
+        let low_detail = InputItem::image_url_with_detail(url, "low");
+        assert_eq!(low_detail.detail, Some("low".to_string()));
+
+        let auto_detail = InputItem::image_url_with_detail(url, "auto");
+        assert_eq!(auto_detail.detail, Some("auto".to_string()));
+
+        // Test content with detail
+        let content_high = InputItem::content_image_with_detail(url, "high");
+        assert_eq!(content_high["detail"], "high");
+    }
+
+    #[test]
+    fn test_request_builder_enhanced_image_methods() {
+        use crate::{Model, Request};
+
+        // Test base64 image input
+        let base64_data = "test_base64_data";
+        let request_base64 = Request::builder()
+            .model(Model::GPT4o)
+            .input_image_base64(base64_data, "image/jpeg")
+            .build();
+
+        match request_base64.input {
+            crate::Input::Items(items) => {
+                assert_eq!(items.len(), 1);
+                let content = items[0].content.as_ref().unwrap().as_array().unwrap();
+                assert_eq!(content[0]["type"], "input_image");
+                assert!(content[0]["image_url"]
+                    .as_str()
+                    .unwrap()
+                    .contains("data:image/jpeg;base64,"));
+            }
+            crate::Input::Text(_) => panic!("Expected items input"),
+        }
+
+        // Test base64 with detail
+        let request_base64_detail = Request::builder()
+            .model(Model::GPT4o)
+            .input_image_base64_with_detail(base64_data, "image/png", "high")
+            .build();
+
+        match request_base64_detail.input {
+            crate::Input::Items(items) => {
+                let content = items[0].content.as_ref().unwrap().as_array().unwrap();
+                assert_eq!(content[0]["detail"], "high");
+            }
+            crate::Input::Text(_) => panic!("Expected items input"),
+        }
+
+        // Test file ID input
+        let file_id = "file-123";
+        let request_file_id = Request::builder()
+            .model(Model::GPT4o)
+            .input_image_file_id(file_id)
+            .build();
+
+        match request_file_id.input {
+            crate::Input::Items(items) => {
+                let content = items[0].content.as_ref().unwrap().as_array().unwrap();
+                assert_eq!(content[0]["type"], "input_image");
+                assert_eq!(content[0]["file_id"], file_id);
+            }
+            crate::Input::Text(_) => panic!("Expected items input"),
+        }
+
+        // Test URL with detail
+        let url = "https://example.com/test.jpg";
+        let request_url_detail = Request::builder()
+            .model(Model::GPT4o)
+            .input_image_url_with_detail(url, "low")
+            .build();
+
+        match request_url_detail.input {
+            crate::Input::Items(items) => {
+                let content = items[0].content.as_ref().unwrap().as_array().unwrap();
+                assert_eq!(content[0]["detail"], "low");
+            }
+            crate::Input::Text(_) => panic!("Expected items input"),
+        }
+    }
 }
