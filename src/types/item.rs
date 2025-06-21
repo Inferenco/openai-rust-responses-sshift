@@ -90,6 +90,85 @@ impl InputItem {
         }
     }
 
+    /// Creates an image URL input item with custom detail level (vision)
+    pub fn image_url_with_detail(url: impl Into<String>, detail: impl Into<String>) -> Self {
+        Self {
+            item_type: "input_image".to_string(),
+            content: None,
+            call_id: None,
+            output: None,
+            image_url: Some(url.into()),
+            detail: Some(detail.into()),
+            role: None,
+            text: None,
+        }
+    }
+
+    /// Creates an image input from base64 data (vision)
+    pub fn image_base64(base64_data: impl Into<String>, mime_type: impl Into<String>) -> Self {
+        let data_url = format!("data:{};base64,{}", mime_type.into(), base64_data.into());
+        Self {
+            item_type: "input_image".to_string(),
+            content: None,
+            call_id: None,
+            output: None,
+            image_url: Some(data_url),
+            detail: Some("auto".to_string()),
+            role: None,
+            text: None,
+        }
+    }
+
+    /// Creates an image input from base64 data with custom detail level (vision)
+    pub fn image_base64_with_detail(
+        base64_data: impl Into<String>,
+        mime_type: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        let data_url = format!("data:{};base64,{}", mime_type.into(), base64_data.into());
+        Self {
+            item_type: "input_image".to_string(),
+            content: None,
+            call_id: None,
+            output: None,
+            image_url: Some(data_url),
+            detail: Some(detail.into()),
+            role: None,
+            text: None,
+        }
+    }
+
+    /// Creates an image input from a file ID (vision)
+    pub fn image_file_id(file_id: impl Into<String>) -> Self {
+        Self {
+            item_type: "input_image".to_string(),
+            content: None,
+            call_id: None,
+            output: None,
+            image_url: None,
+            detail: Some("auto".to_string()),
+            role: None,
+            text: Some(file_id.into()), // File ID goes in the text field
+        }
+    }
+
+    /// Creates an image input from a file ID with custom detail level (vision)
+    pub fn image_file_id_with_detail(
+        file_id: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self {
+            item_type: "input_image".to_string(),
+            content: None,
+            call_id: None,
+            output: None,
+            image_url: None,
+            detail: Some(detail.into()),
+            role: None,
+            text: Some(file_id.into()), // File ID goes in the text field
+        }
+    }
+
     /// Creates a message input item with role and content
     pub fn message(role: impl Into<String>, content: Vec<serde_json::Value>) -> Self {
         Self {
@@ -109,6 +188,64 @@ impl InputItem {
         serde_json::json!({
             "type": "input_image",
             "image_url": url.into()
+        })
+    }
+
+    /// Creates a content item for input_image with detail level (used inside message content)
+    pub fn content_image_with_detail(
+        url: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "type": "input_image",
+            "image_url": url.into(),
+            "detail": detail.into()
+        })
+    }
+
+    /// Creates a content item for input_image from base64 data (used inside message content)
+    pub fn content_image_base64(
+        base64_data: impl Into<String>,
+        mime_type: impl Into<String>,
+    ) -> serde_json::Value {
+        let data_url = format!("data:{};base64,{}", mime_type.into(), base64_data.into());
+        serde_json::json!({
+            "type": "input_image",
+            "image_url": data_url
+        })
+    }
+
+    /// Creates a content item for input_image from base64 data with detail level (used inside message content)
+    pub fn content_image_base64_with_detail(
+        base64_data: impl Into<String>,
+        mime_type: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> serde_json::Value {
+        let data_url = format!("data:{};base64,{}", mime_type.into(), base64_data.into());
+        serde_json::json!({
+            "type": "input_image",
+            "image_url": data_url,
+            "detail": detail.into()
+        })
+    }
+
+    /// Creates a content item for input_image from file ID (used inside message content)
+    pub fn content_image_file_id(file_id: impl Into<String>) -> serde_json::Value {
+        serde_json::json!({
+            "type": "input_image",
+            "file_id": file_id.into()
+        })
+    }
+
+    /// Creates a content item for input_image from file ID with detail level (used inside message content)
+    pub fn content_image_file_id_with_detail(
+        file_id: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "type": "input_image",
+            "file_id": file_id.into(),
+            "detail": detail.into()
         })
     }
 

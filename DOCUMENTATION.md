@@ -1,11 +1,12 @@
 # Open AI Rust Responses by SShift - Documentation
 
+> **🎨 v0.2.4 Update**: **Image-Guided Generation** - Revolutionary new feature! Use input images to guide image generation with the GPT Image 1 model. Create style transfers, combine multiple images into logos, and generate artistic interpretations. See the comprehensive new example!
 > **🧑‍💻 v0.2.3 Update**: Code Interpreter tool support! Run Python code in a secure container and get results directly from the model. See the new example and docs.
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
 > **🎉 v0.2.1 Update**: Vision input (image understanding) now supported! Use `input_image_url(...)` to send pictures to GPT-4o and get rich descriptions back.
 > **🚀 v0.2.2 Update**: Multi-image vision support added! Use `input_image_urls(&[...])` or chain `push_image_url()` for albums and comparisons.
 
-This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, production-ready streaming, and **working image generation**.
+This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, production-ready streaming, **working image generation**, and **revolutionary image-guided generation**.
 
 ## Table of Contents
 
@@ -18,20 +19,21 @@ This document provides comprehensive documentation for the Open AI Rust Response
 7. [Files API](#files-api)
 8. [Vector Stores API](#vector-stores-api)
 9. [Tools API](#tools-api)
-10. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
-11. [**Image Input (Vision)**](#image-input-vision) *(Updated in v0.2.2)*
-12. [**Code Interpreter**](#code-interpreter) *(New in v0.2.3)*
-13. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
-14. [**Reasoning Parameters**](#reasoning-parameters)
-15. [**Background Processing**](#background-processing)
-16. [**Enhanced Models**](#enhanced-models)
-17. [**Type-Safe Includes**](#type-safe-includes)
-18. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
-19. [Production-Ready Streaming](#production-ready-streaming)
-20. [Error Handling](#error-handling)
-21. [Advanced Configuration](#advanced-configuration)
-22. [Feature Flags](#feature-flags)
-23. [Testing and Examples](#testing-and-examples)
+10. [**Image-Guided Generation**](#image-guided-generation) *(Revolutionary New Feature in v0.2.4)*
+11. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
+12. [**Image Input (Vision)**](#image-input-vision) *(Updated in v0.2.2)*
+13. [**Code Interpreter**](#code-interpreter) *(New in v0.2.3)*
+14. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
+15. [**Reasoning Parameters**](#reasoning-parameters)
+16. [**Background Processing**](#background-processing)
+17. [**Enhanced Models**](#enhanced-models)
+18. [**Type-Safe Includes**](#type-safe-includes)
+19. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
+20. [Production-Ready Streaming](#production-ready-streaming)
+21. [Error Handling](#error-handling)
+22. [Advanced Configuration](#advanced-configuration)
+23. [Feature Flags](#feature-flags)
+24. [Testing and Examples](#testing-and-examples)
 
 ## Quick Start
 
@@ -302,6 +304,346 @@ let results = client.tools.web_search("latest news about AI").await?;
 ```rust
 let results = client.tools.file_search("vs_abc123", "quantum computing").await?;
 ```
+
+## **Image-Guided Generation** *(Revolutionary New Feature in v0.2.4)*
+
+**Revolutionary breakthrough**: Use input images to guide and influence image generation with the GPT Image 1 model! This powerful feature enables style transfer, logo creation, artistic interpretation, and more by combining vision and generation capabilities.
+
+### 🎯 **Core Concept**
+
+Image-guided generation works by:
+1. **Input Images**: Provide one or more reference images as context
+2. **Text Instructions**: Describe what you want to create based on those images  
+3. **AI Understanding**: The model analyzes both the images and instructions
+4. **Guided Generation**: Creates new images informed by the visual context
+
+### 🎨 **Use Cases & Applications**
+
+#### **Style Transfer**
+Transform existing images into different artistic styles:
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, InputItem, Request, Tool, Model, ResponseItem};
+use base64::{engine::general_purpose, Engine as _};
+use std::fs::File;
+use std::io::Write;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+
+    let content_image = "https://example.com/landscape.jpg";
+    
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input_items(vec![
+            InputItem::message("system", vec![
+                InputItem::content_text("You are an expert in artistic style transfer.")
+            ]),
+            InputItem::message("user", vec![
+                InputItem::content_text("Transform this landscape into Van Gogh's Starry Night style - swirling skies, bold brushstrokes, vibrant blues and yellows."),
+                InputItem::content_image_with_detail(content_image, "high")
+            ])
+        ])
+        .tools(vec![Tool::image_generation()])
+        .temperature(0.8)
+        .build();
+
+    let response = client.responses.create(request).await?;
+    
+    // Save the generated image
+    for item in &response.output {
+        if let ResponseItem::ImageGenerationCall { result, .. } = item {
+            let image_bytes = general_purpose::STANDARD.decode(result)?;
+            let mut file = File::create("van_gogh_style.png")?;
+            file.write_all(&image_bytes)?;
+            println!("Style transfer complete! Saved as van_gogh_style.png");
+            break;
+        }
+    }
+    
+    Ok(())
+}
+```
+
+#### **Multi-Image Logo Creation**
+Combine elements from multiple reference images:
+
+```rust
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input_items(vec![
+        InputItem::message("system", vec![
+            InputItem::content_text("You are a creative designer who combines elements from multiple reference images.")
+        ]),
+        InputItem::message("user", vec![
+            InputItem::content_text("Create a modern logo combining the natural serenity from the first image with the character from the second image. Make it minimalist and professional."),
+            InputItem::content_image_with_detail(nature_image, "high"),
+            InputItem::content_image_with_detail(character_image, "high")
+        ])
+    ])
+    .tools(vec![Tool::image_generation()])
+    .temperature(0.7)
+    .build();
+```
+
+#### **Product Design from References**
+Create product concepts inspired by reference imagery:
+
+```rust
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input_items(vec![
+        InputItem::message("system", vec![
+            InputItem::content_text("You are a product designer who creates modern, sleek designs based on reference images.")
+        ]),
+        InputItem::message("user", vec![
+            InputItem::content_text("Design a modern water bottle that captures the serenity and natural beauty of this landscape. Make it minimalist, elegant, and eco-friendly looking."),
+            InputItem::content_image_with_detail(landscape_image, "high")
+        ])
+    ])
+    .tools(vec![Tool::image_generation()])
+    .temperature(0.6)
+    .build();
+```
+
+### 📸 **Image Input Methods**
+
+#### **URL Images**
+```rust
+// Basic URL input
+InputItem::content_image(image_url)
+
+// URL with detail level control
+InputItem::content_image_with_detail(image_url, "high")  // "high", "low", "auto"
+```
+
+#### **Base64 Local Images**
+```rust
+// Read local file and encode
+let image_data = std::fs::read("local_image.jpg")?;
+let base64_data = base64::encode(&image_data);
+
+// Use in request
+InputItem::content_image_base64_with_detail(base64_data, "image/jpeg", "high")
+```
+
+#### **File ID Images**
+```rust
+// Upload file first
+let file_response = client.files.upload_file("image.jpg", "vision", None).await?;
+
+// Use file ID
+InputItem::content_image_file_id_with_detail(file_response.id, "auto")
+```
+
+### 🎛️ **Configuration Options**
+
+#### **Detail Levels**
+- **`"high"`**: Maximum detail, higher cost, better quality analysis
+- **`"low"`**: Faster processing, lower cost, basic analysis  
+- **`"auto"`**: Balanced approach, automatically optimized
+
+#### **Temperature Settings**
+- **`0.6-0.7`**: More consistent, professional results
+- **`0.8-0.9`**: More creative and artistic variations
+- **`1.0+`**: Maximum creativity and randomness
+
+#### **Model Selection**
+- **`Model::GPT4o`**: Best for complex image analysis and generation
+- **`Model::GPT4oMini`**: Cost-effective for simpler tasks
+
+### 🔧 **Technical Implementation**
+
+#### **Message Structure**
+```rust
+// System message for context and expertise
+InputItem::message("system", vec![
+    InputItem::content_text("You are an expert artist/designer/etc.")
+]),
+
+// User message with mixed content
+InputItem::message("user", vec![
+    InputItem::content_text("Instructions for what to create..."),
+    InputItem::content_image_with_detail(image1_url, "high"),
+    InputItem::content_image_with_detail(image2_url, "high"),
+    // ... more images or text as needed
+])
+```
+
+#### **Response Handling**
+```rust
+// Extract generated image from response
+for item in &response.output {
+    match item {
+        ResponseItem::ImageGenerationCall { result, id, status } => {
+            println!("Generated image ID: {}, Status: {}", id, status);
+            
+            // Decode and save
+            let image_bytes = base64::decode(result)?;
+            std::fs::write("generated_image.png", &image_bytes)?;
+        },
+        ResponseItem::Message { content, .. } => {
+            // Model's description of what it created
+            println!("Description: {}", content[0].text);
+        },
+        _ => {}
+    }
+}
+```
+
+### 💡 **Best Practices**
+
+#### **Prompt Engineering**
+- **Be Specific**: Describe exactly what elements to combine or transform
+- **Provide Context**: Use system messages to set the AI's role/expertise
+- **Style Guidance**: Mention specific artistic styles, techniques, or aesthetics
+- **Quality Indicators**: Specify desired quality level (professional, artistic, etc.)
+
+#### **Image Selection**
+- **High Quality**: Use clear, well-lit reference images
+- **Relevant Content**: Ensure images contain the elements you want to use
+- **Appropriate Size**: Larger images work better with "high" detail setting
+- **Multiple Angles**: For 3D objects, provide multiple viewpoints if possible
+
+#### **Error Handling**
+```rust
+match client.responses.create(request).await {
+    Ok(response) => {
+        // Check for successful generation
+        let mut found_image = false;
+        for item in &response.output {
+            if let ResponseItem::ImageGenerationCall { .. } = item {
+                found_image = true;
+                break;
+            }
+        }
+        
+        if !found_image {
+            println!("No image was generated. Model response: {}", response.output_text());
+        }
+    },
+    Err(e) => {
+        eprintln!("Generation failed: {}", e);
+    }
+}
+```
+
+### 🚀 **Complete Example**
+
+Run the comprehensive example that demonstrates all capabilities:
+
+```bash
+cargo run --example image_guided_generation
+```
+
+This example includes:
+- ✅ Single image style transfer (watercolor landscape)
+- ✅ Multi-image logo creation (combining nature + character)
+- ✅ Base64 local image processing (enhanced with magical elements)
+- ✅ Van Gogh style transformation (artistic style transfer)
+- ✅ Product design inspiration (nature-inspired water bottle)
+
+### 🎯 **Real-World Applications**
+
+**Creative Agencies**:
+- Generate brand variations from existing assets
+- Create artistic interpretations for campaigns
+- Transform client photos into different styles
+
+**Product Development**:
+- Design concepts from inspiration boards
+- Visualize products in different styles/contexts
+- Create variations of existing designs
+
+**Content Creation**:
+- Transform stock photos into unique artwork
+- Create consistent visual styles across content
+- Generate themed variations of images
+
+**Software Applications**:
+- Build image transformation tools
+- Create style transfer applications
+- Develop creative AI assistants
+
+The image-guided generation feature represents a major breakthrough in AI-powered creativity, enabling previously impossible workflows that combine the power of vision understanding with generation capabilities.
+
+### Method 1: Direct Images API
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, ImageGenerateRequest};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    
+    // Create an image generation request
+    let image_request = ImageGenerateRequest::new("A serene mountain landscape at sunset")
+        .with_size("1024x1024")      // Options: 256x256, 512x512, 1024x1024, 1024x1792, 1792x1024
+        .with_quality("high")        // Options: standard, high
+        .with_style("natural")       // Options: natural, vivid
+        .with_format("png")          // Options: png, jpg, webp
+        .with_compression(90)        // 0-100 for jpg/webp
+        .with_background("white")    // For transparent images
+        .with_seed(12345)            // For reproducibility
+        .with_user("user-123");      // User tracking
+    
+    // Generate the image
+    let response = client.images.generate(image_request).await?;
+    
+    // Access the generated image
+    if let Some(url) = &response.data[0].url {
+        println!("Generated image URL: {}", url);
+    }
+    
+    // Or get base64 data if requested
+    if let Some(b64) = &response.data[0].b64_json {
+        println!("Base64 data length: {}", b64.len());
+    }
+    
+    Ok(())
+}
+```
+
+### Method 2: Built-in Image Generation
+
+The model can now generate images directly when you include the built-in `image_generation` tool. It returns the image data as a base64-encoded string within a new `ImageGenerationCall` response item.
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, Tool, ResponseItem};
+use base64::{Engine as _, engine::general_purpose};
+use std::io::Write;
+use std::fs::File;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    
+    // Create a request using the built-in image_generation tool
+    let request = Request::builder()
+        .model(Model::GPT4oMini)
+        .input("Generate an image of a rusty robot programming on a vintage computer")
+        .tools(vec![Tool::image_generation()])
+        .build();
+
+    let response = client.responses.create(request).await?;
+
+    // Find the image data in the response output
+    for item in &response.output {
+        if let ResponseItem::ImageGenerationCall { result, .. } = item {
+            // Decode the base64 string
+            let image_bytes = general_purpose::STANDARD.decode(result)?;
+            let mut file = File::create("robot.png")?;
+            file.write_all(&image_bytes)?;
+            println!("Image saved to robot.png");
+            break;
+        }
+    }
+    
+    Ok(())
+}
+```
+The built-in tool does not take parameters. The model infers the image content from the `input` prompt. To control image parameters like size, quality, etc., use the Direct Images API (Method 1).
 
 ## **Image Generation** *(Overhauled in v0.2.0)*
 

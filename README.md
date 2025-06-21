@@ -1,5 +1,6 @@
 # OpenAI Rust Responses by SShift
 
+> **🎨 v0.2.4 Update**: **Image-Guided Generation** - Revolutionary new feature! Use input images to guide image generation with the GPT Image 1 model. Create style transfers, combine multiple images into logos, and generate artistic interpretations. See the comprehensive new example!
 > **🧑‍💻 v0.2.3 Update**: Code Interpreter tool support! Run Python code in a secure container and get results directly from the model. See the new example and docs.
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
 > **🎉 v0.2.1 Update**: Vision input landed! Supply images with `input_image_url(...)` and get descriptions from GPT-4o.
@@ -9,10 +10,11 @@
 [![Crates.io](https://img.shields.io/crates/v/open-ai-rust-responses-by-sshift.svg)](https://crates.io/crates/open-ai-rust-responses-by-sshift)
 [![Documentation](https://docs.rs/open-ai-rust-responses-by-sshift/badge.svg)](https://docs.rs/open-ai-rust-responses-by-sshift)
 
-A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reasoning capabilities, background processing, enhanced models, production-ready streaming, and **working image generation**.
+A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reasoning capabilities, background processing, enhanced models, production-ready streaming, **working image generation**, and **revolutionary image-guided generation**.
 
 ## ✨ Features
 
+- **🎨 Image-Guided Generation**: Use input images to guide image generation - style transfer, logo creation, artistic interpretation
 - **🔄 Conversation Continuity**: Use response IDs to maintain conversation context
 - **🌊 Production-Ready Streaming**: HTTP chunked responses with proper parsing and real-time text generation
 - **📁 File Operations**: Upload, download, and manage files with full MIME support
@@ -32,6 +34,72 @@ A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reaso
 ## 🆕 Advanced Capabilities
 
 This SDK includes cutting-edge features with full API parity:
+
+### 🎨 **Image-Guided Generation** (NEW in v0.2.4) 🔥
+
+**Revolutionary feature**: Use input images to guide image generation with the GPT Image 1 model!
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, InputItem, Request, Tool, Model};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+
+    // Example: Style transfer - transform an image into Van Gogh style
+    let reference_image = "https://example.com/landscape.jpg";
+    
+    let request = Request::builder()
+        .model(Model::GPT4o)
+        .input_items(vec![
+            // System message for context
+            InputItem::message("system", vec![
+                InputItem::content_text("You are an expert in artistic style transfer.")
+            ]),
+            // User message with image and instructions
+            InputItem::message("user", vec![
+                InputItem::content_text("Transform this landscape into Van Gogh's Starry Night style - swirling skies, bold brushstrokes, vibrant blues and yellows."),
+                InputItem::content_image_with_detail(reference_image, "high")
+            ])
+        ])
+        .tools(vec![Tool::image_generation()])
+        .temperature(0.8)
+        .build();
+
+    let response = client.responses.create(request).await?;
+    // Generated image is in response.output as ImageGenerationCall
+    println!("Style transfer complete: {}", response.output_text());
+    Ok(())
+}
+```
+
+**Multi-Image Logo Creation**:
+```rust
+// Combine elements from multiple reference images
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input_items(vec![
+        InputItem::message("user", vec![
+            InputItem::content_text("Create a modern logo combining the natural serenity from the first image with the character from the second image."),
+            InputItem::content_image_with_detail(nature_image, "high"),
+            InputItem::content_image_with_detail(character_image, "high")
+        ])
+    ])
+    .tools(vec![Tool::image_generation()])
+    .build();
+```
+
+**Real-World Applications**:
+- 🎨 **Style Transfer**: Transform photos into artistic styles
+- 🏷️ **Logo Design**: Combine multiple visual references
+- 🎯 **Product Design**: Create concepts from inspiration images
+- ✨ **Creative Enhancement**: Add artistic elements to existing images
+- 🔄 **Image Variations**: Generate multiple interpretations
+
+**Run the comprehensive example**:
+```bash
+cargo run --example image_guided_generation
+```
 
 ### 🎨 **Image Generation** (Overhauled in v0.2.0)
 ```rust

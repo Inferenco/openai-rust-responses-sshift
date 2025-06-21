@@ -393,6 +393,89 @@ impl RequestBuilder {
         self
     }
 
+    /// Sets the input as a single image URL with detail level in a user message
+    #[must_use]
+    pub fn input_image_url_with_detail(
+        mut self,
+        url: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        let message = crate::types::InputItem::message(
+            "user",
+            vec![crate::types::InputItem::content_image_with_detail(
+                url, detail,
+            )],
+        );
+        self.request.input = crate::types::Input::Items(vec![message]);
+        self
+    }
+
+    /// Sets the input as a single base64 image in a user message
+    #[must_use]
+    pub fn input_image_base64(
+        mut self,
+        base64_data: impl Into<String>,
+        mime_type: impl Into<String>,
+    ) -> Self {
+        let message = crate::types::InputItem::message(
+            "user",
+            vec![crate::types::InputItem::content_image_base64(
+                base64_data,
+                mime_type,
+            )],
+        );
+        self.request.input = crate::types::Input::Items(vec![message]);
+        self
+    }
+
+    /// Sets the input as a single base64 image with detail level in a user message
+    #[must_use]
+    pub fn input_image_base64_with_detail(
+        mut self,
+        base64_data: impl Into<String>,
+        mime_type: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        let message = crate::types::InputItem::message(
+            "user",
+            vec![crate::types::InputItem::content_image_base64_with_detail(
+                base64_data,
+                mime_type,
+                detail,
+            )],
+        );
+        self.request.input = crate::types::Input::Items(vec![message]);
+        self
+    }
+
+    /// Sets the input as a single file ID image in a user message
+    #[must_use]
+    pub fn input_image_file_id(mut self, file_id: impl Into<String>) -> Self {
+        let message = crate::types::InputItem::message(
+            "user",
+            vec![crate::types::InputItem::content_image_file_id(file_id)],
+        );
+        self.request.input = crate::types::Input::Items(vec![message]);
+        self
+    }
+
+    /// Sets the input as a single file ID image with detail level in a user message
+    #[must_use]
+    pub fn input_image_file_id_with_detail(
+        mut self,
+        file_id: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        let message = crate::types::InputItem::message(
+            "user",
+            vec![crate::types::InputItem::content_image_file_id_with_detail(
+                file_id, detail,
+            )],
+        );
+        self.request.input = crate::types::Input::Items(vec![message]);
+        self
+    }
+
     /// Sets the input as multiple image URLs in a single user message
     #[must_use]
     pub fn input_image_urls<I, S>(mut self, urls: I) -> Self

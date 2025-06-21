@@ -37,6 +37,9 @@ pub use types::{
     Request, RequestBuilder, Response, ResponseItem, StreamEvent, Tool, ToolCall, ToolChoice,
 };
 
+// Re-export container and tool types
+pub use types::Container;
+
 // Re-export image types
 pub use images::{ImageData, ImageGenerateRequest, ImageGenerateResponse};
 
