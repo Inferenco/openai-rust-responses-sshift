@@ -38,7 +38,10 @@ pub use types::{
 };
 
 // Re-export container and tool types
-pub use types::Container;
+pub use types::{Container, RecoveryCallback, RecoveryPolicy};
+
+// Re-export recovery types
+pub use responses::{RecoveryInfo, ResponseWithRecovery};
 
 // Re-export image types
 pub use images::{ImageData, ImageGenerateRequest, ImageGenerateResponse};
@@ -157,9 +160,23 @@ impl Client {
     /// Creates a new client with the given HTTP client and base URL
     #[must_use]
     pub fn new_with_http_client(http_client: &HttpClient, base_url: &str) -> Self {
+        Self::new_with_http_client_and_recovery(http_client, base_url, RecoveryPolicy::default())
+    }
+
+    /// Creates a new client with the given HTTP client, base URL, and recovery policy
+    #[must_use]
+    pub fn new_with_http_client_and_recovery(
+        http_client: &HttpClient,
+        base_url: &str,
+        recovery_policy: RecoveryPolicy,
+    ) -> Self {
         let base_url = base_url.trim_end_matches('/').to_string();
 
-        let responses = responses::Responses::new(http_client.clone(), base_url.clone());
+        let responses = responses::Responses::new_with_recovery(
+            http_client.clone(),
+            base_url.clone(),
+            recovery_policy,
+        );
         let messages = messages::Messages::new(http_client.clone(), base_url.clone());
         let files = files::Files::new(http_client.clone(), base_url.clone());
         let vector_stores = vector_stores::VectorStores::new(http_client.clone(), base_url.clone());
@@ -174,5 +191,78 @@ impl Client {
             tools,
             images,
         }
+    }
+
+    /// Creates a new client with recovery policy from the given API key
+    ///
+    /// # Errors
+    ///
+    /// Returns `CreateError::InvalidApiKey` if the API key is empty or doesn't start with "sk-"
+    pub fn new_with_recovery(
+        api_key: &str,
+        recovery_policy: RecoveryPolicy,
+    ) -> std::result::Result<Self, CreateError> {
+        Self::new_with_base_url_and_recovery(api_key, "https://api.openai.com/v1", recovery_policy)
+    }
+
+    /// Creates a new client with recovery policy from the given API key and base URL
+    ///
+    /// # Errors
+    ///
+    /// Returns `CreateError::InvalidApiKey` if the API key is empty, doesn't start with "sk-", or contains invalid characters
+    pub fn new_with_base_url_and_recovery(
+        api_key: &str,
+        base_url: &str,
+        recovery_policy: RecoveryPolicy,
+    ) -> std::result::Result<Self, CreateError> {
+        if api_key.is_empty() || !api_key.starts_with("sk-") {
+            return Err(CreateError::InvalidApiKey);
+        }
+
+        let mut headers = header::HeaderMap::new();
+        let auth_value = format!("Bearer {api_key}");
+        let auth_header =
+            header::HeaderValue::from_str(&auth_value).map_err(|_| CreateError::InvalidApiKey)?;
+        headers.insert(header::AUTHORIZATION, auth_header);
+
+        let user_agent = format!(
+            "open-ai-rust-responses-by-sshift/{}",
+            env!("CARGO_PKG_VERSION")
+        );
+
+        let http_client = HttpClient::builder()
+            .default_headers(headers)
+            .user_agent(user_agent)
+            .build()?;
+
+        Ok(Self::new_with_http_client_and_recovery(
+            &http_client,
+            base_url,
+            recovery_policy,
+        ))
+    }
+
+    /// Creates a client with recovery policy from the `OPENAI_API_KEY` environment variable
+    ///
+    /// # Errors
+    ///
+    /// Returns `CreateError::InvalidApiKey` if the environment variable is not set or invalid
+    pub fn from_env_with_recovery(
+        recovery_policy: RecoveryPolicy,
+    ) -> std::result::Result<Self, CreateError> {
+        Self::from_env_with_base_url_and_recovery("https://api.openai.com/v1", recovery_policy)
+    }
+
+    /// Creates a client with recovery policy from the `OPENAI_API_KEY` environment variable with a custom base URL
+    ///
+    /// # Errors
+    ///
+    /// Returns `CreateError::InvalidApiKey` if the environment variable is not set or invalid
+    pub fn from_env_with_base_url_and_recovery(
+        base_url: &str,
+        recovery_policy: RecoveryPolicy,
+    ) -> std::result::Result<Self, CreateError> {
+        let api_key = std::env::var("OPENAI_API_KEY").map_err(|_| CreateError::InvalidApiKey)?;
+        Self::new_with_base_url_and_recovery(&api_key, base_url, recovery_policy)
     }
 }

@@ -40,6 +40,16 @@ pub enum Error {
         code: Option<String>,
     },
 
+    /// Container expired error (special case of API error)
+    #[error("Container expired: {message}")]
+    ContainerExpired {
+        /// Error message
+        message: String,
+
+        /// Whether this error was automatically handled
+        auto_handled: bool,
+    },
+
     /// HTTP error
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
@@ -63,10 +73,63 @@ pub enum Error {
     /// API key not found in environment
     #[error("API key not found in environment")]
     ApiKeyNotFound,
+
+    /// Context recovery error
+    #[error("Context recovery failed: {0}")]
+    ContextRecovery(String),
+
+    /// Maximum retry attempts exceeded
+    #[error("Maximum retry attempts exceeded: {attempts}")]
+    MaxRetriesExceeded { attempts: u32 },
+}
+
+impl Error {
+    /// Returns true if this error indicates a container has expired
+    #[must_use]
+    pub fn is_container_expired(&self) -> bool {
+        match self {
+            Self::ContainerExpired { .. } => true,
+            Self::Api { message, .. } => {
+                message.to_lowercase().contains("container is expired")
+                    || message.to_lowercase().contains("container expired")
+                    || message.to_lowercase().contains("session expired")
+            }
+            _ => false,
+        }
+    }
+
+    /// Returns true if this error can be automatically recovered from
+    #[must_use]
+    pub fn is_recoverable(&self) -> bool {
+        self.is_container_expired()
+    }
+
+    /// Creates a container expired error
+    #[must_use]
+    pub fn container_expired(message: impl Into<String>, auto_handled: bool) -> Self {
+        Self::ContainerExpired {
+            message: message.into(),
+            auto_handled,
+        }
+    }
 }
 
 impl From<ApiErrorDetails> for Error {
     fn from(error: ApiErrorDetails) -> Self {
+        // Check if this is a container expiration error
+        if error
+            .message
+            .to_lowercase()
+            .contains("container is expired")
+            || error.message.to_lowercase().contains("container expired")
+            || error.message.to_lowercase().contains("session expired")
+        {
+            return Self::ContainerExpired {
+                message: error.message,
+                auto_handled: false,
+            };
+        }
+
         Self::Api {
             message: error.message,
             error_type: error.error_type,

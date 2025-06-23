@@ -1,5 +1,132 @@
 use serde::{Deserialize, Serialize};
 
+/// Recovery policy for handling container expiration and other recoverable errors
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecoveryPolicy {
+    /// Whether to automatically retry on expired container errors
+    pub auto_retry_on_expired_container: bool,
+
+    /// Whether to notify the application when a reset occurs
+    pub notify_on_reset: bool,
+
+    /// Maximum number of retry attempts for recoverable errors
+    pub max_retries: u32,
+
+    /// Whether to automatically prune expired containers from context
+    pub auto_prune_expired_containers: bool,
+
+    /// Custom user-friendly message to show when containers are reset
+    pub reset_message: Option<String>,
+
+    /// Whether to log recovery attempts (useful for debugging)
+    pub log_recovery_attempts: bool,
+}
+
+impl Default for RecoveryPolicy {
+    fn default() -> Self {
+        Self {
+            auto_retry_on_expired_container: true,
+            notify_on_reset: false,
+            max_retries: 1,
+            auto_prune_expired_containers: true,
+            reset_message: None,
+            log_recovery_attempts: false,
+        }
+    }
+}
+
+impl RecoveryPolicy {
+    /// Creates a new recovery policy with default settings
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Creates a conservative recovery policy (no automatic retries)
+    #[must_use]
+    pub fn conservative() -> Self {
+        Self {
+            auto_retry_on_expired_container: false,
+            notify_on_reset: true,
+            max_retries: 0,
+            auto_prune_expired_containers: false,
+            reset_message: None,
+            log_recovery_attempts: true,
+        }
+    }
+
+    /// Creates an aggressive recovery policy (multiple retries, automatic pruning)
+    #[must_use]
+    pub fn aggressive() -> Self {
+        Self {
+            auto_retry_on_expired_container: true,
+            notify_on_reset: false,
+            max_retries: 3,
+            auto_prune_expired_containers: true,
+            reset_message: Some(
+                "Your previous code session expired, so I've started a fresh conversation for you."
+                    .to_string(),
+            ),
+            log_recovery_attempts: true,
+        }
+    }
+
+    /// Sets whether to automatically retry on expired container errors
+    #[must_use]
+    pub fn with_auto_retry(mut self, auto_retry: bool) -> Self {
+        self.auto_retry_on_expired_container = auto_retry;
+        self
+    }
+
+    /// Sets whether to notify the application when a reset occurs
+    #[must_use]
+    pub fn with_notify_on_reset(mut self, notify: bool) -> Self {
+        self.notify_on_reset = notify;
+        self
+    }
+
+    /// Sets the maximum number of retry attempts
+    #[must_use]
+    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
+        self
+    }
+
+    /// Sets whether to automatically prune expired containers
+    #[must_use]
+    pub fn with_auto_prune(mut self, auto_prune: bool) -> Self {
+        self.auto_prune_expired_containers = auto_prune;
+        self
+    }
+
+    /// Sets a custom reset message
+    #[must_use]
+    pub fn with_reset_message(mut self, message: impl Into<String>) -> Self {
+        self.reset_message = Some(message.into());
+        self
+    }
+
+    /// Sets whether to log recovery attempts
+    #[must_use]
+    pub fn with_logging(mut self, log: bool) -> Self {
+        self.log_recovery_attempts = log;
+        self
+    }
+
+    /// Returns the user-friendly reset message
+    #[must_use]
+    pub fn get_reset_message(&self) -> String {
+        self.reset_message.clone().unwrap_or_else(|| {
+            "Your previous session expired, so I've started a fresh conversation for you."
+                .to_string()
+        })
+    }
+}
+
+/// Callback function type for recovery notifications
+pub type RecoveryCallback = Box<dyn Fn(&crate::Error, u32) + Send + Sync>;
+
 /// Configuration for the OpenAI Responses API client
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -13,6 +140,10 @@ pub struct Config {
     /// Organization ID for the API
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organization_id: Option<String>,
+
+    /// Recovery policy for handling container expiration and other recoverable errors
+    #[serde(default)]
+    pub recovery_policy: RecoveryPolicy,
 }
 
 fn default_base_url() -> String {
@@ -26,6 +157,7 @@ impl Config {
             api_key: api_key.into(),
             base_url: default_base_url(),
             organization_id: None,
+            recovery_policy: RecoveryPolicy::default(),
         }
     }
 
@@ -40,6 +172,27 @@ impl Config {
     #[must_use]
     pub fn with_organization_id(mut self, organization_id: impl Into<String>) -> Self {
         self.organization_id = Some(organization_id.into());
+        self
+    }
+
+    /// Sets a custom recovery policy for the client
+    #[must_use]
+    pub fn with_recovery_policy(mut self, policy: RecoveryPolicy) -> Self {
+        self.recovery_policy = policy;
+        self
+    }
+
+    /// Sets a conservative recovery policy (no automatic retries)
+    #[must_use]
+    pub fn with_conservative_recovery(mut self) -> Self {
+        self.recovery_policy = RecoveryPolicy::conservative();
+        self
+    }
+
+    /// Sets an aggressive recovery policy (multiple retries, automatic pruning)
+    #[must_use]
+    pub fn with_aggressive_recovery(mut self) -> Self {
+        self.recovery_policy = RecoveryPolicy::aggressive();
         self
     }
 }

@@ -5,6 +5,78 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2025-01-23
+
+### 🛡️ **Advanced Container Recovery System** - Revolutionary Error Handling
+- **Automatic Container Expiration Handling**: SDK now automatically detects and recovers from expired containers without user intervention
+- **Configurable Recovery Policies**: Choose the recovery strategy that fits your application:
+  - **Default Policy**: Auto-retry enabled with 1 attempt (seamless experience)
+  - **Conservative Policy**: No auto-retry, notifications enabled (full control)
+  - **Aggressive Policy**: Auto-retry enabled with up to 3 attempts (maximum resilience)
+- **Smart Context Pruning**: Automatically cleans expired containers from conversation context on retry
+- **Recovery Callbacks**: Optional notifications when container recovery occurs
+- **Enhanced Error Detection**: Intelligent detection of container expiration patterns in API responses
+
+### 🆕 **New Client Creation Methods**
+- `Client::new_with_recovery(api_key, policy)` - Create client with custom recovery policy
+- `Client::from_env_with_recovery(policy)` - Create client from environment with recovery policy
+- `Client::new_with_http_client_and_recovery()` - Advanced client creation with recovery
+
+### 🆕 **Enhanced Response Methods**
+- `responses.create_with_recovery()` - Get detailed recovery information with response
+- `responses.prune_expired_context_manual()` - Manually clean expired context from requests
+- `ResponseWithRecovery` - Enhanced response type with recovery details
+- `RecoveryInfo` - Detailed information about recovery attempts and outcomes
+
+### 🆕 **Recovery Policy Configuration**
+- `RecoveryPolicy::default()` - Balanced approach (auto-retry: 1 attempt)
+- `RecoveryPolicy::conservative()` - Manual control (no auto-retry, notifications on)
+- `RecoveryPolicy::aggressive()` - Maximum resilience (auto-retry: 3 attempts)
+- Fluent builder pattern: `.with_auto_retry()`, `.with_max_retries()`, `.with_notify_on_reset()`, etc.
+- Custom reset messages for user-friendly error communication
+
+### 🆕 **Advanced Error Types**
+- `Error::ContainerExpired` - Specific container expiration error with auto-handled flag
+- `Error::ContextRecovery` - Context recovery operation errors
+- `Error::MaxRetriesExceeded` - When recovery attempts are exhausted
+- `Error::is_container_expired()` - Helper method to detect container expiration
+- `Error::is_recoverable()` - Helper method to detect recoverable errors
+
+### 🆕 **Examples**
+- **Added `examples/container_expiration_test.rs`** - Interactive test for container expiration recovery:
+  - Creates container with initial request
+  - Waits for user input to allow container expiration
+  - Demonstrates automatic recovery when making follow-up requests
+  - Shows different recovery policies in action
+  - Real-world testing of recovery mechanisms
+
+### ✨ **Enhanced User Experience**
+- **Transparent Recovery**: Container expiration handled automatically without breaking user flow
+- **Configurable Behavior**: Applications can choose recovery strategy based on their needs
+- **Detailed Feedback**: Optional recovery information for debugging and monitoring
+- **Backward Compatible**: All existing code continues to work with enhanced error handling
+- **Production Ready**: Robust error handling with proper logging and callback support
+
+### 🔧 **Technical Improvements**
+- **Smart Error Parsing**: Enhanced API error detection for container expiration patterns
+- **Context Management**: Intelligent pruning of expired container references
+- **Retry Logic**: Configurable retry mechanisms with exponential backoff considerations
+- **Callback System**: Extensible notification system for recovery events
+- **Logging Integration**: Optional logging of recovery attempts for debugging
+
+### 💡 **Key Benefits**
+- **Zero Breaking Changes**: All existing APIs work exactly the same, just with better error handling
+- **Improved Reliability**: Applications become more resilient to container expiration
+- **Better UX**: Users experience smooth operation even when containers expire
+- **Developer Control**: Choose between automatic handling or manual control
+- **Production Grade**: Enterprise-ready error recovery with comprehensive logging and monitoring
+
+### 🎯 **Real-World Impact**
+- **Chatbots**: No more conversation interruptions due to container expiration
+- **Code Execution Apps**: Seamless code interpreter sessions with automatic recovery
+- **Long-Running Processes**: Robust handling of container lifecycle in extended workflows
+- **Enterprise Applications**: Reliable operation with configurable error handling policies
+
 ## [0.2.4] - 2025-06-21
 
 ### 🎨 **Image-Guided Generation** - Revolutionary New Feature
