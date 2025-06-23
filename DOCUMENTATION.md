@@ -1,5 +1,6 @@
 # Open AI Rust Responses by SShift - Documentation
 
+> **🛡️ v0.2.5 Update**: **Advanced Container Recovery System** - Revolutionary error handling! SDK now automatically handles container expiration with configurable recovery policies. Choose from Default (auto-retry), Conservative (manual control), or Aggressive (maximum resilience) strategies. Zero breaking changes!
 > **🎨 v0.2.4 Update**: **Image-Guided Generation** - Revolutionary new feature! Use input images to guide image generation with the GPT Image 1 model. Create style transfers, combine multiple images into logos, and generate artistic interpretations. See the comprehensive new example!
 > **🧑‍💻 v0.2.3 Update**: Code Interpreter tool support! Run Python code in a secure container and get results directly from the model. See the new example and docs.
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
@@ -15,25 +16,26 @@ This document provides comprehensive documentation for the Open AI Rust Response
 3. [Authentication](#authentication)
 4. [Basic Usage](#basic-usage)
 5. [Responses API](#responses-api)
-6. [Messages API](#messages-api)
-7. [Files API](#files-api)
-8. [Vector Stores API](#vector-stores-api)
-9. [Tools API](#tools-api)
-10. [**Image-Guided Generation**](#image-guided-generation) *(Revolutionary New Feature in v0.2.4)*
-11. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
-12. [**Image Input (Vision)**](#image-input-vision) *(Updated in v0.2.2)*
-13. [**Code Interpreter**](#code-interpreter) *(New in v0.2.3)*
-14. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
-15. [**Reasoning Parameters**](#reasoning-parameters)
-16. [**Background Processing**](#background-processing)
-17. [**Enhanced Models**](#enhanced-models)
-18. [**Type-Safe Includes**](#type-safe-includes)
-19. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
-20. [Production-Ready Streaming](#production-ready-streaming)
-21. [Error Handling](#error-handling)
-22. [Advanced Configuration](#advanced-configuration)
-23. [Feature Flags](#feature-flags)
-24. [Testing and Examples](#testing-and-examples)
+6. [**Advanced Container Recovery System**](#advanced-container-recovery-system) *(Revolutionary New Feature in v0.2.5)*
+7. [Messages API](#messages-api)
+8. [Files API](#files-api)
+9. [Vector Stores API](#vector-stores-api)
+10. [Tools API](#tools-api)
+11. [**Image-Guided Generation**](#image-guided-generation) *(Revolutionary New Feature in v0.2.4)*
+12. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
+13. [**Image Input (Vision)**](#image-input-vision) *(Updated in v0.2.2)*
+14. [**Code Interpreter**](#code-interpreter) *(New in v0.2.3)*
+15. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
+16. [**Reasoning Parameters**](#reasoning-parameters)
+17. [**Background Processing**](#background-processing)
+18. [**Enhanced Models**](#enhanced-models)
+19. [**Type-Safe Includes**](#type-safe-includes)
+20. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
+21. [Production-Ready Streaming](#production-ready-streaming)
+22. [Error Handling](#error-handling)
+23. [Advanced Configuration](#advanced-configuration)
+24. [Feature Flags](#feature-flags)
+25. [Testing and Examples](#testing-and-examples)
 
 ## Quick Start
 
@@ -177,6 +179,270 @@ let response = client.responses.cancel("resp_abc123").await?;
 ```rust
 client.responses.delete("resp_abc123").await?;
 ```
+
+## **Advanced Container Recovery System** *(Revolutionary New Feature in v0.2.5)*
+
+**Revolutionary error handling**: The SDK now automatically detects and recovers from expired containers without breaking user flow! This advanced system provides configurable recovery policies, smart context pruning, and transparent error handling for a seamless developer experience.
+
+### 🛡️ **Core Concept**
+
+Container recovery works by:
+1. **Automatic Detection**: SDK detects container expiration errors from the API
+2. **Smart Recovery**: Automatically retries with cleaned context based on policy
+3. **Context Pruning**: Removes expired container references to enable fresh execution
+4. **Transparent Operation**: Applications continue working without manual intervention
+
+### 🎯 **Recovery Policies**
+
+Choose the recovery strategy that fits your application:
+
+#### **Default Policy** (Recommended)
+Balanced approach with automatic retry:
+```rust
+use open_ai_rust_responses_by_sshift::{Client, RecoveryPolicy};
+
+// Implicit default policy
+let client = Client::new(&api_key)?;
+
+// Explicit default policy
+let client = Client::new_with_recovery(&api_key, RecoveryPolicy::default())?;
+
+// Default settings:
+// - Auto-retry: enabled (1 attempt)
+// - Notifications: disabled
+// - Auto-prune: enabled
+// - Logging: disabled
+```
+
+#### **Conservative Policy**
+Full control with manual handling:
+```rust
+let policy = RecoveryPolicy::conservative();
+let client = Client::new_with_recovery(&api_key, policy)?;
+
+// Conservative settings:
+// - Auto-retry: disabled
+// - Notifications: enabled
+// - Auto-prune: disabled
+// - Logging: enabled
+```
+
+#### **Aggressive Policy**
+Maximum resilience with multiple retries:
+```rust
+let policy = RecoveryPolicy::aggressive();
+let client = Client::new_with_recovery(&api_key, policy)?;
+
+// Aggressive settings:
+// - Auto-retry: enabled (3 attempts)
+// - Notifications: disabled
+// - Auto-prune: enabled
+// - Custom reset message
+// - Logging: enabled
+```
+
+### 🔧 **Custom Recovery Policies**
+
+Build your own recovery strategy:
+```rust
+let custom_policy = RecoveryPolicy::new()
+    .with_auto_retry(true)
+    .with_max_retries(2)
+    .with_notify_on_reset(true)
+    .with_auto_prune(true)
+    .with_reset_message("Your session was refreshed for optimal performance.")
+    .with_logging(true);
+
+let client = Client::new_with_recovery(&api_key, custom_policy)?;
+```
+
+### 🚀 **Basic Usage**
+
+#### **Automatic Recovery** (Default Behavior)
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Tool, Container};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::new(&api_key)?; // Default policy enabled
+
+    // Make requests normally - expiration handled automatically!
+    let request = Request::builder()
+        .model("gpt-4o-mini")
+        .input("Continue our Python session from earlier...")
+        .tools(vec![Tool::code_interpreter(Some(Container::auto_type()))])
+        .previous_response_id("resp_123") // May reference expired container
+        .build();
+
+    // SDK automatically detects expiration and retries with fresh context
+    let response = client.responses.create(request).await?;
+    println!("Success: {}", response.output_text());
+    Ok(())
+}
+```
+
+#### **Recovery with Detailed Information**
+```rust
+use open_ai_rust_responses_by_sshift::ResponseWithRecovery;
+
+// Get detailed recovery information
+let response_with_recovery = client.responses.create_with_recovery(request).await?;
+
+if response_with_recovery.had_recovery() {
+    println!("🔄 Recovery performed:");
+    println!("   - Attempts: {}", response_with_recovery.recovery_info.retry_count);
+    println!("   - Successful: {}", response_with_recovery.recovery_info.successful);
+    
+    if let Some(msg) = response_with_recovery.recovery_message() {
+        println!("   - Message: {}", msg);
+    }
+    
+    if let Some(original_error) = &response_with_recovery.recovery_info.original_error {
+        println!("   - Original error: {}", original_error);
+    }
+}
+
+println!("Response: {}", response_with_recovery.response.output_text());
+```
+
+### 🧹 **Manual Context Pruning**
+
+For proactive context management:
+```rust
+// Manually clean expired context before making requests
+let cleaned_request = client.responses.prune_expired_context_manual(request);
+let response = client.responses.create(cleaned_request).await?;
+
+// Or use in a conversation loop
+let mut previous_response_id: Option<String> = None;
+
+for i in 1..=5 {
+    let mut request = Request::builder()
+        .model("gpt-4o-mini")
+        .input(format!("Step {} of our analysis", i))
+        .tools(vec![Tool::code_interpreter(Some(Container::auto_type()))])
+        .build();
+
+    // Add conversation continuity
+    if let Some(ref prev_id) = previous_response_id {
+        request.previous_response_id = Some(prev_id.clone());
+    }
+
+    // Proactively prune expired context (optional)
+    if i > 2 {
+        request = client.responses.prune_expired_context_manual(request);
+    }
+
+    match client.responses.create(request).await {
+        Ok(response) => {
+            previous_response_id = Some(response.id().to_string());
+            println!("Step {} completed", i);
+        }
+        Err(e) => {
+            println!("Step {} failed: {}", i, e);
+            previous_response_id = None; // Reset on error
+        }
+    }
+}
+```
+
+### 🔔 **Recovery Callbacks**
+
+Get notified when recovery occurs:
+```rust
+use open_ai_rust_responses_by_sshift::RecoveryCallback;
+
+let callback: RecoveryCallback = Box::new(|error, attempt| {
+    println!("🔔 Recovery callback triggered:");
+    println!("   - Error: {}", error);
+    println!("   - Attempt: {}", attempt);
+    println!("   - Action: Retrying with fresh context...");
+});
+
+let client_with_callback = client.responses.clone().with_recovery_callback(callback);
+
+// Now all requests through this client will trigger the callback on recovery
+let response = client_with_callback.create_with_recovery(request).await?;
+```
+
+### 🎛️ **Advanced Configuration**
+
+#### **Environment-Based Client Creation**
+```rust
+// From environment with recovery policy
+let client = Client::from_env_with_recovery(RecoveryPolicy::aggressive())?;
+
+// With custom base URL and recovery
+let client = Client::from_env_with_base_url_and_recovery(
+    "https://api.openai.com/v1",
+    RecoveryPolicy::conservative()
+)?;
+```
+
+#### **HTTP Client with Recovery**
+```rust
+use reqwest::Client as HttpClient;
+
+let http_client = HttpClient::new();
+let client = Client::new_with_http_client_and_recovery(
+    &http_client,
+    "https://api.openai.com/v1",
+    RecoveryPolicy::default()
+)?;
+```
+
+### 🧪 **Testing Container Expiration**
+
+Use the interactive test to see recovery in action:
+```bash
+cargo run --example container_expiration_test
+```
+
+This example:
+1. Creates a container with initial code execution
+2. Waits for user input (allowing container to expire)
+3. Makes a follow-up request that triggers expiration
+4. Demonstrates automatic recovery based on chosen policy
+
+### 💡 **Best Practices**
+
+#### **For Chatbots and Interactive Apps**
+- Use **Default** or **Aggressive** policy for seamless user experience
+- Enable notifications for debugging during development
+- Disable notifications in production for clean UX
+
+#### **For Code Execution Apps**
+- Use **Aggressive** policy for maximum resilience
+- Enable logging for debugging container lifecycle issues
+- Consider proactive context pruning for long sessions
+
+#### **For Enterprise Applications**
+- Use **Conservative** policy for full control over error handling
+- Implement custom recovery callbacks for monitoring and alerting
+- Enable detailed logging for operational insights
+
+#### **For Background Processing**
+- Use **Aggressive** policy with custom retry counts
+- Implement recovery callbacks for job status tracking
+- Consider manual context pruning for resource optimization
+
+### 🔍 **Error Detection**
+
+The SDK automatically detects these container expiration patterns:
+- `"Container is expired"`
+- `"Container expired"`
+- `"Session expired"`
+- API error types indicating container lifecycle issues
+
+### 📊 **Benefits**
+
+- **🔄 Transparent Recovery**: Container expiration handled automatically
+- **⚙️ Configurable Policies**: Choose strategy that fits your application
+- **🔍 Detailed Feedback**: Optional recovery information for monitoring
+- **🔒 Zero Breaking Changes**: All existing code works with enhanced error handling
+- **🎯 Production Ready**: Enterprise-grade error recovery with logging and callbacks
+- **🚀 Better UX**: Users experience smooth operation even when containers expire
+- **🛠️ Developer Friendly**: Comprehensive examples and clear documentation
 
 ## Messages API
 

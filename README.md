@@ -1,5 +1,6 @@
 # OpenAI Rust Responses by SShift
 
+> **🛡️ v0.2.5 Update**: **Advanced Container Recovery System** - Revolutionary error handling! SDK now automatically handles container expiration with configurable recovery policies. Choose from Default (auto-retry), Conservative (manual control), or Aggressive (maximum resilience) strategies. Zero breaking changes!
 > **🎨 v0.2.4 Update**: **Image-Guided Generation** - Revolutionary new feature! Use input images to guide image generation with the GPT Image 1 model. Create style transfers, combine multiple images into logos, and generate artistic interpretations. See the comprehensive new example!
 > **🧑‍💻 v0.2.3 Update**: Code Interpreter tool support! Run Python code in a secure container and get results directly from the model. See the new example and docs.
 > **🔥 v0.2.0 Update**: Major update to image generation! The SDK now supports the official built-in `image_generation` tool, replacing the previous function-based workaround. This is a breaking change.
@@ -14,8 +15,9 @@ A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reaso
 
 ## ✨ Features
 
+- **🛡️ Advanced Container Recovery**: Automatic handling of expired containers with configurable recovery policies
 - **🎨 Image-Guided Generation**: Use input images to guide image generation - style transfer, logo creation, artistic interpretation
-- **🔄 Conversation Continuity**: Use response IDs to maintain conversation context
+- **🔄 Conversation Continuity**: Use response IDs to maintain conversation context with smart context pruning
 - **🌊 Production-Ready Streaming**: HTTP chunked responses with proper parsing and real-time text generation
 - **📁 File Operations**: Upload, download, and manage files with full MIME support
 - **🔍 Vector Stores**: Semantic search and knowledge retrieval with attribute filtering
@@ -29,11 +31,93 @@ A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reaso
 - **🔒 Type Safety**: Comprehensive error handling, type-safe includes, and compile-time validation
 - **📊 Full API Parity**: 85% coverage of OpenAI May 2025 specification with 100% backward compatibility
 - **📚 Rich Documentation**: Extensive examples and API documentation
-- **🧑‍💻 Code Interpreter Tool**: Run Python code and get results directly from the model.
+- **🧑‍💻 Code Interpreter Tool**: Run Python code and get results directly from the model
 
 ## 🆕 Advanced Capabilities
 
 This SDK includes cutting-edge features with full API parity:
+
+### 🛡️ **Advanced Container Recovery System** (NEW in v0.2.5) 🔥
+
+**Revolutionary error handling**: SDK automatically detects and recovers from expired containers without breaking user flow!
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, RecoveryPolicy, Request, Tool, Container};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Choose your recovery strategy
+    let policy = RecoveryPolicy::default()  // Auto-retry: 1 attempt
+        .with_auto_retry(true)
+        .with_notify_on_reset(true)
+        .with_reset_message("Your session was refreshed for optimal performance.");
+    
+    let client = Client::new_with_recovery(&api_key, policy)?;
+
+    // Make requests normally - container expiration handled automatically!
+    let request = Request::builder()
+        .model("gpt-4o-mini")
+        .input("Continue our Python session from earlier...")
+        .tools(vec![Tool::code_interpreter(Some(Container::auto_type()))])
+        .previous_response_id("resp_123") // May reference expired container
+        .build();
+
+    // SDK automatically handles expiration and retries with fresh context
+    let response = client.responses.create(request).await?;
+    println!("Success: {}", response.output_text());
+    Ok(())
+}
+```
+
+**Recovery Policies**:
+```rust
+// Default: Balanced approach (recommended)
+let client = Client::new(&api_key)?; // Auto-retry enabled, 1 attempt
+
+// Conservative: Full control
+let policy = RecoveryPolicy::conservative(); // No auto-retry, notifications on
+let client = Client::new_with_recovery(&api_key, policy)?;
+
+// Aggressive: Maximum resilience  
+let policy = RecoveryPolicy::aggressive(); // Auto-retry enabled, 3 attempts
+let client = Client::new_with_recovery(&api_key, policy)?;
+```
+
+**Advanced Recovery Information**:
+```rust
+// Get detailed recovery information
+let response_with_recovery = client.responses.create_with_recovery(request).await?;
+
+if response_with_recovery.had_recovery() {
+    println!("Recovery performed:");
+    println!("- Attempts: {}", response_with_recovery.recovery_info.retry_count);
+    println!("- Successful: {}", response_with_recovery.recovery_info.successful);
+    if let Some(msg) = response_with_recovery.recovery_message() {
+        println!("- Message: {}", msg);
+    }
+}
+
+println!("Response: {}", response_with_recovery.response.output_text());
+```
+
+**Manual Context Pruning**:
+```rust
+// Proactively clean expired context
+let cleaned_request = client.responses.prune_expired_context_manual(request);
+let response = client.responses.create(cleaned_request).await?;
+```
+
+**Key Benefits**:
+- 🔄 **Transparent Recovery**: Container expiration handled automatically
+- ⚙️ **Configurable Policies**: Choose the strategy that fits your app
+- 🔍 **Detailed Feedback**: Optional recovery information for monitoring
+- 🔒 **Zero Breaking Changes**: All existing code works with enhanced error handling
+- 🎯 **Production Ready**: Enterprise-grade error recovery with logging and callbacks
+
+**Test Container Expiration**:
+```bash
+cargo run --example container_expiration_test
+```
 
 ### 🎨 **Image-Guided Generation** (NEW in v0.2.4) 🔥
 
