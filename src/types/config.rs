@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Recovery policy for handling container expiration and other recoverable errors
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RecoveryPolicy {
     /// Whether to automatically retry on expired container errors
