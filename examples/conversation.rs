@@ -102,10 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check if all responses completed successfully
     let all_successful =
         response1.is_complete() && response2.is_complete() && response3.is_complete();
-    println!(
-        "✅ All responses completed successfully: {}",
-        all_successful
-    );
+    println!("✅ All responses completed successfully: {all_successful}");
 
     println!("🤖 Chef: {}\n", response3.output_text());
 
@@ -135,16 +132,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Show parameter echoes if available
     println!("\n⚙️ Conversation Parameters:");
     if let Some(temp) = response3.temperature {
-        println!("   Temperature: {}", temp);
+        println!("   Temperature: {temp}");
     }
     if let Some(user) = &response3.user {
-        println!("   User: {}", user);
+        println!("   User: {user}");
     }
 
     // Conversation analytics
     println!("\n📊 Conversation Analytics:");
     println!("   🔄 Total turns: 3");
-    println!("   📝 Total tokens consumed: {}", final_total_tokens);
+    println!("   📝 Total tokens consumed: {final_total_tokens}");
     println!(
         "   ⚡ Average tokens per turn: {:.1}",
         final_total_tokens as f64 / 3.0
