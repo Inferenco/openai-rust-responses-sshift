@@ -225,7 +225,9 @@ impl Responses {
 
                         // Notify callback if set
                         if let Some(callback) = &self.recovery_callback {
-                            callback(last_error.as_ref().unwrap(), retry_count);
+                            if let Some(error) = last_error.as_ref() {
+                                callback(error, retry_count);
+                            }
                         }
 
                         // Prune expired containers from context if enabled
@@ -402,11 +404,15 @@ impl Responses {
 
                     // Check if response is OK
                     if !response.status().is_success() {
+                        let status = response.status();
+                        let error_body = match response.text().await {
+                            Ok(text) => text,
+                            Err(_) => "Unable to read error response".to_string(),
+                        };
                         return Some((
                             Err(crate::Error::Stream(format!(
                                 "HTTP error: {} - {}",
-                                response.status(),
-                                response.text().await.unwrap_or_default()
+                                status, error_body
                             ))),
                             None,
                         ));
@@ -415,7 +421,17 @@ impl Responses {
                     response_opt = Some(response);
                 }
 
-                let response = response_opt.as_mut().unwrap();
+                let response = match response_opt.as_mut() {
+                    Some(resp) => resp,
+                    None => {
+                        return Some((
+                            Err(crate::Error::Stream(
+                                "Internal error: response is None".to_string(),
+                            )),
+                            None,
+                        ));
+                    }
+                };
 
                 // Read chunks from the response
                 match response.chunk().await {

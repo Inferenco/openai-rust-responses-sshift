@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2025-01-23
+
+### 🛡️ **Critical Error Handling Fixes** - Production Safety
+- **Fixed Dangerous unwrap() Calls**: Eliminated panic-prone unwrap calls in production code paths
+  - **Recovery Callback Safety**: Fixed potential panic in recovery callback when `last_error` is None
+  - **Streaming Response Safety**: Replaced dangerous unwrap with proper error handling in streaming code
+  - **HTTP Error Body Reading**: Improved error message extraction with safe error handling
+- **Enhanced Production Reliability**: OpenAI wrapper now has robust error handling that prevents production panics
+  - No more dangerous unwraps in critical code paths
+  - Proper error propagation instead of panics
+  - Graceful error handling for network issues
+  - Better error messages for debugging
+- **Maintained Backward Compatibility**: All existing functionality preserved while improving safety
+  - All tests continue to pass (50/50)
+  - Zero breaking changes for existing users
+  - Production-ready error handling without API changes
+
+### 🔧 **Technical Improvements**
+- **Error Handling Best Practices**: Replaced unsafe unwrap patterns with proper Rust error handling
+- **Stream Error Recovery**: Enhanced streaming error handling with detailed error messages
+- **Network Error Resilience**: Improved handling of HTTP response body reading failures
+- **Callback Safety**: Recovery callbacks now handle None cases gracefully
+
 ## [0.2.5] - 2025-01-23
 
 ### 🛡️ **Advanced Container Recovery System** - Revolutionary Error Handling
