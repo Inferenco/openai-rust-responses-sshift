@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("📊 Token Usage: {} total", usage.total_tokens);
         if let Some(details) = &usage.output_tokens_details {
             if let Some(reasoning_tokens) = details.reasoning_tokens {
-                println!("🧠 Reasoning tokens: {}", reasoning_tokens);
+                println!("🧠 Reasoning tokens: {reasoning_tokens}");
             }
         }
     }
@@ -140,10 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         + logic_response.total_tokens().unwrap_or(0)
         + creative_response.total_tokens().unwrap_or(0);
 
-    println!(
-        "📊 Session Summary: {} total tokens across 3 reasoning problems",
-        total_session_tokens
-    );
+    println!("📊 Session Summary: {total_session_tokens} total tokens across 3 reasoning problems");
 
     println!("\n🤖 Solution: {}\n", creative_response.output_text());
 
@@ -153,11 +150,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   📊 Problems solved: 3 (math, logic, creative)");
     println!("   💭 Reasoning efforts: High, Medium, High");
     println!("   🔐 Stateless mode: All responses used store=false");
-    println!("   📝 Total computation: {} tokens", total_session_tokens);
+    println!("   📝 Total computation: {total_session_tokens} tokens");
 
     // Show parameter consistency
     if let Some(user) = &creative_response.user {
-        println!("   👤 User session: {}", user);
+        println!("   👤 User session: {user}");
     }
     println!("   🌡️ Temperature: Not supported by O4Mini (reasoning model)");
 

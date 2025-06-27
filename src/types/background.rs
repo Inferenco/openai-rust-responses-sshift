@@ -173,9 +173,15 @@ mod tests {
     #[test]
     fn test_background_status_serialization() {
         let status = BackgroundStatus::Running;
-        assert_eq!(serde_json::to_string(&status).unwrap(), r#""running""#);
+        assert_eq!(
+            serde_json::to_string(&status).expect("running status should serialize"),
+            r#""running""#
+        );
 
         let status = BackgroundStatus::Completed;
-        assert_eq!(serde_json::to_string(&status).unwrap(), r#""completed""#);
+        assert_eq!(
+            serde_json::to_string(&status).expect("completed status should serialize"),
+            r#""completed""#
+        );
     }
 }

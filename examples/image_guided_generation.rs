@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             save_image_from_response(&response, "artistic_landscape.png")?;
             println!("✅ Generated artistic interpretation saved as 'artistic_landscape.png'");
         }
-        Err(e) => println!("❌ Error: {}", e),
+        Err(e) => println!("❌ Error: {e}"),
     }
 
     // ==========================================
@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             save_image_from_response(&response, "combined_logo.png")?;
             println!("✅ Generated combined logo saved as 'combined_logo.png'");
         }
-        Err(e) => println!("❌ Error: {}", e),
+        Err(e) => println!("❌ Error: {e}"),
     }
 
     // ==========================================
@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             save_image_from_response(&response, "enhanced_image.png")?;
             println!("✅ Generated enhanced image saved as 'enhanced_image.png'");
         }
-        Err(e) => println!("❌ Error: {}", e),
+        Err(e) => println!("❌ Error: {e}"),
     }
 
     // ==========================================
@@ -173,7 +173,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Also print the model's description of what it created
             println!("🎨 Model description: {}", response.output_text());
         }
-        Err(e) => println!("❌ Error: {}", e),
+        Err(e) => println!("❌ Error: {e}"),
     }
 
     // ==========================================
@@ -204,7 +204,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             save_image_from_response(&response, "nature_water_bottle.png")?;
             println!("✅ Generated product design saved as 'nature_water_bottle.png'");
         }
-        Err(e) => println!("❌ Error: {}", e),
+        Err(e) => println!("❌ Error: {e}"),
     }
 
     println!("\n✅ Image-guided generation examples completed!");
@@ -229,11 +229,11 @@ fn save_image_from_response(
             let image_bytes = general_purpose::STANDARD.decode(result)?;
             let mut file = File::create(filename)?;
             file.write_all(&image_bytes)?;
-            println!("💾 Image saved as '{}'", filename);
+            println!("💾 Image saved as '{filename}'");
             return Ok(());
         }
     }
-    println!("⚠️ No image found in response for {}", filename);
+    println!("⚠️ No image found in response for {filename}");
     Ok(())
 }
 

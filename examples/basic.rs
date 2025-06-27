@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if let Some(details) = &usage.output_tokens_details {
             if let Some(reasoning_tokens) = details.reasoning_tokens {
-                println!("  Reasoning tokens: {}", reasoning_tokens);
+                println!("  Reasoning tokens: {reasoning_tokens}");
             }
         }
 
@@ -72,13 +72,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Display parameter echoes
     if let Some(temp) = response.temperature {
         println!("\n⚙️ Request Parameters Echoed:");
-        println!("  Temperature: {}", temp);
+        println!("  Temperature: {temp}");
     }
     if let Some(top_p) = response.top_p {
-        println!("  Top-p: {}", top_p);
+        println!("  Top-p: {top_p}");
     }
     if let Some(max_tokens) = response.max_output_tokens {
-        println!("  Max output tokens: {}", max_tokens);
+        println!("  Max output tokens: {max_tokens}");
     }
 
     // Check if there are any tool calls
@@ -92,12 +92,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Show system instructions echo
     if let Some(instructions) = &response.instructions {
-        println!("\n📋 Instructions: {}", instructions);
+        println!("\n📋 Instructions: {instructions}");
     }
 
     // Show user identifier echo
     if let Some(user) = &response.user {
-        println!("\n👤 User: {}", user);
+        println!("\n👤 User: {user}");
     }
 
     println!("\n✅ Example completed successfully!");

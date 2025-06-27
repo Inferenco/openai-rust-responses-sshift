@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    println!("\n🔧 Using {} Recovery Policy\n", policy_name);
+    println!("\n🔧 Using {policy_name} Recovery Policy\n");
 
     // Step 1: Create initial request to establish a container
     println!("📋 Step 1: Creating initial container with code execution");
@@ -138,11 +138,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
 
                 if let Some(msg) = response_with_recovery.recovery_message() {
-                    println!("   - User message: {}", msg);
+                    println!("   - User message: {msg}");
                 }
 
                 if let Some(original_error) = &response_with_recovery.recovery_info.original_error {
-                    println!("   - Original error: {}", original_error);
+                    println!("   - Original error: {original_error}");
                 }
             } else {
                 println!("✅ Request succeeded without needing recovery (container may not have expired yet)");
@@ -170,14 +170,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             println!("💬 Response: {}", response.output_text());
                         }
                         Err(e) => {
-                            println!("❌ Manual recovery failed: {}", e);
+                            println!("❌ Manual recovery failed: {e}");
                         }
                     }
                 } else {
-                    println!("❌ Automatic recovery failed: {}", e);
+                    println!("❌ Automatic recovery failed: {e}");
                 }
             } else {
-                println!("❌ Request failed with non-recoverable error: {}", e);
+                println!("❌ Request failed with non-recoverable error: {e}");
             }
         }
     }
@@ -187,7 +187,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("===============");
     println!("✓ Created initial container");
     println!("✓ Waited for potential expiration");
-    println!("✓ Tested recovery mechanism with {} policy", policy_name);
+    println!("✓ Tested recovery mechanism with {policy_name} policy");
 
     println!("\n💡 Key Insights:");
     println!("• Container expiration is handled transparently by the SDK");

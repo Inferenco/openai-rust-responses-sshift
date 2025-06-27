@@ -101,7 +101,7 @@ async fn demo_basic_recovery(client: &Client) -> Result<(), Box<dyn std::error::
             println!("⚠️  Container expired (this would be auto-handled with recovery enabled)");
         }
         Err(e) => {
-            println!("❌ Request failed: {}", e);
+            println!("❌ Request failed: {e}");
         }
     }
 
@@ -131,12 +131,12 @@ async fn demo_conservative_recovery(client: &Client) -> Result<(), Box<dyn std::
                     println!("✅ Manual recovery succeeded: {}", response.output_text());
                 }
                 Err(e) => {
-                    println!("❌ Manual recovery failed: {}", e);
+                    println!("❌ Manual recovery failed: {e}");
                 }
             }
         }
         Err(e) => {
-            println!("❌ Request failed: {}", e);
+            println!("❌ Request failed: {e}");
         }
     }
 
@@ -165,7 +165,7 @@ async fn demo_aggressive_recovery(client: &Client) -> Result<(), Box<dyn std::er
                     response_with_recovery.recovery_info.successful
                 );
                 if let Some(msg) = response_with_recovery.recovery_message() {
-                    println!("   - Message: {}", msg);
+                    println!("   - Message: {msg}");
                 }
             }
             println!(
@@ -174,7 +174,7 @@ async fn demo_aggressive_recovery(client: &Client) -> Result<(), Box<dyn std::er
             );
         }
         Err(e) => {
-            println!("❌ Request failed even with aggressive recovery: {}", e);
+            println!("❌ Request failed even with aggressive recovery: {e}");
         }
     }
 
@@ -203,8 +203,8 @@ async fn demo_custom_recovery_with_callback(
             .clone()
             .with_recovery_callback(Box::new(|error, attempt| {
                 println!("🔔 Recovery callback triggered:");
-                println!("   - Error: {}", error);
-                println!("   - Attempt: {}", attempt);
+                println!("   - Error: {error}");
+                println!("   - Attempt: {attempt}");
                 println!("   - Action: Retrying with fresh context...");
             }));
 
@@ -219,7 +219,7 @@ async fn demo_custom_recovery_with_callback(
             if response_with_recovery.had_recovery() {
                 println!("🔄 Custom recovery completed successfully!");
                 if let Some(msg) = response_with_recovery.recovery_message() {
-                    println!("   - User message: {}", msg);
+                    println!("   - User message: {msg}");
                 }
             }
             println!(
@@ -228,7 +228,7 @@ async fn demo_custom_recovery_with_callback(
             );
         }
         Err(e) => {
-            println!("❌ Request failed: {}", e);
+            println!("❌ Request failed: {e}");
         }
     }
 
@@ -241,7 +241,7 @@ async fn demo_manual_context_pruning(client: &Client) -> Result<(), Box<dyn std:
     let mut previous_response_id: Option<String> = None;
 
     for i in 1..=3 {
-        println!("🔄 Request {}/3", i);
+        println!("🔄 Request {i}/3");
 
         let mut request = Request::builder()
             .model("gpt-4o-mini")
@@ -269,7 +269,7 @@ async fn demo_manual_context_pruning(client: &Client) -> Result<(), Box<dyn std:
                 previous_response_id = Some(response.id().to_string());
             }
             Err(e) => {
-                println!("   ❌ Failed: {}", e);
+                println!("   ❌ Failed: {e}");
                 // Reset conversation on error
                 previous_response_id = None;
             }

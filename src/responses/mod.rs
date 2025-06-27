@@ -166,11 +166,6 @@ impl Responses {
 
     /// Creates a response with automatic recovery handling.
     ///
-    /// # Panics
-    ///
-    /// This method may panic if a recovery callback is set and the last error becomes None
-    /// during recovery processing, though this should not occur during normal operation.
-    ///
     /// # Errors
     ///
     /// Returns an error if the request fails to send or has a non-200 status code,
@@ -225,7 +220,9 @@ impl Responses {
 
                         // Notify callback if set
                         if let Some(callback) = &self.recovery_callback {
-                            callback(last_error.as_ref().unwrap(), retry_count);
+                            if let Some(ref error) = last_error {
+                                callback(error, retry_count);
+                            }
                         }
 
                         // Prune expired containers from context if enabled
@@ -359,11 +356,6 @@ impl Responses {
 
     /// Creates a streaming response.
     ///
-    /// # Panics
-    ///
-    /// This method may panic if the internal response state becomes inconsistent,
-    /// though this is not expected during normal operation.
-    ///
     /// # Errors
     ///
     /// Returns a stream of events or errors if the request fails to send or has a non-200 status code.
@@ -402,11 +394,14 @@ impl Responses {
 
                     // Check if response is OK
                     if !response.status().is_success() {
+                        let status = response.status();
+                        let error_body = match response.text().await {
+                            Ok(text) => text,
+                            Err(_) => "<failed to read response body>".to_string(),
+                        };
                         return Some((
                             Err(crate::Error::Stream(format!(
-                                "HTTP error: {} - {}",
-                                response.status(),
-                                response.text().await.unwrap_or_default()
+                                "HTTP error: {status} - {error_body}"
                             ))),
                             None,
                         ));
@@ -415,7 +410,14 @@ impl Responses {
                     response_opt = Some(response);
                 }
 
-                let response = response_opt.as_mut().unwrap();
+                let Some(response) = response_opt.as_mut() else {
+                    return Some((
+                        Err(crate::Error::Stream(
+                            "Response state inconsistent".to_string(),
+                        )),
+                        None,
+                    ));
+                };
 
                 // Read chunks from the response
                 match response.chunk().await {

@@ -83,10 +83,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Show parameter echoes
     if let Some(temp) = response1.temperature {
-        println!("🌡️ Temperature used: {}", temp);
+        println!("🌡️ Temperature used: {temp}");
     }
     if let Some(max_tokens) = response1.max_output_tokens {
-        println!("📏 Max output tokens: {}", max_tokens);
+        println!("📏 Max output tokens: {max_tokens}");
     }
 
     println!("🤖 Assistant: {}\n", response1.output_text());
@@ -160,7 +160,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(stream_event) => {
                     match stream_event {
                         StreamEvent::TextDelta { content, .. } => {
-                            print!("{}", content);
+                            print!("{content}");
                             std::io::stdout().flush().unwrap();
                             full_response.push_str(&content);
                             event_count += 1;
@@ -169,16 +169,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             image_events += 1;
                             if let Some(progress_url) = url {
                                 println!(
-                                    "\n📸 Partial image {} generated: {}",
-                                    image_events, progress_url
+                                    "\n📸 Partial image {image_events} generated: {progress_url}"
                                 );
                             } else {
-                                println!("\n📸 Image generation in progress (index {})...", index);
+                                println!("\n📸 Image generation in progress (index {index})...");
                             }
                         }
                         StreamEvent::ToolCallCreated { id, name, .. } => {
                             tool_calls += 1;
-                            println!("\n🛠️ Tool call created: {} ({})", name, id);
+                            println!("\n🛠️ Tool call created: {name} ({id})");
                         }
                         StreamEvent::Done => {
                             let duration = start_time.elapsed();
@@ -205,7 +204,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
                 Err(e) => {
-                    println!("\n❌ Stream error occurred: {}", e);
+                    println!("\n❌ Stream error occurred: {e}");
                     println!("   This demonstrates enhanced error handling for streaming");
                     // In a real application, you might want to retry or handle the error appropriately
                     break;
@@ -286,10 +285,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("⬇️  Downloaded {} bytes", downloaded_content.len());
         }
         Err(e) => {
-            println!(
-                "⚠️  Cannot download assistants files (this is expected): {}",
-                e
-            );
+            println!("⚠️  Cannot download assistants files (this is expected): {e}");
         }
     }
 
@@ -357,7 +353,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
         }
-        Err(e) => println!("⚠️  Search failed (may need more time for indexing): {}", e),
+        Err(e) => println!("⚠️  Search failed (may need more time for indexing): {e}"),
     }
 
     // 6. BUILT-IN TOOLS WITH RESPONSES API
@@ -385,7 +381,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     + "..."
             );
         }
-        Err(e) => println!("⚠️  Web search failed: {}", e),
+        Err(e) => println!("⚠️  Web search failed: {e}"),
     }
 
     // 7. FILE SEARCH TOOL
@@ -412,7 +408,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     + "..."
             );
         }
-        Err(e) => println!("⚠️  File search failed: {}", e),
+        Err(e) => println!("⚠️  File search failed: {e}"),
     }
 
     // 8. ENHANCED FUNCTION CALLING - CONTINUOUS CONVERSATION
@@ -518,7 +514,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if expression.contains("15 * 7 + 23") || expression.contains("15*7+23") {
                             "128".to_string()
                         } else {
-                            format!("Calculated result for: {}", expression)
+                            format!("Calculated result for: {expression}")
                         }
                     } else {
                         "Error: No expression provided".to_string()
@@ -547,7 +543,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 _ => format!("Error: Unknown function '{}'", tool_call.name),
             };
 
-            println!("   ✅ Result: {}", result);
+            println!("   ✅ Result: {result}");
             function_outputs.push((tool_call.call_id.clone(), result));
         }
 
@@ -589,17 +585,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if iteration > MAX_ITERATIONS {
-        println!(
-            "⚠️ Stopped after {} iterations to prevent infinite loop",
-            MAX_ITERATIONS
-        );
+        println!("⚠️ Stopped after {MAX_ITERATIONS} iterations to prevent infinite loop");
     } else if current_response.tool_calls().is_empty() {
         println!("✅ Enhanced function calling workflow completed - no more tool calls needed");
     }
 
     println!("\n🎯 Enhanced Function Calling Summary:");
     println!("   • Iterations: {}", iteration - 1);
-    println!("   • Total tokens used: {}", total_function_tokens);
+    println!("   • Total tokens used: {total_function_tokens}");
     println!("   • Tools available: calculate, get_weather");
     println!("   • Parallel execution: ✅ (enabled for efficiency)");
     println!("   • Enhanced monitoring: ✅ (status, tokens, errors)");
@@ -638,7 +631,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let result = if expression.contains("128") && expression.contains("4") {
                         "32".to_string()
                     } else {
-                        format!("Calculated: {}", expression)
+                        format!("Calculated: {expression}")
                     };
                     followup_outputs.push((tool_call.call_id.clone(), result));
                 }
@@ -701,7 +694,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let file_name = "mountain_landscape.png";
             let mut file = std::fs::File::create(file_name)?;
             file.write_all(&image_bytes)?;
-            println!("   ✅ Image saved to {}", file_name);
+            println!("   ✅ Image saved to {file_name}");
             image_saved = true;
             break;
         }
@@ -717,7 +710,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("---------------------------");
 
     let supplied_image_url = "https://storage.googleapis.com/sshift-gpt-bucket/ledger-app/generated-image-1746132697428.png";
-    println!("📤 Supplying image for description: {}", supplied_image_url);
+    println!("📤 Supplying image for description: {supplied_image_url}");
 
     let vision_request = Request::builder()
         .model(Model::GPT4o) // Use GPT-4o for multimodal capabilities
@@ -734,7 +727,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("✅ Vision description received:");
             println!("   {}", vision_response.output_text());
         }
-        Err(e) => println!("⚠️  Vision request failed: {}", e),
+        Err(e) => println!("⚠️  Vision request failed: {e}"),
     }
 
     // MCP (Model Context Protocol) Tool Demo with Enhanced Approval
@@ -826,7 +819,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("   Token usage: {} total", usage.total_tokens);
                 if let Some(details) = &usage.output_tokens_details {
                     if let Some(reasoning_tokens) = details.reasoning_tokens {
-                        println!("   Reasoning tokens: {}", reasoning_tokens);
+                        println!("   Reasoning tokens: {reasoning_tokens}");
                     }
                 }
             }
@@ -851,7 +844,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Err(e) => println!("⚠️  Reasoning request failed: {}", e),
+        Err(e) => println!("⚠️  Reasoning request failed: {e}"),
     }
 
     // Demonstrate comprehensive request with all enhanced features
@@ -992,7 +985,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   Note: File still exists in Files API - only removed from vector store");
         }
         Err(e) => {
-            println!("❌ Vector store file deletion failed: {}", e);
+            println!("❌ Vector store file deletion failed: {e}");
             println!("   This indicates an issue with the vector_stores.delete_file() method");
             println!("   Proceeding with vector store deletion anyway...");
         }
@@ -1016,7 +1009,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
         Err(e) => {
-            println!("❌ Vector store delete API failed: {}", e);
+            println!("❌ Vector store delete API failed: {e}");
             println!("   This indicates an issue with the vector_stores.delete() method");
         }
     }
@@ -1033,7 +1026,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   File '{}' deleted successfully", file.filename);
         }
         Err(e) => {
-            println!("❌ File delete API failed: {}", e);
+            println!("❌ File delete API failed: {e}");
             println!("   This indicates an issue with the files.delete() method");
         }
     }
@@ -1051,7 +1044,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🗑️  Removing local demo file...");
     match std::fs::remove_file("demo_guide.md") {
         Ok(_) => println!("✅ Local file 'demo_guide.md' removed"),
-        Err(e) => println!("⚠️  Failed to remove local file: {}", e),
+        Err(e) => println!("⚠️  Failed to remove local file: {e}"),
     }
 
     // Show final verification with enhanced monitoring
@@ -1066,7 +1059,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("   Note: Remaining files are from previous demo runs or other usage");
             }
         }
-        Err(e) => println!("⚠️  Could not list files for verification: {}", e),
+        Err(e) => println!("⚠️  Could not list files for verification: {e}"),
     }
 
     println!("\n🎉 Comprehensive demo completed successfully!");

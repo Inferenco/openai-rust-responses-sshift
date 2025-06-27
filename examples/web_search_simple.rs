@@ -78,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Show parameter echoes
     if let Some(temp) = response.temperature {
-        println!("\n⚙️ Temperature used: {}", temp);
+        println!("\n⚙️ Temperature used: {temp}");
     }
 
     println!("\n✅ Enhanced web search completed!");

@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut file = File::create(file_name)?;
             file.write_all(&image_bytes)?;
 
-            println!("✅ Image saved successfully as '{}'", file_name);
+            println!("✅ Image saved successfully as '{file_name}'");
             image_saved = true;
             break;
         }

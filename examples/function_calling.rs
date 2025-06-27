@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let args: HashMap<String, String> = serde_json::from_str(&tool_call.arguments)?;
                 if let Some(expression) = args.get("expression") {
                     let result = evaluate_expression(expression);
-                    println!("   ✅ Calculated result: {}", result);
+                    println!("   ✅ Calculated result: {result}");
                     function_outputs.push((tool_call.call_id.clone(), result));
                 }
             }
@@ -114,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let args: HashMap<String, String> = serde_json::from_str(&tool_call.arguments)?;
                 if let Some(location) = args.get("location") {
                     let weather_result = get_mock_weather(location);
-                    println!("   🌤️ Weather result: {}", weather_result);
+                    println!("   🌤️ Weather result: {weather_result}");
                     function_outputs.push((tool_call.call_id.clone(), weather_result));
                 }
             }
@@ -148,7 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Show cumulative token count if available
         let total_tokens =
             response.total_tokens().unwrap_or(0) + final_response.total_tokens().unwrap_or(0);
-        println!("📊 Total Conversation Tokens: {}", total_tokens);
+        println!("📊 Total Conversation Tokens: {total_tokens}");
     }
 
     println!("\n📝 Final Model Response:");
@@ -156,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Show parameter echoes
     if let Some(temp) = final_response.temperature {
-        println!("\n⚙️ Temperature used: {}", temp);
+        println!("\n⚙️ Temperature used: {temp}");
     }
 
     println!("\n✅ Enhanced function calling workflow completed successfully!");
@@ -190,21 +190,17 @@ fn evaluate_expression(expression: &str) -> String {
             if let Some(result) = simple_calculate(expr) {
                 result.to_string()
             } else {
-                format!("Unable to calculate: {}", expr)
+                format!("Unable to calculate: {expr}")
             }
         }
-        _ => format!(
-            "Calculation: {} = [result would be computed here]",
-            expression
-        ),
+        _ => format!("Calculation: {expression} = [result would be computed here]"),
     }
 }
 
 /// Mock weather function for demonstration
 fn get_mock_weather(location: &str) -> String {
     format!(
-        "Weather in {}: 72°F, partly cloudy with light winds. Perfect day for coding! 🌤️",
-        location
+        "Weather in {location}: 72°F, partly cloudy with light winds. Perfect day for coding! 🌤️"
     )
 }
 
