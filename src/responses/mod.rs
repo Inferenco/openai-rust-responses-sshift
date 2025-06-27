@@ -407,16 +407,13 @@ impl Responses {
                     response_opt = Some(response);
                 }
 
-                let response = match response_opt.as_mut() {
-                    Some(resp) => resp,
-                    None => {
-                        return Some((
-                            Err(crate::Error::Stream(
-                                "Response state inconsistent".to_string(),
-                            )),
-                            None,
-                        ));
-                    }
+                let Some(response) = response_opt.as_mut() else {
+                    return Some((
+                        Err(crate::Error::Stream(
+                            "Response state inconsistent".to_string(),
+                        )),
+                        None,
+                    ));
                 };
 
                 // Read chunks from the response
