@@ -26,14 +26,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(image_response) => {
             if let Some(image) = image_response.data.first() {
                 if let Some(url) = &image.url {
-                    println!("   Generated image URL: {}", url);
+                    println!("   Generated image URL: {url}");
                 } else if let Some(_b64) = &image.b64_json {
                     println!("   Generated image (base64 data available)");
                 }
             }
         }
         Err(e) => {
-            println!("   Error generating image: {}", e);
+            println!("   Error generating image: {e}");
         }
     }
 
@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let file_name = "futuristic_city.png";
                     let mut file = std::fs::File::create(file_name)?;
                     file.write_all(&image_bytes)?;
-                    println!("   ✅ Image saved successfully as '{}'", file_name);
+                    println!("   ✅ Image saved successfully as '{file_name}'");
                     image_saved = true;
                     break;
                 }
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Err(e) => {
-            println!("   Error in conversation: {}", e);
+            println!("   Error in conversation: {e}");
         }
     }
 
