@@ -421,13 +421,13 @@ impl Responses {
                 }
 
                 let Some(response) = response_opt.as_mut() else {
-                        return Some((
-                            Err(crate::Error::Stream(
-                                "Internal error: response is None".to_string(),
-                            )),
-                            None,
-                        ));
-                    };
+                    return Some((
+                        Err(crate::Error::Stream(
+                            "Internal error: response is None".to_string(),
+                        )),
+                        None,
+                    ));
+                };
 
                 // Read chunks from the response
                 match response.chunk().await {
