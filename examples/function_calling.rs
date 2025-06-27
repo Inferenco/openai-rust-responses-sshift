@@ -193,9 +193,7 @@ fn evaluate_expression(expression: &str) -> String {
                 format!("Unable to calculate: {expr}")
             }
         }
-        _ => format!(
-            "Calculation: {expression} = [result would be computed here]"
-        ),
+        _ => format!("Calculation: {expression} = [result would be computed here]"),
     }
 }
 
