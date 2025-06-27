@@ -194,7 +194,9 @@ let image_request = ImageGenerateRequest::new("A serene mountain landscape")
     .with_size("1024x1024")
     .with_quality("high");
 let image_response = client.images.generate(image_request).await?;
-println!("Image URL: {}", image_response.data[0].url.as_ref().unwrap());
+if let Some(url) = &image_response.data[0].url {
+    println!("Image URL: {}", url);
+}
 
 // Method 2: AI-triggered image generation via the new built-in tool
 let request = Request::builder()
