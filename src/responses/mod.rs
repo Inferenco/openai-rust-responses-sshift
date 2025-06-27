@@ -411,8 +411,7 @@ impl Responses {
                         };
                         return Some((
                             Err(crate::Error::Stream(format!(
-                                "HTTP error: {} - {}",
-                                status, error_body
+                                "HTTP error: {status} - {error_body}"
                             ))),
                             None,
                         ));
@@ -421,17 +420,14 @@ impl Responses {
                     response_opt = Some(response);
                 }
 
-                let response = match response_opt.as_mut() {
-                    Some(resp) => resp,
-                    None => {
+                let Some(response) = response_opt.as_mut() else {
                         return Some((
                             Err(crate::Error::Stream(
                                 "Internal error: response is None".to_string(),
                             )),
                             None,
                         ));
-                    }
-                };
+                    };
 
                 // Read chunks from the response
                 match response.chunk().await {

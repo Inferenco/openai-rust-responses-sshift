@@ -411,7 +411,7 @@ mod unit_tests {
 
     // Original tests maintained
     #[test]
-    #[ignore] // Only run with --ignored flag
+    #[ignore = "requires API key and network access"]
     fn test_create_response() {
         tokio_test::block_on(async {
             let Ok(client) = Client::from_env() else {
@@ -433,7 +433,7 @@ mod unit_tests {
     }
 
     #[test]
-    #[ignore] // Only run with --ignored flag
+    #[ignore = "requires API key and network access"]
     #[cfg(feature = "stream")]
     fn test_create_stream() {
         use futures::StreamExt;
@@ -498,7 +498,7 @@ mod unit_tests {
     }
 
     #[test]
-    #[ignore] // Only run with --ignored flag
+    #[ignore = "requires API key and network access"]
     #[cfg(feature = "stream")]
     fn test_enhanced_streaming_with_new_events() {
         use futures::StreamExt;
