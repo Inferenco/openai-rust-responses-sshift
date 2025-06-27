@@ -71,16 +71,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match event {
                 Ok(stream_event) => match stream_event {
                     StreamEvent::TextDelta { content, index: _ } => {
-                        print!("{}", content);
+                        print!("{content}");
                         std::io::Write::flush(&mut std::io::stdout())?; // Flush to show immediately
                         total_chunks += 1;
                         total_chars += content.len();
                     }
                     StreamEvent::TextStop { index } => {
-                        println!("\n📝 Text stream {} stopped", index);
+                        println!("\n📝 Text stream {index} stopped");
                     }
                     StreamEvent::ToolCallCreated { id, name, index: _ } => {
-                        println!("\n🛠️ Tool call created: {} ({})", name, id);
+                        println!("\n🛠️ Tool call created: {name} ({id})");
                         tool_calls += 1;
                     }
                     StreamEvent::ToolCallDelta {
@@ -88,11 +88,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         id: _,
                         index: _,
                     } => {
-                        print!("{}", content);
+                        print!("{content}");
                         std::io::Write::flush(&mut std::io::stdout())?;
                     }
                     StreamEvent::ToolCallCompleted { id, index: _ } => {
-                        println!("\n✅ Tool call completed: {}", id);
+                        println!("\n✅ Tool call completed: {id}");
                     }
                     // Note: ImageProgress event is for the deprecated partials tool.
                     // The new built-in tool returns the full image in an ImageGenerationCall.
@@ -114,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
                 Err(e) => {
                     error_events += 1;
-                    println!("\n❌ Stream error: {}", e);
+                    println!("\n❌ Stream error: {e}");
                     println!("   This demonstrates proper error handling for streaming");
                     // In a real application, you might want to retry or handle the error appropriately
                     break;
@@ -125,11 +125,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let duration = start_time.elapsed();
 
         println!("\n📊 Enhanced Stream Statistics:");
-        println!("   📦 Total text chunks: {}", total_chunks);
-        println!("   📝 Total characters: {}", total_chars);
-        println!("   🛠️ Tool calls made: {}", tool_calls);
-        println!("   📸 (Legacy) Image events: {}", image_events);
-        println!("   ❌ Error events: {}", error_events);
+        println!("   📦 Total text chunks: {total_chunks}");
+        println!("   📝 Total characters: {total_chars}");
+        println!("   🛠️ Tool calls made: {tool_calls}");
+        println!("   📸 (Legacy) Image events: {image_events}");
+        println!("   ❌ Error events: {error_events}");
         println!("   ⏱️ Stream duration: {:.2}s", duration.as_secs_f64());
 
         if total_chunks > 0 {
