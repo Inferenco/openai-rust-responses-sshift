@@ -152,8 +152,14 @@ mod tests {
         let effort_low = Effort::Low;
         let effort_high = Effort::High;
 
-        assert_eq!(serde_json::to_string(&effort_low).unwrap(), r#""low""#);
-        assert_eq!(serde_json::to_string(&effort_high).unwrap(), r#""high""#);
+        assert_eq!(
+            serde_json::to_string(&effort_low).expect("effort_low should serialize"),
+            r#""low""#
+        );
+        assert_eq!(
+            serde_json::to_string(&effort_high).expect("effort_high should serialize"),
+            r#""high""#
+        );
     }
 
     #[test]
@@ -163,10 +169,19 @@ mod tests {
         let detailed = SummarySetting::Detailed;
 
         // Auto should serialize to just "auto"
-        assert_eq!(serde_json::to_string(&auto).unwrap(), r#""auto""#);
+        assert_eq!(
+            serde_json::to_string(&auto).expect("auto should serialize"),
+            r#""auto""#
+        );
         // Concise should serialize to "concise"
-        assert_eq!(serde_json::to_string(&concise).unwrap(), r#""concise""#);
+        assert_eq!(
+            serde_json::to_string(&concise).expect("concise should serialize"),
+            r#""concise""#
+        );
         // Detailed should serialize to "detailed"
-        assert_eq!(serde_json::to_string(&detailed).unwrap(), r#""detailed""#);
+        assert_eq!(
+            serde_json::to_string(&detailed).expect("detailed should serialize"),
+            r#""detailed""#
+        );
     }
 }

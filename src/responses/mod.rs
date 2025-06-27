@@ -394,11 +394,14 @@ impl Responses {
 
                     // Check if response is OK
                     if !response.status().is_success() {
+                        let status = response.status();
+                        let error_body = match response.text().await {
+                            Ok(text) => text,
+                            Err(_) => "<failed to read response body>".to_string(),
+                        };
                         return Some((
                             Err(crate::Error::Stream(format!(
-                                "HTTP error: {} - {}",
-                                response.status(),
-                                response.text().await.unwrap_or_default()
+                                "HTTP error: {status} - {error_body}"
                             ))),
                             None,
                         ));
