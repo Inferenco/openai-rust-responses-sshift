@@ -51,9 +51,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   -> Item {}:", i + 1);
             match item {
                 ResponseItem::Message { content, role, .. } => {
-                    println!("      - Type: Message (role: {})", role);
+                    println!("      - Type: Message (role: {role})");
                     for (j, message_content) in content.iter().enumerate() {
-                        println!("      - Content {}: {:#?}", j + 1, message_content);
+                        println!("      - Content {}: {message_content:#?}", j + 1);
                     }
                 }
                 ResponseItem::FunctionCall {
@@ -64,11 +64,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     status,
                 } => {
                     println!("      - Type: FunctionCall");
-                    println!("        - ID: {}", id);
-                    println!("        - Call ID: {}", call_id);
-                    println!("        - Name: {}", name);
-                    println!("        - Status: {}", status);
-                    println!("        - Arguments: {}", arguments);
+                    println!("        - ID: {id}");
+                    println!("        - Call ID: {call_id}");
+                    println!("        - Name: {name}");
+                    println!("        - Status: {status}");
+                    println!("        - Arguments: {arguments}");
                 }
                 // The API might use a generic "tool_call" for code interpreter
                 #[allow(deprecated)]
@@ -84,16 +84,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     status,
                 } => {
                     println!("      - Type: CodeInterpreterCall");
-                    println!("        - ID: {}", id);
-                    println!("        - Container ID: {}", container_id);
-                    println!("        - Status: {}", status);
+                    println!("        - ID: {id}");
+                    println!("        - Container ID: {container_id}");
+                    println!("        - Status: {status}");
                     println!(
                         "        - Note: Use container API to retrieve files and execution details"
                     );
                 }
                 _ => {
                     println!("      - Type: Other ({})", item_type_name(item));
-                    println!("      - Content: {:#?}", item);
+                    println!("      - Content: {item:#?}");
                 }
             }
         }
