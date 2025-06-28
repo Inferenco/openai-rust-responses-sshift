@@ -58,8 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let response = client.responses.create(request).await?;
 
-    println!("📊 Response Status: {}", response.status);
-    println!("🤖 Model Used: {}", response.model);
+    println!("📊 Response Status: {status}", status=response.status);
+    println!("🤖 Model Used: {model}", model=response.model);
 
     // Show response status checks
     if response.has_errors() {
@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("📝 Model Response:");
-    println!("   Text: {}", response.output_text());
+    println!("   Text: {text}", text=response.output_text());
 
     // Display token usage
     if let Some(usage) = &response.usage {
@@ -96,9 +96,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut function_outputs = Vec::new();
 
     for tool_call in &tool_calls {
-        println!("   🔧 Function: {}", tool_call.name);
-        println!("   📋 Arguments: {}", tool_call.arguments);
-        println!("   🆔 Call ID: {}", tool_call.call_id);
+        println!("   🔧 Function: {name}", name=tool_call.name);
+        println!("   📋 Arguments: {arguments}", arguments=tool_call.arguments);
+        println!("   🆔 Call ID: {call_id}", call_id=tool_call.call_id);
 
         // Step 3: Execute the function (simulate both calculator and weather)
         match tool_call.name.as_str() {
@@ -201,11 +201,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Enhanced response analysis
-    println!("📊 Final Response Status: {}", final_response.status);
-    println!("✅ Is Complete: {}", final_response.is_complete());
+    println!("📊 Final Response Status: {status}", status=final_response.status);
+    println!("✅ Is Complete: {complete}", complete=final_response.is_complete());
 
     if let Some(usage) = &final_response.usage {
-        println!("📊 Final Token Usage: {} total tokens", usage.total_tokens);
+        println!("📊 Final Token Usage: {tokens} total tokens", tokens=usage.total_tokens);
 
         // Show cumulative token count if available
         let total_tokens =
@@ -214,7 +214,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\n📝 Final Model Response:");
-    println!("   {}", final_response.output_text());
+    println!("   {output}", output=final_response.output_text());
 
     // Show parameter echoes
     if let Some(temp) = final_response.temperature {

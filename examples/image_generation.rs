@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             if !image_saved {
                 println!("   ⚠️ No image generation output found in the response.");
-                println!("      Final response: {}", response.output_text());
+                println!("      Final response: {response}", response=response.output_text());
             }
         }
         Err(e) => {

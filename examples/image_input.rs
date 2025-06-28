@@ -39,10 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response_single = client.responses.create(request_single).await?;
 
     // Print the description
-    println!(
-        "\n🤖 Assistant description (image 1):\n{}",
-        response_single.output_text()
-    );
+    println!("\n🤖 Assistant description (image 1):\n{desc}", desc=response_single.output_text());
 
     // --------------------------------------------
     // 2️⃣  Two-image comparison (multi-image input)
@@ -66,10 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response_compare = client.responses.create(request_compare).await?;
 
     // Print the comparison
-    println!(
-        "\n🤖 Assistant comparison:\n{}",
-        response_compare.output_text()
-    );
+    println!("\n🤖 Assistant comparison:\n{comp}", comp=response_compare.output_text());
 
     Ok(())
 }

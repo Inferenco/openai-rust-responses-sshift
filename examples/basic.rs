@@ -31,19 +31,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.responses.create(request).await {
         Ok(response) => {
             println!("✅ Success!");
-            println!("📝 Response: {}", response.output_text());
+            println!("📝 Response: {response}", response=response.output_text());
 
             if let Some(usage) = &response.usage {
                 println!("\n📊 Token Usage:");
-                println!("   Input tokens: {}", usage.input_tokens);
-                println!("   Output tokens: {}", usage.output_tokens);
-                println!("   Total tokens: {}", usage.total_tokens);
+                println!("   Input tokens: {input}", input=usage.input_tokens);
+                println!("   Output tokens: {output}", output=usage.output_tokens);
+                println!("   Total tokens: {total}", total=usage.total_tokens);
             }
         }
         Err(e) => {
             println!("❌ Request failed with enhanced error handling:");
             println!("   Error type: {:?}", std::mem::discriminant(&e));
-            println!("   User message: {}", e.user_message());
+            println!("   User message: {msg}", msg=e.user_message());
             println!("   Technical details: {e}");
 
             // Show recovery information
