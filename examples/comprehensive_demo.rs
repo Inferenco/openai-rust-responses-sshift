@@ -621,10 +621,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n🎯 Enhanced Function Calling Summary:");
     println!("   • Iterations: {iterations}", iterations = iteration - 1);
-    println!(
-        "   • Total tokens used: {total_function_tokens}",
-        total_function_tokens = total_function_tokens
-    );
+    println!("   • Total tokens used: {total_function_tokens}");
     println!("   • Tools available: calculate, get_weather");
     println!("   • Parallel execution: ✅ (enabled for efficiency)");
     println!("   • Enhanced monitoring: ✅ (status, tokens, errors)");
