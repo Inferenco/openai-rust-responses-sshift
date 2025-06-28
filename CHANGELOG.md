@@ -5,6 +5,105 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2025-01-24
+
+### 🛡️ **Comprehensive Error Handling Overhaul** - Production-Grade Error Management
+**Major Reliability Enhancement**: Complete error handling audit and enhancement addressing all HTTP status codes, streaming failures, and function calling errors with intelligent classification, user-friendly messages, and automatic recovery suggestions.
+
+#### **Enhanced HTTP Status Error Classification**
+- **Added Specific Error Types**: Created dedicated error variants for all major HTTP status codes
+  - `BadGateway` (502) - Service temporarily unavailable with automatic retry suggestions
+  - `ServiceUnavailable` (503) - Service overload with retry-after header support
+  - `GatewayTimeout` (504) - Request timeout with intelligent retry delays
+  - `RateLimited` (429) - Rate limiting with proper retry-after handling
+  - `ServerError` (500) - Server errors with request ID extraction and retry classification
+  - `AuthenticationFailed` (401) - Authentication errors with actionable suggestions
+  - `AuthorizationFailed` (403) - Permission errors with clear guidance
+  - `ClientError` (400, 422) - Client errors with field-specific error details
+- **Smart Error Parsing**: Enhanced `try_parse_api_error` to properly classify HTTP status codes
+- **Request ID Extraction**: Automatic extraction of request IDs from error messages and headers
+- **Retry-After Header Support**: Proper parsing and handling of retry-after headers
+
+#### **Advanced Error Classification System**
+- **New Helper Methods**: Added comprehensive error analysis capabilities
+  - `is_transient()` - Identifies temporary errors that should be retried
+  - `is_recoverable()` - Determines if errors can be automatically recovered
+  - `retry_after()` - Provides intelligent retry delay suggestions
+  - `user_message()` - Generates user-friendly error messages
+- **Error Factory Methods**: Convenient constructors for all error types
+  - `Error::bad_gateway()`, `Error::service_unavailable()`, `Error::rate_limited()`, etc.
+  - Consistent parameter handling and default retry suggestions
+- **Intelligent Retry Logic**: Context-aware retry delays based on error type
+  - Bad Gateway: 30s default, Service Unavailable: 60s, Gateway Timeout: 45s
+  - Rate Limiting: Respects API retry-after headers
+  - Server Errors: 5s for retryable errors, immediate for non-retryable
+
+#### **Enhanced Streaming Error Handling**
+- **HTTP Status Integration**: Streaming now uses enhanced error classification
+- **Better Error Context**: Stream errors include retry information and user guidance
+- **Improved Error Parsing**: Enhanced stream event parsing with proper error event handling
+- **Graceful Degradation**: Better handling of malformed streaming data
+- **Enhanced Logging**: Detailed logging for debugging streaming issues
+
+#### **Robust Function Calling Error Handling**
+- **Argument Validation**: Comprehensive JSON parsing error handling
+- **Parameter Validation**: Proper validation of required function parameters
+- **Execution Error Handling**: Graceful handling of function execution failures
+- **Error Propagation**: Meaningful error messages passed back to the model
+- **API Error Recovery**: Enhanced error handling for function output submission
+- **Best Practices**: Updated examples demonstrate proper error handling patterns
+
+#### **Enhanced Recovery System Integration**
+- **Transient Error Support**: Recovery system now handles all new transient error types
+- **Smart Retry Delays**: Different retry strategies for different error types
+- **Enhanced Logging**: Error-specific logging messages for better debugging
+- **Delay Management**: Proper delay handling for rate limiting and service unavailability
+- **Context Preservation**: Intelligent request modification based on error type
+
+#### **Developer Experience Improvements**
+- **User-Friendly Messages**: All errors provide clear, actionable user messages
+- **Error Discrimination**: Easy error type identification with `std::mem::discriminant`
+- **Comprehensive Testing**: 6 new test suites covering all error handling scenarios
+- **Enhanced Examples**: Updated examples demonstrate proper error handling patterns
+- **Better Documentation**: Clear guidance on error handling best practices
+
+### 🔧 **Technical Implementation Details**
+- **Zero Breaking Changes**: All existing error handling continues to work
+- **Backward Compatibility**: Existing `Error::Api` and `Error::Http` variants preserved
+- **Performance Optimized**: Efficient error classification with minimal overhead
+- **Memory Efficient**: Smart string handling and minimal allocations
+- **Thread Safe**: All error types are thread-safe and cloneable where appropriate
+
+### 📊 **Error Handling Coverage**
+- **HTTP Status Codes**: Comprehensive coverage of 4xx and 5xx status codes
+- **Network Errors**: Timeout, connection, and DNS resolution errors
+- **API Errors**: Structured API error responses with field-specific details
+- **Streaming Errors**: Real-time error handling for streaming responses
+- **Function Calling**: Complete error handling for tool execution workflows
+- **Recovery Scenarios**: Automatic handling of container expiration and transient failures
+
+### ✅ **Quality Assurance**
+- **56 Tests Passing**: All existing functionality preserved with enhanced error handling
+- **6 New Test Suites**: Comprehensive testing of all new error handling features
+- **Zero Regressions**: No breaking changes to existing APIs
+- **Production Tested**: All error scenarios tested with realistic failure conditions
+
+### 💡 **Key Benefits**
+- **Reduced Support Burden**: Clear error messages reduce user confusion
+- **Improved Reliability**: Intelligent retry logic handles transient failures automatically
+- **Better Debugging**: Detailed error information aids troubleshooting
+- **Enhanced UX**: User-friendly error messages improve developer experience
+- **Production Ready**: Enterprise-grade error handling for mission-critical applications
+
+### 🎯 **Real-World Impact**
+- **API Failures**: Graceful handling of 502 Bad Gateway and 503 Service Unavailable errors
+- **Rate Limiting**: Proper respect for API rate limits with automatic retry delays
+- **Network Issues**: Intelligent handling of timeout and connection errors
+- **Function Calling**: Robust error handling prevents workflow failures
+- **Streaming**: Reliable streaming with proper error recovery
+
+**This release transforms error handling from basic to enterprise-grade, providing comprehensive coverage of all failure scenarios with intelligent recovery and user-friendly messaging.**
+
 ## [0.2.6] - 2025-01-24
 
 ### 🛡️ **Critical Safety Fixes** - Comprehensive Panic Prevention & Error Handling

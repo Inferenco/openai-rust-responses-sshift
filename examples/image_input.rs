@@ -40,8 +40,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Print the description
     println!(
-        "\n🤖 Assistant description (image 1):\n{}",
-        response_single.output_text()
+        "\n🤖 Assistant description (image 1):\n{desc}",
+        desc = response_single.output_text()
     );
 
     // --------------------------------------------
@@ -67,8 +67,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Print the comparison
     println!(
-        "\n🤖 Assistant comparison:\n{}",
-        response_compare.output_text()
+        "\n🤖 Assistant comparison:\n{comp}",
+        comp = response_compare.output_text()
     );
 
     Ok(())

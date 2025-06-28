@@ -3,6 +3,14 @@ use crate::types::{RecoveryCallback, RecoveryPolicy};
 use reqwest::Client as HttpClient;
 use std::sync::Arc;
 
+/// Decision for retry logic
+enum RetryDecision {
+    /// Continue retrying
+    Continue,
+    /// Return error
+    Error(crate::Error),
+}
+
 /// Recovery result information
 #[derive(Debug, Clone)]
 pub struct RecoveryInfo {
@@ -164,11 +172,11 @@ impl Responses {
         self
     }
 
-    /// Creates a response with automatic recovery handling.
+    /// Creates a response with automatic recovery from container expiration
     ///
     /// # Errors
     ///
-    /// Returns an error if the request fails to send or has a non-200 status code,
+    /// Returns an error if the request fails to send, has a non-200 status code,
     /// and recovery attempts (if any) also fail.
     pub async fn create_with_recovery(
         &self,
@@ -181,72 +189,202 @@ impl Responses {
         loop {
             match self.create_internal(&current_request).await {
                 Ok(response) => {
-                    if retry_count > 0 {
-                        // We had to recover, create recovery info
-                        let recovery_info = RecoveryInfo::success(
-                            retry_count,
-                            if self.recovery_policy.notify_on_reset {
-                                Some(self.recovery_policy.get_reset_message())
-                            } else {
-                                None
-                            },
-                            last_error.as_ref().map(std::string::ToString::to_string),
-                        );
-
-                        if self.recovery_policy.log_recovery_attempts {
-                            log::info!("Successfully recovered from container expiration after {retry_count} attempts");
-                        }
-
-                        return Ok(ResponseWithRecovery::with_recovery(response, recovery_info));
-                    }
-                    // No recovery needed
-                    return Ok(ResponseWithRecovery::new(response));
+                    return Ok(self.handle_successful_response(
+                        response,
+                        retry_count,
+                        last_error.as_ref(),
+                    ));
                 }
                 Err(error) => {
-                    if error.is_recoverable()
-                        && self.recovery_policy.auto_retry_on_expired_container
-                        && retry_count < self.recovery_policy.max_retries
-                    {
-                        retry_count += 1;
-                        last_error = Some(error);
-
-                        if self.recovery_policy.log_recovery_attempts {
-                            log::warn!(
-                                "Container expired, attempting recovery (attempt {}/{})",
-                                retry_count,
-                                self.recovery_policy.max_retries
-                            );
-                        }
-
-                        // Notify callback if set
-                        if let Some(callback) = &self.recovery_callback {
-                            if let Some(ref error) = last_error {
-                                callback(error, retry_count);
-                            }
-                        }
-
-                        // Prune expired containers from context if enabled
-                        if self.recovery_policy.auto_prune_expired_containers {
-                            current_request = self.prune_expired_context(current_request);
-                        } else {
-                            // Just clear the previous_response_id to start fresh
-                            current_request.previous_response_id = None;
-                        }
-                    } else {
-                        // Can't recover or max retries exceeded
-                        if retry_count > 0 {
-                            if self.recovery_policy.log_recovery_attempts {
-                                log::error!(
-                                    "Recovery failed after {retry_count} attempts: {error}"
-                                );
-                            }
-                            return Err(crate::Error::MaxRetriesExceeded {
-                                attempts: retry_count,
-                            });
-                        }
-                        return Err(error);
+                    match self.handle_error_with_retry(
+                        error,
+                        &mut current_request,
+                        &mut retry_count,
+                        &mut last_error,
+                    ) {
+                        RetryDecision::Error(err) => return Err(err),
+                        RetryDecision::Continue => {}
                     }
                 }
+            }
+        }
+    }
+
+    /// Handles successful response, creating recovery info if needed
+    fn handle_successful_response(
+        &self,
+        response: crate::Response,
+        retry_count: u32,
+        last_error: Option<&crate::Error>,
+    ) -> ResponseWithRecovery {
+        if retry_count > 0 {
+            // We had to recover, create recovery info
+            let recovery_info = RecoveryInfo::success(
+                retry_count,
+                if self.recovery_policy.notify_on_reset {
+                    Some(self.recovery_policy.get_reset_message())
+                } else {
+                    None
+                },
+                last_error.map(std::string::ToString::to_string),
+            );
+
+            if self.recovery_policy.log_recovery_attempts {
+                log::info!(
+                    "Successfully recovered from container expiration after {retry_count} attempts"
+                );
+            }
+
+            return ResponseWithRecovery::with_recovery(response, recovery_info);
+        }
+        // No recovery needed
+        ResponseWithRecovery::new(response)
+    }
+
+    /// Handles error with retry logic
+    fn handle_error_with_retry(
+        &self,
+        error: crate::Error,
+        current_request: &mut crate::Request,
+        retry_count: &mut u32,
+        last_error: &mut Option<crate::Error>,
+    ) -> RetryDecision {
+        if error.is_recoverable()
+            && self.recovery_policy.auto_retry_on_expired_container
+            && *retry_count < self.recovery_policy.max_retries
+        {
+            *retry_count += 1;
+            let retry_delay = error.retry_after().unwrap_or(1);
+
+            self.log_retry_attempt(&error, *retry_count, retry_delay);
+            *last_error = Some(error);
+
+            // Notify callback if set
+            if let Some(callback) = &self.recovery_callback {
+                if let Some(ref error) = last_error {
+                    callback(error, *retry_count);
+                }
+            }
+
+            Self::handle_retry_delay(last_error.as_ref().unwrap(), retry_delay);
+            self.modify_request_for_retry(current_request, last_error.as_ref().unwrap());
+
+            RetryDecision::Continue
+        } else {
+            // Can't recover or max retries exceeded
+            if *retry_count > 0 {
+                if self.recovery_policy.log_recovery_attempts {
+                    log::error!("Recovery failed after {} attempts: {error}", *retry_count);
+                }
+                RetryDecision::Error(crate::Error::MaxRetriesExceeded {
+                    attempts: *retry_count,
+                })
+            } else {
+                RetryDecision::Error(error)
+            }
+        }
+    }
+
+    /// Logs retry attempt based on error type
+    fn log_retry_attempt(&self, error: &crate::Error, retry_count: u32, retry_delay: u64) {
+        if !self.recovery_policy.log_recovery_attempts {
+            return;
+        }
+
+        match error {
+            crate::Error::ContainerExpired { .. } => {
+                log::warn!(
+                    "Container expired, attempting recovery (attempt {}/{})",
+                    retry_count,
+                    self.recovery_policy.max_retries
+                );
+            }
+            crate::Error::BadGateway { .. } => {
+                log::warn!(
+                    "Bad Gateway error, retrying in {}s (attempt {}/{})",
+                    retry_delay,
+                    retry_count,
+                    self.recovery_policy.max_retries
+                );
+            }
+            crate::Error::ServiceUnavailable { .. } => {
+                log::warn!(
+                    "Service unavailable, retrying in {}s (attempt {}/{})",
+                    retry_delay,
+                    retry_count,
+                    self.recovery_policy.max_retries
+                );
+            }
+            crate::Error::GatewayTimeout { .. } => {
+                log::warn!(
+                    "Gateway timeout, retrying in {}s (attempt {}/{})",
+                    retry_delay,
+                    retry_count,
+                    self.recovery_policy.max_retries
+                );
+            }
+            crate::Error::ServerError {
+                retry_suggested: true,
+                ..
+            } => {
+                log::warn!(
+                    "Server error (retryable), retrying in {}s (attempt {}/{})",
+                    retry_delay,
+                    retry_count,
+                    self.recovery_policy.max_retries
+                );
+            }
+            crate::Error::RateLimited { .. } => {
+                log::warn!(
+                    "Rate limited, retrying in {}s (attempt {}/{})",
+                    retry_delay,
+                    retry_count,
+                    self.recovery_policy.max_retries
+                );
+            }
+            _ => {
+                log::warn!(
+                    "Recoverable error, attempting recovery (attempt {}/{}): {}",
+                    retry_count,
+                    self.recovery_policy.max_retries,
+                    error.user_message()
+                );
+            }
+        }
+    }
+
+    /// Handles retry delay based on error type
+    fn handle_retry_delay(error: &crate::Error, retry_delay: u64) {
+        // Add delay for transient errors (but not for container expiration)
+        if error.is_transient() && !error.is_container_expired() && retry_delay > 0 {
+            // Use std::thread::sleep for simple delay (blocking is acceptable here)
+            std::thread::sleep(std::time::Duration::from_secs(retry_delay));
+        }
+    }
+
+    /// Modifies request for retry based on error type
+    fn modify_request_for_retry(&self, current_request: &mut crate::Request, error: &crate::Error) {
+        match error {
+            crate::Error::ContainerExpired { .. } => {
+                // Prune expired containers from context if enabled
+                if self.recovery_policy.auto_prune_expired_containers {
+                    *current_request = self.prune_expired_context(current_request.clone());
+                } else {
+                    // Just clear the previous_response_id to start fresh
+                    current_request.previous_response_id = None;
+                }
+            }
+            crate::Error::BadGateway { .. }
+            | crate::Error::ServiceUnavailable { .. }
+            | crate::Error::GatewayTimeout { .. }
+            | crate::Error::ServerError { .. }
+            | crate::Error::RateLimited { .. } => {
+                // For these errors, we don't need to modify the request
+                // Just retry as-is after the delay
+            }
+            _ => {
+                // For other recoverable errors, clear context as fallback
+                current_request.previous_response_id = None;
             }
         }
     }
@@ -360,13 +498,125 @@ impl Responses {
     ///
     /// Returns a stream of events or errors if the request fails to send or has a non-200 status code.
     #[cfg(feature = "stream")]
+    /// Converts API errors to stream errors with better context
+    #[cfg(feature = "stream")]
+    fn convert_to_stream_error(error: &crate::Error) -> crate::Error {
+        match error {
+            crate::Error::BadGateway { retry_after, .. } => {
+                let retry_msg = if let Some(seconds) = retry_after {
+                    format!(" (retry in {seconds}s)")
+                } else {
+                    String::new()
+                };
+                crate::Error::Stream(format!(
+                    "Streaming failed: Service temporarily unavailable (Bad Gateway){retry_msg}"
+                ))
+            }
+            crate::Error::ServiceUnavailable { retry_after, .. } => {
+                let retry_msg = if let Some(seconds) = retry_after {
+                    format!(" (retry in {seconds}s)")
+                } else {
+                    String::new()
+                };
+                crate::Error::Stream(format!("Streaming failed: Service unavailable{retry_msg}"))
+            }
+            crate::Error::GatewayTimeout { retry_after, .. } => {
+                let retry_msg = if let Some(seconds) = retry_after {
+                    format!(" (retry in {seconds}s)")
+                } else {
+                    String::new()
+                };
+                crate::Error::Stream(format!("Streaming failed: Gateway timeout{retry_msg}"))
+            }
+            crate::Error::RateLimited { retry_after, .. } => {
+                let retry_msg = if let Some(seconds) = retry_after {
+                    format!(" (retry in {seconds}s)")
+                } else {
+                    String::new()
+                };
+                crate::Error::Stream(format!("Streaming failed: Rate limited{retry_msg}"))
+            }
+            crate::Error::ServerError { user_message, .. } => {
+                crate::Error::Stream(format!("Streaming failed: {user_message}"))
+            }
+            crate::Error::AuthenticationFailed { suggestion, .. } => crate::Error::Stream(format!(
+                "Streaming failed: Authentication error - {suggestion}"
+            )),
+            crate::Error::AuthorizationFailed { suggestion, .. } => crate::Error::Stream(format!(
+                "Streaming failed: Authorization error - {suggestion}"
+            )),
+            crate::Error::ClientError {
+                message,
+                suggestion,
+                ..
+            } => {
+                let suggestion_text = suggestion
+                    .as_ref()
+                    .map(|s| format!(" - {s}"))
+                    .unwrap_or_default();
+                crate::Error::Stream(format!("Streaming failed: {message}{suggestion_text}"))
+            }
+            _ => crate::Error::Stream(format!("Streaming failed: {}", error.user_message())),
+        }
+    }
+
+    /// Processes a single line of streaming data
+    #[cfg(feature = "stream")]
+    fn process_stream_line(line: &str) -> Option<Result<crate::types::StreamEvent>> {
+        let line = line.trim();
+        if line.is_empty() {
+            return None;
+        }
+
+        // Handle SSE format: "data: {...}" or "data: [DONE]"
+        if let Some(data) = line.strip_prefix("data: ") {
+            if data == "[DONE]" {
+                return Some(Ok(crate::types::StreamEvent::Done));
+            }
+            return Self::parse_json_event(data);
+        }
+        // Handle direct JSONL format
+        Self::parse_json_event(line)
+    }
+
+    /// Parses JSON event data and returns stream event
+    #[cfg(feature = "stream")]
+    fn parse_json_event(data: &str) -> Option<Result<crate::types::StreamEvent>> {
+        match serde_json::from_str::<serde_json::Value>(data) {
+            Ok(event) => {
+                if let Some(result) = Self::parse_stream_event(&event) {
+                    return Some(Ok(result));
+                }
+                // Check if this was an error event and handle it appropriately
+                if let Some(event_type) = event.get("type").and_then(|t| t.as_str()) {
+                    if event_type == "response.error" {
+                        let error_msg = event
+                            .get("error")
+                            .and_then(|e| e.get("message"))
+                            .and_then(|m| m.as_str())
+                            .unwrap_or("Unknown streaming error");
+                        return Some(Err(crate::Error::Stream(format!(
+                            "Server-side streaming error: {error_msg}"
+                        ))));
+                    }
+                }
+                None
+            }
+            Err(json_err) => {
+                // Log JSON parsing errors but continue processing
+                log::debug!("Failed to parse JSON data: {data} (error: {json_err})");
+                None
+            }
+        }
+    }
+
+    /// Creates a streaming response
+    #[cfg(feature = "stream")]
     pub fn stream(
         &self,
         mut request: crate::Request,
     ) -> std::pin::Pin<Box<dyn futures::Stream<Item = Result<crate::types::StreamEvent>> + Send>>
     {
-        use futures::stream;
-
         // Ensure stream is set to true
         request.stream = Some(true);
 
@@ -374,7 +624,7 @@ impl Responses {
         let client = self.client.clone();
 
         // Create stream that handles the actual OpenAI Responses API streaming format
-        let stream = stream::unfold(None, move |mut response_opt| {
+        let stream = futures::stream::unfold(None, move |mut response_opt| {
             let url = url.clone();
             let client = client.clone();
             let request = request.clone();
@@ -395,16 +645,23 @@ impl Responses {
                     // Check if response is OK
                     if !response.status().is_success() {
                         let status = response.status();
-                        let error_body = match response.text().await {
-                            Ok(text) => text,
-                            Err(_) => "<failed to read response body>".to_string(),
-                        };
-                        return Some((
-                            Err(crate::Error::Stream(format!(
-                                "HTTP error: {status} - {error_body}"
-                            ))),
-                            None,
-                        ));
+
+                        // Use our enhanced error parsing for streaming responses
+                        match crate::error::try_parse_api_error(response).await {
+                            Ok(_) => {
+                                // This shouldn't happen since we already checked !is_success()
+                                return Some((
+                                    Err(crate::Error::Stream(format!(
+                                        "Unexpected success status after failure check: {status}"
+                                    ))),
+                                    None,
+                                ));
+                            }
+                            Err(error) => {
+                                let stream_error = Self::convert_to_stream_error(&error);
+                                return Some((Err(stream_error), None));
+                            }
+                        }
                     }
 
                     response_opt = Some(response);
@@ -435,32 +692,12 @@ impl Responses {
                             }
                         };
 
-                        // Try Server-Sent Events format first
+                        // Process each line in the chunk
                         for line in chunk_str.lines() {
-                            let line = line.trim();
-                            if line.is_empty() {
-                                continue;
-                            }
-
-                            // Handle SSE format: "data: {...}" or "data: [DONE]"
-                            if let Some(data) = line.strip_prefix("data: ") {
-                                if data == "[DONE]" {
-                                    return Some((Ok(crate::types::StreamEvent::Done), None));
-                                }
-
-                                // Try to parse as JSON
-                                if let Ok(event) = serde_json::from_str::<serde_json::Value>(data) {
-                                    if let Some(result) = Self::parse_stream_event(&event) {
-                                        return Some((Ok(result), response_opt));
-                                    }
-                                }
-                            }
-                            // Handle direct JSONL format
-                            else if let Ok(event) =
-                                serde_json::from_str::<serde_json::Value>(line)
-                            {
-                                if let Some(result) = Self::parse_stream_event(&event) {
-                                    return Some((Ok(result), response_opt));
+                            if let Some(result) = Self::process_stream_line(line) {
+                                match result {
+                                    Ok(event) => return Some((Ok(event), response_opt)),
+                                    Err(error) => return Some((Err(error), None)),
                                 }
                             }
                         }
@@ -500,14 +737,82 @@ impl Responses {
                     return Some(crate::types::StreamEvent::Done);
                 }
                 "response.error" => {
-                    // Handle errors outside this function since StreamEvent doesn't have Error variant
+                    // Handle errors by logging them and returning None
+                    // The caller should handle this by checking for None and potentially stopping the stream
+                    if let Some(error_details) = event.get("error") {
+                        log::error!("Stream error event received: {error_details}");
+                    } else {
+                        log::error!("Stream error event received without details");
+                    }
                     return None;
                 }
+                "response.tool_call.created" => {
+                    if let Some(tool_call) = event.get("tool_call") {
+                        if let (Some(id), Some(name)) = (
+                            tool_call.get("id").and_then(|i| i.as_str()),
+                            tool_call
+                                .get("function")
+                                .and_then(|f| f.get("name"))
+                                .and_then(|n| n.as_str()),
+                        ) {
+                            return Some(crate::types::StreamEvent::ToolCallCreated {
+                                id: id.to_string(),
+                                name: name.to_string(),
+                                index: 0, // Default index
+                            });
+                        }
+                    }
+                }
+                "response.tool_call.delta" => {
+                    if let Some(tool_call) = event.get("tool_call") {
+                        if let (Some(id), Some(delta)) = (
+                            tool_call.get("id").and_then(|i| i.as_str()),
+                            event.get("delta").and_then(|d| d.as_str()),
+                        ) {
+                            return Some(crate::types::StreamEvent::ToolCallDelta {
+                                id: id.to_string(),
+                                content: delta.to_string(),
+                                index: 0, // Default index
+                            });
+                        }
+                    }
+                }
+                "response.tool_call.completed" => {
+                    if let Some(tool_call) = event.get("tool_call") {
+                        if let Some(id) = tool_call.get("id").and_then(|i| i.as_str()) {
+                            return Some(crate::types::StreamEvent::ToolCallCompleted {
+                                id: id.to_string(),
+                                index: 0, // Default index
+                            });
+                        }
+                    }
+                }
+                "response.image.progress" => {
+                    if let Some(image_data) = event.get("image") {
+                        let url = image_data
+                            .get("url")
+                            .and_then(|u| u.as_str())
+                            .map(std::string::ToString::to_string);
+                        let index = u32::try_from(
+                            image_data
+                                .get("index")
+                                .and_then(serde_json::Value::as_u64)
+                                .unwrap_or(0),
+                        )
+                        .unwrap_or(0);
+                        return Some(crate::types::StreamEvent::ImageProgress { url, index });
+                    }
+                }
                 _ => {
+                    // Log unknown event types for debugging
+                    log::debug!("Unknown stream event type: {event_type}");
                     return Some(crate::types::StreamEvent::Unknown);
                 }
             }
         }
+
+        // If we can't parse the event, log it for debugging
+        log::debug!("Failed to parse stream event: {event}");
         None
     }
 }

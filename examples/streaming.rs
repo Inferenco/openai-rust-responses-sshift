@@ -116,6 +116,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     error_events += 1;
                     println!("\n❌ Stream error: {e}");
                     println!("   This demonstrates proper error handling for streaming");
+
+                    // Demonstrate enhanced error classification
+                    println!("   🔍 Error Analysis:");
+                    println!("      Error type: {:?}", std::mem::discriminant(&e));
+                    println!("      User message: {msg}", msg = e.user_message());
+
+                    if e.is_recoverable() {
+                        println!("      🔄 This error is recoverable");
+                        if let Some(retry_after) = e.retry_after() {
+                            println!("      ⏱️ Suggested retry delay: {retry_after}s");
+                        }
+                    } else {
+                        println!("      ❌ This error is not recoverable");
+                    }
+
+                    if e.is_transient() {
+                        println!("      ⚡ This is a transient error");
+                    }
+
                     // In a real application, you might want to retry or handle the error appropriately
                     break;
                 }
@@ -170,8 +189,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "   🔧 Tool call delta helper: {:?}",
             tool_event.as_tool_call_delta()
         );
-        println!("   🏁 Is done check: {}", text_event.is_done());
-        println!("   ✅ Done event check: {}", StreamEvent::Done.is_done());
+        println!("   🏁 Is done check: {done}", done = text_event.is_done());
+        println!(
+            "   ✅ Done event check: {done}",
+            done = StreamEvent::Done.is_done()
+        );
 
         println!("\n✨ Streaming Enhancements:");
         println!("   🖼️ Built-in Image Generation - Full image data in a single response item");

@@ -74,9 +74,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 #[allow(deprecated)]
                 ResponseItem::ToolCall(tool_call) => {
                     println!("      - Type: ToolCall (Legacy)");
-                    println!("        - ID: {}", tool_call.id);
-                    println!("        - Name: {}", tool_call.name);
-                    println!("        - Arguments: {:#?}", tool_call.arguments);
+                    println!("        - ID: {id}", id = tool_call.id);
+                    println!("        - Name: {name}", name = tool_call.name);
+                    println!(
+                        "        - Arguments: {arguments:#?}",
+                        arguments = tool_call.arguments
+                    );
                 }
                 ResponseItem::CodeInterpreterCall {
                     id,
@@ -101,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 6. Display the final, user-facing text response
     println!("\n💬 Final Answer:");
-    println!("{}", response.output_text());
+    println!("{output}", output = response.output_text());
 
     Ok(())
 }

@@ -43,8 +43,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let math_response = client.responses.create(math_request).await?;
 
     // Show response details
-    println!("📊 Response Status: {}", math_response.status);
-    println!("🤖 Model: {}", math_response.model);
+    println!(
+        "📊 Response Status: {status}",
+        status = math_response.status
+    );
+    println!("🤖 Model: {model}", model = math_response.model);
 
     if let Some(usage) = &math_response.usage {
         println!("📊 Token Usage: {} total", usage.total_tokens);
@@ -97,7 +100,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let logic_response = client.responses.create(logic_request).await?;
 
-    println!("📊 Response Status: {}", logic_response.status);
+    println!(
+        "�� Response Status: {status}",
+        status = logic_response.status
+    );
 
     if let Some(usage) = &logic_response.usage {
         let math_tokens = math_response.total_tokens().unwrap_or(0);
@@ -133,7 +139,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let creative_response = client.responses.create(creative_request).await?;
 
-    println!("📊 Final Response Status: {}", creative_response.status);
+    println!(
+        "📊 Final Response Status: {status}",
+        status = creative_response.status
+    );
 
     // Show session summary
     let total_session_tokens = math_response.total_tokens().unwrap_or(0)
