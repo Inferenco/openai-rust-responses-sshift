@@ -689,13 +689,11 @@ mod tests {
         for error in transient_errors {
             assert!(
                 error.is_transient(),
-                "Error should be transient: {:?}",
-                error
+                "Error should be transient: {error:?}"
             );
             assert!(
                 error.is_recoverable(),
-                "Error should be recoverable: {:?}",
-                error
+                "Error should be recoverable: {error:?}"
             );
         }
 
@@ -717,13 +715,11 @@ mod tests {
         for error in non_transient_errors {
             assert!(
                 !error.is_transient(),
-                "Error should not be transient: {:?}",
-                error
+                "Error should not be transient: {error:?}"
             );
             assert!(
                 !error.is_recoverable(),
-                "Error should not be recoverable: {:?}",
-                error
+                "Error should not be recoverable: {error:?}"
             );
         }
     }
@@ -857,8 +853,7 @@ mod tests {
             assert_eq!(
                 error.user_message(),
                 expected_message,
-                "User message mismatch for error: {:?}",
-                error
+                "User message mismatch for error: {error:?}"
             );
         }
     }

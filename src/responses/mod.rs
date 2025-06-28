@@ -3,6 +3,8 @@ use crate::types::{RecoveryCallback, RecoveryPolicy};
 use reqwest::Client as HttpClient;
 use std::sync::Arc;
 
+
+
 /// Decision for retry logic
 enum RetryDecision {
     /// Continue retrying
@@ -498,12 +500,125 @@ impl Responses {
     ///
     /// Returns a stream of events or errors if the request fails to send or has a non-200 status code.
     #[cfg(feature = "stream")]
+    /// Converts API errors to stream errors with better context
+    #[cfg(feature = "stream")]
+    fn convert_to_stream_error(error: &crate::Error) -> crate::Error {
+        match error {
+            crate::Error::BadGateway { retry_after, .. } => {
+                let retry_msg = if let Some(seconds) = retry_after {
+                    format!(" (retry in {seconds}s)")
+                } else {
+                    String::new()
+                };
+                crate::Error::Stream(format!(
+                    "Streaming failed: Service temporarily unavailable (Bad Gateway){retry_msg}"
+                ))
+            }
+            crate::Error::ServiceUnavailable { retry_after, .. } => {
+                let retry_msg = if let Some(seconds) = retry_after {
+                    format!(" (retry in {seconds}s)")
+                } else {
+                    String::new()
+                };
+                crate::Error::Stream(format!("Streaming failed: Service unavailable{retry_msg}"))
+            }
+            crate::Error::GatewayTimeout { retry_after, .. } => {
+                let retry_msg = if let Some(seconds) = retry_after {
+                    format!(" (retry in {seconds}s)")
+                } else {
+                    String::new()
+                };
+                crate::Error::Stream(format!("Streaming failed: Gateway timeout{retry_msg}"))
+            }
+            crate::Error::RateLimited { retry_after, .. } => {
+                let retry_msg = if let Some(seconds) = retry_after {
+                    format!(" (retry in {seconds}s)")
+                } else {
+                    String::new()
+                };
+                crate::Error::Stream(format!("Streaming failed: Rate limited{retry_msg}"))
+            }
+            crate::Error::ServerError { user_message, .. } => {
+                crate::Error::Stream(format!("Streaming failed: {user_message}"))
+            }
+            crate::Error::AuthenticationFailed { suggestion, .. } => {
+                crate::Error::Stream(format!("Streaming failed: Authentication error - {suggestion}"))
+            }
+            crate::Error::AuthorizationFailed { suggestion, .. } => {
+                crate::Error::Stream(format!("Streaming failed: Authorization error - {suggestion}"))
+            }
+            crate::Error::ClientError {
+                message,
+                suggestion,
+                ..
+            } => {
+                let suggestion_text = suggestion
+                    .as_ref()
+                    .map(|s| format!(" - {s}"))
+                    .unwrap_or_default();
+                crate::Error::Stream(format!("Streaming failed: {message}{suggestion_text}"))
+            }
+            _ => crate::Error::Stream(format!("Streaming failed: {}", error.user_message())),
+        }
+    }
+
+    /// Processes a single line of streaming data
+    #[cfg(feature = "stream")]
+    fn process_stream_line(line: &str) -> Option<Result<crate::types::StreamEvent>> {
+        let line = line.trim();
+        if line.is_empty() {
+            return None;
+        }
+
+        // Handle SSE format: "data: {...}" or "data: [DONE]"
+        if let Some(data) = line.strip_prefix("data: ") {
+            if data == "[DONE]" {
+                return Some(Ok(crate::types::StreamEvent::Done));
+            }
+            return Self::parse_json_event(data);
+        }
+        // Handle direct JSONL format
+        Self::parse_json_event(line)
+    }
+
+    /// Parses JSON event data and returns stream event
+    #[cfg(feature = "stream")]
+    fn parse_json_event(data: &str) -> Option<Result<crate::types::StreamEvent>> {
+        match serde_json::from_str::<serde_json::Value>(data) {
+            Ok(event) => {
+                if let Some(result) = Self::parse_stream_event(&event) {
+                    return Some(Ok(result));
+                }
+                // Check if this was an error event and handle it appropriately
+                if let Some(event_type) = event.get("type").and_then(|t| t.as_str()) {
+                    if event_type == "response.error" {
+                        let error_msg = event
+                            .get("error")
+                            .and_then(|e| e.get("message"))
+                            .and_then(|m| m.as_str())
+                            .unwrap_or("Unknown streaming error");
+                        return Some(Err(crate::Error::Stream(format!(
+                            "Server-side streaming error: {error_msg}"
+                        ))));
+                    }
+                }
+                None
+            }
+            Err(json_err) => {
+                // Log JSON parsing errors but continue processing
+                log::debug!("Failed to parse JSON data: {data} (error: {json_err})");
+                None
+            }
+        }
+    }
+
+    /// Creates a streaming response
+    #[cfg(feature = "stream")]
     pub fn stream(
         &self,
         mut request: crate::Request,
     ) -> std::pin::Pin<Box<dyn futures::Stream<Item = Result<crate::types::StreamEvent>> + Send>>
     {
-        use futures::stream;
 
         // Ensure stream is set to true
         request.stream = Some(true);
@@ -512,7 +627,7 @@ impl Responses {
         let client = self.client.clone();
 
         // Create stream that handles the actual OpenAI Responses API streaming format
-        let stream = stream::unfold(None, move |mut response_opt| {
+        let stream = futures::stream::unfold(None, move |mut response_opt| {
             let url = url.clone();
             let client = client.clone();
             let request = request.clone();
@@ -546,82 +661,7 @@ impl Responses {
                                 ));
                             }
                             Err(error) => {
-                                // Convert our enhanced errors to stream errors with better context
-                                let stream_error = match &error {
-                                    crate::Error::BadGateway { retry_after, .. } => {
-                                        let retry_msg = if let Some(seconds) = retry_after {
-                                            format!(" (retry in {}s)", seconds)
-                                        } else {
-                                            String::new()
-                                        };
-                                        crate::Error::Stream(format!(
-                                            "Streaming failed: Service temporarily unavailable (Bad Gateway){retry_msg}"
-                                        ))
-                                    }
-                                    crate::Error::ServiceUnavailable { retry_after, .. } => {
-                                        let retry_msg = if let Some(seconds) = retry_after {
-                                            format!(" (retry in {}s)", seconds)
-                                        } else {
-                                            String::new()
-                                        };
-                                        crate::Error::Stream(format!(
-                                            "Streaming failed: Service unavailable{retry_msg}"
-                                        ))
-                                    }
-                                    crate::Error::GatewayTimeout { retry_after, .. } => {
-                                        let retry_msg = if let Some(seconds) = retry_after {
-                                            format!(" (retry in {}s)", seconds)
-                                        } else {
-                                            String::new()
-                                        };
-                                        crate::Error::Stream(format!(
-                                            "Streaming failed: Gateway timeout{retry_msg}"
-                                        ))
-                                    }
-                                    crate::Error::RateLimited { retry_after, .. } => {
-                                        let retry_msg = if let Some(seconds) = retry_after {
-                                            format!(" (retry in {}s)", seconds)
-                                        } else {
-                                            String::new()
-                                        };
-                                        crate::Error::Stream(format!(
-                                            "Streaming failed: Rate limited{retry_msg}"
-                                        ))
-                                    }
-                                    crate::Error::ServerError { user_message, .. } => {
-                                        crate::Error::Stream(format!(
-                                            "Streaming failed: {user_message}"
-                                        ))
-                                    }
-                                    crate::Error::AuthenticationFailed { suggestion, .. } => {
-                                        crate::Error::Stream(format!(
-                                            "Streaming failed: Authentication error - {suggestion}"
-                                        ))
-                                    }
-                                    crate::Error::AuthorizationFailed { suggestion, .. } => {
-                                        crate::Error::Stream(format!(
-                                            "Streaming failed: Authorization error - {suggestion}"
-                                        ))
-                                    }
-                                    crate::Error::ClientError {
-                                        message,
-                                        suggestion,
-                                        ..
-                                    } => {
-                                        let suggestion_text = suggestion
-                                            .as_ref()
-                                            .map(|s| format!(" - {s}"))
-                                            .unwrap_or_default();
-                                        crate::Error::Stream(format!(
-                                            "Streaming failed: {message}{suggestion_text}"
-                                        ))
-                                    }
-                                    _ => crate::Error::Stream(format!(
-                                        "Streaming failed: {}",
-                                        error.user_message()
-                                    )),
-                                };
-
+                                let stream_error = Self::convert_to_stream_error(&error);
                                 return Some((Err(stream_error), None));
                             }
                         }
@@ -655,89 +695,12 @@ impl Responses {
                             }
                         };
 
-                        // Try Server-Sent Events format first
+                        // Process each line in the chunk
                         for line in chunk_str.lines() {
-                            let line = line.trim();
-                            if line.is_empty() {
-                                continue;
-                            }
-
-                            // Handle SSE format: "data: {...}" or "data: [DONE]"
-                            if let Some(data) = line.strip_prefix("data: ") {
-                                if data == "[DONE]" {
-                                    return Some((Ok(crate::types::StreamEvent::Done), None));
-                                }
-
-                                // Try to parse as JSON
-                                match serde_json::from_str::<serde_json::Value>(data) {
-                                    Ok(event) => {
-                                        if let Some(result) = Self::parse_stream_event(&event) {
-                                            return Some((Ok(result), response_opt));
-                                        }
-                                        // If parse_stream_event returns None, it might be an error event
-                                        // Check if this was an error event and handle it appropriately
-                                        if let Some(event_type) =
-                                            event.get("type").and_then(|t| t.as_str())
-                                        {
-                                            if event_type == "response.error" {
-                                                let error_msg = event
-                                                    .get("error")
-                                                    .and_then(|e| e.get("message"))
-                                                    .and_then(|m| m.as_str())
-                                                    .unwrap_or("Unknown streaming error");
-                                                return Some((
-                                                    Err(crate::Error::Stream(format!(
-                                                        "Server-side streaming error: {error_msg}"
-                                                    ))),
-                                                    None,
-                                                ));
-                                            }
-                                        }
-                                    }
-                                    Err(json_err) => {
-                                        // Log JSON parsing errors but continue processing
-                                        log::debug!(
-                                            "Failed to parse SSE JSON data: {} (error: {})",
-                                            data,
-                                            json_err
-                                        );
-                                    }
-                                }
-                            }
-                            // Handle direct JSONL format
-                            else {
-                                match serde_json::from_str::<serde_json::Value>(line) {
-                                    Ok(event) => {
-                                        if let Some(result) = Self::parse_stream_event(&event) {
-                                            return Some((Ok(result), response_opt));
-                                        }
-                                        // Check for error events in JSONL format too
-                                        if let Some(event_type) =
-                                            event.get("type").and_then(|t| t.as_str())
-                                        {
-                                            if event_type == "response.error" {
-                                                let error_msg = event
-                                                    .get("error")
-                                                    .and_then(|e| e.get("message"))
-                                                    .and_then(|m| m.as_str())
-                                                    .unwrap_or("Unknown streaming error");
-                                                return Some((
-                                                    Err(crate::Error::Stream(format!(
-                                                        "Server-side streaming error: {error_msg}"
-                                                    ))),
-                                                    None,
-                                                ));
-                                            }
-                                        }
-                                    }
-                                    Err(json_err) => {
-                                        // Log JSON parsing errors but continue processing
-                                        log::debug!(
-                                            "Failed to parse JSONL data: {} (error: {})",
-                                            line,
-                                            json_err
-                                        );
-                                    }
+                            if let Some(result) = Self::process_stream_line(line) {
+                                match result {
+                                    Ok(event) => return Some((Ok(event), response_opt)),
+                                    Err(error) => return Some((Err(error), None)),
                                 }
                             }
                         }
@@ -780,7 +743,7 @@ impl Responses {
                     // Handle errors by logging them and returning None
                     // The caller should handle this by checking for None and potentially stopping the stream
                     if let Some(error_details) = event.get("error") {
-                        log::error!("Stream error event received: {}", error_details);
+                        log::error!("Stream error event received: {error_details}");
                     } else {
                         log::error!("Stream error event received without details");
                     }
@@ -832,24 +795,26 @@ impl Responses {
                         let url = image_data
                             .get("url")
                             .and_then(|u| u.as_str())
-                            .map(|s| s.to_string());
-                        let index = image_data
-                            .get("index")
-                            .and_then(|i| i.as_u64())
-                            .unwrap_or(0) as u32;
+                            .map(std::string::ToString::to_string);
+                        let index = u32::try_from(
+                            image_data
+                                .get("index")
+                                .and_then(serde_json::Value::as_u64)
+                                .unwrap_or(0)
+                        ).unwrap_or(0);
                         return Some(crate::types::StreamEvent::ImageProgress { url, index });
                     }
                 }
                 _ => {
                     // Log unknown event types for debugging
-                    log::debug!("Unknown stream event type: {}", event_type);
+                    log::debug!("Unknown stream event type: {event_type}");
                     return Some(crate::types::StreamEvent::Unknown);
                 }
             }
         }
 
         // If we can't parse the event, log it for debugging
-        log::debug!("Failed to parse stream event: {}", event);
+        log::debug!("Failed to parse stream event: {event}");
         None
     }
 }
