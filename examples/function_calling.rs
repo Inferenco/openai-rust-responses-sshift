@@ -112,7 +112,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         } else {
                             let error_msg = "Error: Missing required 'expression' parameter";
                             println!("   ❌ Function error: {error_msg}");
-                            function_outputs.push((tool_call.call_id.clone(), error_msg.to_string()));
+                            function_outputs
+                                .push((tool_call.call_id.clone(), error_msg.to_string()));
                         }
                     }
                     Err(json_err) => {
@@ -130,7 +131,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             match get_mock_weather_with_error_handling(location) {
                                 Ok(weather_result) => {
                                     println!("   🌤️ Weather result: {weather_result}");
-                                    function_outputs.push((tool_call.call_id.clone(), weather_result));
+                                    function_outputs
+                                        .push((tool_call.call_id.clone(), weather_result));
                                 }
                                 Err(weather_err) => {
                                     let error_msg = format!("Weather API error: {weather_err}");
@@ -141,7 +143,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         } else {
                             let error_msg = "Error: Missing required 'location' parameter";
                             println!("   ❌ Function error: {error_msg}");
-                            function_outputs.push((tool_call.call_id.clone(), error_msg.to_string()));
+                            function_outputs
+                                .push((tool_call.call_id.clone(), error_msg.to_string()));
                         }
                     }
                     Err(json_err) => {
@@ -181,18 +184,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   ❌ Error submitting function outputs:");
             println!("      Error type: {:?}", std::mem::discriminant(&e));
             println!("      User message: {}", e.user_message());
-            
+
             if e.is_recoverable() {
                 println!("      🔄 This error is recoverable");
                 if let Some(retry_after) = e.retry_after() {
                     println!("      ⏱️ Suggested retry delay: {}s", retry_after);
                 }
             }
-            
+
             if e.is_transient() {
                 println!("      ⚡ This is a transient error - consider retrying");
             }
-            
+
             return Err(e.into());
         }
     };

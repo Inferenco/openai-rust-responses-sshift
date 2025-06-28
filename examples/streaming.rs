@@ -116,12 +116,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     error_events += 1;
                     println!("\n❌ Stream error: {e}");
                     println!("   This demonstrates proper error handling for streaming");
-                    
+
                     // Demonstrate enhanced error classification
                     println!("   🔍 Error Analysis:");
                     println!("      Error type: {:?}", std::mem::discriminant(&e));
                     println!("      User message: {}", e.user_message());
-                    
+
                     if e.is_recoverable() {
                         println!("      🔄 This error is recoverable");
                         if let Some(retry_after) = e.retry_after() {
@@ -130,11 +130,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         println!("      ❌ This error is not recoverable");
                     }
-                    
+
                     if e.is_transient() {
                         println!("      ⚡ This is a transient error");
                     }
-                    
+
                     // In a real application, you might want to retry or handle the error appropriately
                     break;
                 }

@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(response) => {
             println!("✅ Success!");
             println!("📝 Response: {}", response.output_text());
-            
+
             if let Some(usage) = &response.usage {
                 println!("\n📊 Token Usage:");
                 println!("   Input tokens: {}", usage.input_tokens);
@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("   Error type: {:?}", std::mem::discriminant(&e));
             println!("   User message: {}", e.user_message());
             println!("   Technical details: {}", e);
-            
+
             // Show recovery information
             if e.is_recoverable() {
                 println!("   🔄 This error is recoverable");
@@ -55,11 +55,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("   ❌ This error is not recoverable");
             }
-            
+
             if e.is_transient() {
                 println!("   ⚡ This is a transient error");
             }
-            
+
             // Return the error for demonstration
             return Err(e.into());
         }
