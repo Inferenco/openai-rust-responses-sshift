@@ -3,8 +3,6 @@ use crate::types::{RecoveryCallback, RecoveryPolicy};
 use reqwest::Client as HttpClient;
 use std::sync::Arc;
 
-
-
 /// Decision for retry logic
 enum RetryDecision {
     /// Continue retrying
@@ -541,12 +539,12 @@ impl Responses {
             crate::Error::ServerError { user_message, .. } => {
                 crate::Error::Stream(format!("Streaming failed: {user_message}"))
             }
-            crate::Error::AuthenticationFailed { suggestion, .. } => {
-                crate::Error::Stream(format!("Streaming failed: Authentication error - {suggestion}"))
-            }
-            crate::Error::AuthorizationFailed { suggestion, .. } => {
-                crate::Error::Stream(format!("Streaming failed: Authorization error - {suggestion}"))
-            }
+            crate::Error::AuthenticationFailed { suggestion, .. } => crate::Error::Stream(format!(
+                "Streaming failed: Authentication error - {suggestion}"
+            )),
+            crate::Error::AuthorizationFailed { suggestion, .. } => crate::Error::Stream(format!(
+                "Streaming failed: Authorization error - {suggestion}"
+            )),
             crate::Error::ClientError {
                 message,
                 suggestion,
@@ -619,7 +617,6 @@ impl Responses {
         mut request: crate::Request,
     ) -> std::pin::Pin<Box<dyn futures::Stream<Item = Result<crate::types::StreamEvent>> + Send>>
     {
-
         // Ensure stream is set to true
         request.stream = Some(true);
 
@@ -800,8 +797,9 @@ impl Responses {
                             image_data
                                 .get("index")
                                 .and_then(serde_json::Value::as_u64)
-                                .unwrap_or(0)
-                        ).unwrap_or(0);
+                                .unwrap_or(0),
+                        )
+                        .unwrap_or(0);
                         return Some(crate::types::StreamEvent::ImageProgress { url, index });
                     }
                 }

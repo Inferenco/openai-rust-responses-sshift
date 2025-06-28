@@ -687,10 +687,7 @@ mod tests {
         ];
 
         for error in transient_errors {
-            assert!(
-                error.is_transient(),
-                "Error should be transient: {error:?}"
-            );
+            assert!(error.is_transient(), "Error should be transient: {error:?}");
             assert!(
                 error.is_recoverable(),
                 "Error should be recoverable: {error:?}"
