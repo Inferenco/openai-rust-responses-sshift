@@ -44,13 +44,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("❌ Request failed with enhanced error handling:");
             println!("   Error type: {:?}", std::mem::discriminant(&e));
             println!("   User message: {}", e.user_message());
-            println!("   Technical details: {}", e);
+            println!("   Technical details: {e}");
 
             // Show recovery information
             if e.is_recoverable() {
                 println!("   🔄 This error is recoverable");
                 if let Some(retry_after) = e.retry_after() {
-                    println!("   ⏱️ Suggested retry delay: {}s", retry_after);
+                    println!("   ⏱️ Suggested retry delay: {retry_after}s");
                 }
             } else {
                 println!("   ❌ This error is not recoverable");

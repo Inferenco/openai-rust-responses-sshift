@@ -188,7 +188,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if e.is_recoverable() {
                 println!("      🔄 This error is recoverable");
                 if let Some(retry_after) = e.retry_after() {
-                    println!("      ⏱️ Suggested retry delay: {}s", retry_after);
+                    println!("      ⏱️ Suggested retry delay: {retry_after}s");
                 }
             }
 
