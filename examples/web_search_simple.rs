@@ -38,14 +38,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = client.responses.create(request).await?;
 
     // Enhanced response analysis
-    println!("📊 Response Status: {status}", status=response.status);
-    println!("🤖 Model Used: {model}", model=response.model);
+    println!("📊 Response Status: {status}", status = response.status);
+    println!("🤖 Model Used: {model}", model = response.model);
 
     // Check for errors
     if response.has_errors() {
         println!("❌ Search encountered errors!");
         if let Some(error) = &response.error {
-            println!("   Error: {code} - {message}", code=error.code, message=error.message);
+            println!(
+                "   Error: {code} - {message}",
+                code = error.code,
+                message = error.message
+            );
         }
         return Ok(());
     }
@@ -60,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Print the response with enhanced formatting
     println!("\n📝 Search Results & Analysis:");
-    println!("{output}", output=response.output_text());
+    println!("{output}", output = response.output_text());
 
     // Show any tool calls that were made
     let tool_calls = response.tool_calls();

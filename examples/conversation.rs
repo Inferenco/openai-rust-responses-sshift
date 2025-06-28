@@ -45,10 +45,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         response1.is_complete()
     );
     if let Some(usage) = &response1.usage {
-        println!("📊 Tokens: {total} total", total=usage.total_tokens);
+        println!("📊 Tokens: {total} total", total = usage.total_tokens);
     }
 
-    println!("🤖 Chef: {output}\n", output=response1.output_text());
+    println!("🤖 Chef: {output}\n", output = response1.output_text());
 
     // Second message: Ask for modifications, continuing the conversation
     let request2 = Request::builder()
@@ -71,11 +71,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         response1.total_tokens().unwrap_or(0) + response2.total_tokens().unwrap_or(0);
     println!(
         "�� Response 2 Status: {status} | Cumulative Tokens: {tokens}",
-        status=response2.status,
-        tokens=total_tokens_so_far
+        status = response2.status,
+        tokens = total_tokens_so_far
     );
 
-    println!("🤖 Chef: {output}\n", output=response2.output_text());
+    println!("🤖 Chef: {output}\n", output = response2.output_text());
 
     // Third message: Ask about baking time, still in the same conversation
     let request3 = Request::builder()
@@ -97,8 +97,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let final_total_tokens = total_tokens_so_far + response3.total_tokens().unwrap_or(0);
     println!(
         "�� Response 3 Status: {status} | Final Total Tokens: {tokens}",
-        status=response3.status,
-        tokens=final_total_tokens
+        status = response3.status,
+        tokens = final_total_tokens
     );
 
     // Check if all responses completed successfully
@@ -106,29 +106,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         response1.is_complete() && response2.is_complete() && response3.is_complete();
     println!("✅ All responses completed successfully: {all_successful}");
 
-    println!("🤖 Chef: {output}\n", output=response3.output_text());
+    println!("🤖 Chef: {output}\n", output = response3.output_text());
 
     // Show the enhanced conversation chain with details
     println!("🔗 Enhanced Conversation Chain:");
     println!(
         "├── Response 1 ID: {id} | Model: {model} | Tokens: {tokens}",
-        id=response1.id(),
-        model=response1.model,
-        tokens=response1.total_tokens().unwrap_or(0)
+        id = response1.id(),
+        model = response1.model,
+        tokens = response1.total_tokens().unwrap_or(0)
     );
     println!(
         "├── Response 2 ID: {id} | Model: {model} | Tokens: {tokens} (continues from {prev})",
-        id=response2.id(),
-        model=response2.model,
-        tokens=response2.total_tokens().unwrap_or(0),
-        prev=response1.id()
+        id = response2.id(),
+        model = response2.model,
+        tokens = response2.total_tokens().unwrap_or(0),
+        prev = response1.id()
     );
     println!(
         "└── Response 3 ID: {id} | Model: {model} | Tokens: {tokens} (continues from {prev})",
-        id=response3.id(),
-        model=response3.model,
-        tokens=response3.total_tokens().unwrap_or(0),
-        prev=response2.id()
+        id = response3.id(),
+        model = response3.model,
+        tokens = response3.total_tokens().unwrap_or(0),
+        prev = response2.id()
     );
 
     // Show parameter echoes if available
@@ -143,7 +143,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Conversation analytics
     println!("\n📊 Conversation Analytics:");
     println!("   🔄 Total turns: 3");
-    println!("   📝 Total tokens consumed: {tokens}", tokens=final_total_tokens);
+    println!(
+        "   📝 Total tokens consumed: {tokens}",
+        tokens = final_total_tokens
+    );
     println!(
         "   ⚡ Average tokens per turn: {:.1}",
         final_total_tokens as f64 / 3.0

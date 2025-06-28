@@ -171,7 +171,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("✅ Generated Van Gogh style image saved as 'van_gogh_style.png'");
 
             // Also print the model's description of what it created
-            println!("�� Model description: {response}", response=response.output_text());
+            println!(
+                "�� Model description: {response}",
+                response = response.output_text()
+            );
         }
         Err(e) => println!("❌ Error: {e}"),
     }

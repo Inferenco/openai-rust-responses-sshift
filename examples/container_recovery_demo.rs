@@ -95,7 +95,10 @@ async fn demo_basic_recovery(client: &Client) -> Result<(), Box<dyn std::error::
 
     match client.responses.create(request).await {
         Ok(response) => {
-            println!("✅ Request succeeded: {response}", response=response.output_text());
+            println!(
+                "✅ Request succeeded: {response}",
+                response = response.output_text()
+            );
         }
         Err(e) if e.is_container_expired() => {
             println!("⚠️  Container expired (this would be auto-handled with recovery enabled)");
@@ -119,7 +122,10 @@ async fn demo_conservative_recovery(client: &Client) -> Result<(), Box<dyn std::
     // With conservative policy, we need to handle recovery manually
     match client.responses.create(request.clone()).await {
         Ok(response) => {
-            println!("✅ Request succeeded: {response}", response=response.output_text());
+            println!(
+                "✅ Request succeeded: {response}",
+                response = response.output_text()
+            );
         }
         Err(e) if e.is_container_expired() => {
             println!("⚠️  Container expired - manual recovery needed");
@@ -128,7 +134,10 @@ async fn demo_conservative_recovery(client: &Client) -> Result<(), Box<dyn std::
             let cleaned_request = client.responses.prune_expired_context_manual(request);
             match client.responses.create(cleaned_request).await {
                 Ok(response) => {
-                    println!("✅ Manual recovery succeeded: {response}", response=response.output_text());
+                    println!(
+                        "✅ Manual recovery succeeded: {response}",
+                        response = response.output_text()
+                    );
                 }
                 Err(e) => {
                     println!("❌ Manual recovery failed: {e}");

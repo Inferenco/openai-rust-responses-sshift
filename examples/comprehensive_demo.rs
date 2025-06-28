@@ -69,13 +69,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response1 = client.responses.create(request).await?;
 
     // Enhanced response monitoring
-    println!("📊 Response Status: {status}", status=response1.status);
-    println!("🤖 Model Used: {model}", model=response1.model);
-    println!("✅ Is Complete: {complete}", complete=response1.is_complete());
-    println!("❌ Has Errors: {errors}", errors=response1.has_errors());
+    println!("📊 Response Status: {status}", status = response1.status);
+    println!("🤖 Model Used: {model}", model = response1.model);
+    println!(
+        "✅ Is Complete: {complete}",
+        complete = response1.is_complete()
+    );
+    println!("❌ Has Errors: {errors}", errors = response1.has_errors());
 
     if let Some(usage) = &response1.usage {
-        println!("📊 Token Usage: {tokens} total ({input_tokens} input + {output_tokens} output)", tokens=usage.total_tokens, input_tokens=usage.input_tokens, output_tokens=usage.output_tokens);
+        println!(
+            "📊 Token Usage: {tokens} total ({input_tokens} input + {output_tokens} output)",
+            tokens = usage.total_tokens,
+            input_tokens = usage.input_tokens,
+            output_tokens = usage.output_tokens
+        );
     }
 
     // Show parameter echoes
@@ -274,7 +282,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // List files
     let files = client.files.list(None).await?;
-    println!("📋 Total files in account: {len}", len=files.len());
+    println!("📋 Total files in account: {len}", len = files.len());
 
     // Download file content (note: assistants purpose files can't be downloaded)
     match client.files.download(&file.id).await {
@@ -469,8 +477,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut total_function_tokens = 0;
 
     // Enhanced response monitoring
-    println!("📊 Initial Response Status: {status}", status=current_response.status);
-    println!("✅ Is Complete: {complete}", complete=current_response.is_complete());
+    println!(
+        "📊 Initial Response Status: {status}",
+        status = current_response.status
+    );
+    println!(
+        "✅ Is Complete: {complete}",
+        complete = current_response.is_complete()
+    );
     println!(
         "🔧 Parallel Tool Calls: {}",
         current_response.parallel_tool_calls.unwrap_or(false)
@@ -478,12 +492,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(usage) = &current_response.usage {
         total_function_tokens += usage.total_tokens;
-        println!("📊 Token Usage: {tokens}", tokens=usage.total_tokens);
+        println!("📊 Token Usage: {tokens}", tokens = usage.total_tokens);
     }
 
     println!("📝 Initial Response:");
-    println!("   ID: {id}", id=current_response.id());
-    println!("   Content: {content}", content=current_response.output_text());
+    println!("   ID: {id}", id = current_response.id());
+    println!(
+        "   Content: {content}",
+        content = current_response.output_text()
+    );
 
     // Enhanced function calling loop - handle multiple rounds of tool calls
     while !current_response.tool_calls().is_empty() && iteration <= MAX_ITERATIONS {
@@ -500,7 +517,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Execute all tool calls in this iteration
         for tool_call in &tool_calls {
             println!("   🔧 Function: {} ({})", tool_call.name, tool_call.call_id);
-            println!("   📋 Arguments: {arguments}", arguments=tool_call.arguments);
+            println!(
+                "   📋 Arguments: {arguments}",
+                arguments = tool_call.arguments
+            );
 
             // Execute the function and get result
             let result = match tool_call.name.as_str() {
@@ -562,9 +582,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         current_response = client.responses.create(continuation_request).await?;
 
         // Enhanced response monitoring
-        println!("   📊 Response Status: {status}", status=current_response.status);
-        println!("   ✅ Is Complete: {complete}", complete=current_response.is_complete());
-        println!("   ❌ Has Errors: {errors}", errors=current_response.has_errors());
+        println!(
+            "   📊 Response Status: {status}",
+            status = current_response.status
+        );
+        println!(
+            "   ✅ Is Complete: {complete}",
+            complete = current_response.is_complete()
+        );
+        println!(
+            "   ❌ Has Errors: {errors}",
+            errors = current_response.has_errors()
+        );
 
         if let Some(usage) = &current_response.usage {
             total_function_tokens += usage.total_tokens;
@@ -575,8 +604,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         println!("   📥 Response after tool execution:");
-        println!("      ID: {id}", id=current_response.id());
-        println!("      Content: {content}", content=current_response.output_text());
+        println!("      ID: {id}", id = current_response.id());
+        println!(
+            "      Content: {content}",
+            content = current_response.output_text()
+        );
 
         iteration += 1;
     }
@@ -588,8 +620,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\n🎯 Enhanced Function Calling Summary:");
-    println!("   • Iterations: {iterations}", iterations=iteration - 1);
-    println!("   • Total tokens used: {total_function_tokens}", total_function_tokens=total_function_tokens);
+    println!("   • Iterations: {iterations}", iterations = iteration - 1);
+    println!(
+        "   • Total tokens used: {total_function_tokens}",
+        total_function_tokens = total_function_tokens
+    );
     println!("   • Tools available: calculate, get_weather");
     println!("   • Parallel execution: ✅ (enabled for efficiency)");
     println!("   • Enhanced monitoring: ✅ (status, tokens, errors)");
@@ -616,7 +651,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "      - Function: {} ({})",
                 tool_call.name, tool_call.call_id
             );
-            println!("      - Arguments: {arguments}", arguments=tool_call.arguments);
+            println!(
+                "      - Arguments: {arguments}",
+                arguments = tool_call.arguments
+            );
         }
 
         // Execute follow-up function calls
@@ -699,7 +737,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if !image_saved {
         println!("   ⚠️ No image generation output found in response.");
-        println!("   📝 Response: {response}", response=img_response.output_text());
+        println!(
+            "   📝 Response: {response}",
+            response = img_response.output_text()
+        );
     }
 
     // Image Input (Vision) Demo using `input_image_url`
@@ -722,7 +763,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.responses.create(vision_request).await {
         Ok(vision_response) => {
             println!("✅ Vision description received:");
-            println!("   {output}", output=vision_response.output_text());
+            println!("   {output}", output = vision_response.output_text());
         }
         Err(e) => println!("⚠️  Vision request failed: {e}"),
     }
@@ -809,11 +850,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.responses.create(reasoning_request).await {
         Ok(reasoning_response) => {
             println!("✅ Reasoning request completed:");
-            println!("   Status: {status}", status=reasoning_response.status);
-            println!("   Model: {model}", model=reasoning_response.model);
+            println!("   Status: {status}", status = reasoning_response.status);
+            println!("   Model: {model}", model = reasoning_response.model);
 
             if let Some(usage) = &reasoning_response.usage {
-                println!("   Token usage: {tokens} total", tokens=usage.total_tokens);
+                println!(
+                    "   Token usage: {tokens} total",
+                    tokens = usage.total_tokens
+                );
                 if let Some(details) = &usage.output_tokens_details {
                     if let Some(reasoning_tokens) = details.reasoning_tokens {
                         println!("   Reasoning tokens: {reasoning_tokens}");
@@ -951,7 +995,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   Token usage: {}", usage.total_tokens);
     }
 
-    println!("🎓 Mentor: {mentor}", mentor=final_response.output_text());
+    println!("🎓 Mentor: {mentor}", mentor = final_response.output_text());
 
     // 🔟. ENHANCED RESOURCE DELETION TESTING
     println!("\n🔟 Enhanced Resource Deletion Testing");

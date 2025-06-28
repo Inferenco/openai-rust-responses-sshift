@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Demonstrate enhanced error classification
                     println!("   🔍 Error Analysis:");
                     println!("      Error type: {:?}", std::mem::discriminant(&e));
-                    println!("      User message: {msg}", msg=e.user_message());
+                    println!("      User message: {msg}", msg = e.user_message());
 
                     if e.is_recoverable() {
                         println!("      🔄 This error is recoverable");
@@ -189,8 +189,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "   🔧 Tool call delta helper: {:?}",
             tool_event.as_tool_call_delta()
         );
-        println!("   🏁 Is done check: {done}", done=text_event.is_done());
-        println!("   ✅ Done event check: {done}", done=StreamEvent::Done.is_done());
+        println!("   🏁 Is done check: {done}", done = text_event.is_done());
+        println!(
+            "   ✅ Done event check: {done}",
+            done = StreamEvent::Done.is_done()
+        );
 
         println!("\n✨ Streaming Enhancements:");
         println!("   🖼️ Built-in Image Generation - Full image data in a single response item");

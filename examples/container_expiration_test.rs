@@ -86,7 +86,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             })
             .unwrap_or("unknown")
     );
-    println!("💬 Response: {response}", response=initial_response.output_text());
+    println!(
+        "💬 Response: {response}",
+        response = initial_response.output_text()
+    );
 
     // Step 2: Wait for user input (allowing container to expire)
     println!("\n⏳ Step 2: Waiting for container expiration");
@@ -150,7 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             println!(
                 "\n💬 Final Response: {response}",
-                response=response_with_recovery.response.output_text()
+                response = response_with_recovery.response.output_text()
             );
         }
         Err(e) => {
@@ -167,7 +170,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     match client.responses.create(cleaned_request).await {
                         Ok(response) => {
                             println!("✅ Manual recovery successful!");
-                            println!("💬 Response: {response}", response=response.output_text());
+                            println!("💬 Response: {response}", response = response.output_text());
                         }
                         Err(e) => {
                             println!("❌ Manual recovery failed: {e}");
