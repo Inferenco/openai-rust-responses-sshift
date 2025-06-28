@@ -103,23 +103,58 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Step 3: Execute the function (simulate both calculator and weather)
         match tool_call.name.as_str() {
             "calculate" => {
-                let args: HashMap<String, String> = serde_json::from_str(&tool_call.arguments)?;
-                if let Some(expression) = args.get("expression") {
-                    let result = evaluate_expression(expression);
-                    println!("   ✅ Calculated result: {result}");
-                    function_outputs.push((tool_call.call_id.clone(), result));
+                match serde_json::from_str::<HashMap<String, String>>(&tool_call.arguments) {
+                    Ok(args) => {
+                        if let Some(expression) = args.get("expression") {
+                            let result = evaluate_expression(expression);
+                            println!("   ✅ Calculated result: {result}");
+                            function_outputs.push((tool_call.call_id.clone(), result));
+                        } else {
+                            let error_msg = "Error: Missing required 'expression' parameter";
+                            println!("   ❌ Function error: {error_msg}");
+                            function_outputs.push((tool_call.call_id.clone(), error_msg.to_string()));
+                        }
+                    }
+                    Err(json_err) => {
+                        let error_msg = format!("Error: Invalid function arguments - {json_err}");
+                        println!("   ❌ Argument parsing error: {error_msg}");
+                        function_outputs.push((tool_call.call_id.clone(), error_msg));
+                    }
                 }
             }
             "get_weather" => {
-                let args: HashMap<String, String> = serde_json::from_str(&tool_call.arguments)?;
-                if let Some(location) = args.get("location") {
-                    let weather_result = get_mock_weather(location);
-                    println!("   🌤️ Weather result: {weather_result}");
-                    function_outputs.push((tool_call.call_id.clone(), weather_result));
+                match serde_json::from_str::<HashMap<String, String>>(&tool_call.arguments) {
+                    Ok(args) => {
+                        if let Some(location) = args.get("location") {
+                            // Simulate potential API failure
+                            match get_mock_weather_with_error_handling(location) {
+                                Ok(weather_result) => {
+                                    println!("   🌤️ Weather result: {weather_result}");
+                                    function_outputs.push((tool_call.call_id.clone(), weather_result));
+                                }
+                                Err(weather_err) => {
+                                    let error_msg = format!("Weather API error: {weather_err}");
+                                    println!("   ❌ Weather service error: {error_msg}");
+                                    function_outputs.push((tool_call.call_id.clone(), error_msg));
+                                }
+                            }
+                        } else {
+                            let error_msg = "Error: Missing required 'location' parameter";
+                            println!("   ❌ Function error: {error_msg}");
+                            function_outputs.push((tool_call.call_id.clone(), error_msg.to_string()));
+                        }
+                    }
+                    Err(json_err) => {
+                        let error_msg = format!("Error: Invalid function arguments - {json_err}");
+                        println!("   ❌ Argument parsing error: {error_msg}");
+                        function_outputs.push((tool_call.call_id.clone(), error_msg));
+                    }
                 }
             }
             _ => {
-                println!("   ⚠️ Unknown function: {}", tool_call.name);
+                let error_msg = format!("Error: Unknown function '{}'", tool_call.name);
+                println!("   ⚠️ {error_msg}");
+                function_outputs.push((tool_call.call_id.clone(), error_msg));
             }
         }
     }
@@ -136,7 +171,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .user("function-calling-example") // Maintain user tracking
         .build();
 
-    let final_response = client.responses.create(continuation_request).await?;
+    // Enhanced error handling for continuation request
+    let final_response = match client.responses.create(continuation_request).await {
+        Ok(response) => {
+            println!("   ✅ Successfully submitted function outputs");
+            response
+        }
+        Err(e) => {
+            println!("   ❌ Error submitting function outputs:");
+            println!("      Error type: {:?}", std::mem::discriminant(&e));
+            println!("      User message: {}", e.user_message());
+            
+            if e.is_recoverable() {
+                println!("      🔄 This error is recoverable");
+                if let Some(retry_after) = e.retry_after() {
+                    println!("      ⏱️ Suggested retry delay: {}s", retry_after);
+                }
+            }
+            
+            if e.is_transient() {
+                println!("      ⚡ This is a transient error - consider retrying");
+            }
+            
+            return Err(e.into());
+        }
+    };
 
     // Enhanced response analysis
     println!("📊 Final Response Status: {}", final_response.status);
@@ -166,12 +225,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   • Comprehensive token usage monitoring");
     println!("   • Parameter echoing and user tracking");
     println!("   • Improved error handling with detailed error info");
+    println!("   • Robust function argument parsing and validation");
+    println!("   • Graceful handling of function execution failures");
+    println!("   • Proper error message propagation to the model");
     println!("\n📚 Key Points:");
     println!("   • OpenAI Responses API doesn't have submit_tool_outputs endpoint");
     println!("   • Tool outputs are submitted as input items with type 'function_call_output'");
     println!("   • Use previous_response_id to maintain conversation context");
     println!("   • Each function call has a unique call_id that must match the output");
     println!("   • Enhanced monitoring provides better insights into API usage");
+    println!("   • Always provide function outputs, even for errors");
+    println!("   • Use descriptive error messages to help the model understand failures");
+    println!("   • Handle JSON parsing errors gracefully in function arguments");
+    println!("   • Validate required parameters before function execution");
 
     Ok(())
 }
@@ -197,11 +263,18 @@ fn evaluate_expression(expression: &str) -> String {
     }
 }
 
-/// Mock weather function for demonstration
-fn get_mock_weather(location: &str) -> String {
-    format!(
-        "Weather in {location}: 72°F, partly cloudy with light winds. Perfect day for coding! 🌤️"
-    )
+/// Enhanced mock weather function that demonstrates error handling
+fn get_mock_weather_with_error_handling(location: &str) -> Result<String, String> {
+    // Simulate various error conditions for demonstration
+    match location.to_lowercase().as_str() {
+        "error" => Err("Service temporarily unavailable".to_string()),
+        "timeout" => Err("Request timed out".to_string()),
+        "invalid" => Err("Invalid location format".to_string()),
+        "unknown" => Err("Location not found".to_string()),
+        _ => Ok(format!(
+            "Weather in {location}: 72°F, partly cloudy with light winds. Perfect day for coding! 🌤️"
+        )),
+    }
 }
 
 /// Very basic calculator for demonstration

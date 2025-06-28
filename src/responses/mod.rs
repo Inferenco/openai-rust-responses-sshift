@@ -208,15 +208,72 @@ impl Responses {
                         && retry_count < self.recovery_policy.max_retries
                     {
                         retry_count += 1;
-                        last_error = Some(error);
+
+                        // Calculate retry delay based on error type
+                        let retry_delay = error.retry_after().unwrap_or(1);
 
                         if self.recovery_policy.log_recovery_attempts {
-                            log::warn!(
-                                "Container expired, attempting recovery (attempt {}/{})",
-                                retry_count,
-                                self.recovery_policy.max_retries
-                            );
+                            match &error {
+                                crate::Error::ContainerExpired { .. } => {
+                                    log::warn!(
+                                        "Container expired, attempting recovery (attempt {}/{})",
+                                        retry_count,
+                                        self.recovery_policy.max_retries
+                                    );
+                                }
+                                crate::Error::BadGateway { .. } => {
+                                    log::warn!(
+                                        "Bad Gateway error, retrying in {}s (attempt {}/{})",
+                                        retry_delay,
+                                        retry_count,
+                                        self.recovery_policy.max_retries
+                                    );
+                                }
+                                crate::Error::ServiceUnavailable { .. } => {
+                                    log::warn!(
+                                        "Service unavailable, retrying in {}s (attempt {}/{})",
+                                        retry_delay,
+                                        retry_count,
+                                        self.recovery_policy.max_retries
+                                    );
+                                }
+                                crate::Error::GatewayTimeout { .. } => {
+                                    log::warn!(
+                                        "Gateway timeout, retrying in {}s (attempt {}/{})",
+                                        retry_delay,
+                                        retry_count,
+                                        self.recovery_policy.max_retries
+                                    );
+                                }
+                                crate::Error::ServerError { retry_suggested: true, .. } => {
+                                    log::warn!(
+                                        "Server error (retryable), retrying in {}s (attempt {}/{})",
+                                        retry_delay,
+                                        retry_count,
+                                        self.recovery_policy.max_retries
+                                    );
+                                }
+                                crate::Error::RateLimited { .. } => {
+                                    log::warn!(
+                                        "Rate limited, retrying in {}s (attempt {}/{})",
+                                        retry_delay,
+                                        retry_count,
+                                        self.recovery_policy.max_retries
+                                    );
+                                }
+                                _ => {
+                                    log::warn!(
+                                        "Recoverable error, attempting recovery (attempt {}/{}): {}",
+                                        retry_count,
+                                        self.recovery_policy.max_retries,
+                                        error.user_message()
+                                    );
+                                }
+                            }
                         }
+
+                        // Store error for callback and recovery info
+                        last_error = Some(error);
 
                         // Notify callback if set
                         if let Some(callback) = &self.recovery_callback {
@@ -225,12 +282,37 @@ impl Responses {
                             }
                         }
 
-                        // Prune expired containers from context if enabled
-                        if self.recovery_policy.auto_prune_expired_containers {
-                            current_request = self.prune_expired_context(current_request);
-                        } else {
-                            // Just clear the previous_response_id to start fresh
-                            current_request.previous_response_id = None;
+                        // Add delay for transient errors (but not for container expiration)
+                        if last_error.as_ref().unwrap().is_transient() 
+                            && !last_error.as_ref().unwrap().is_container_expired() 
+                            && retry_delay > 0 {
+                            // Use std::thread::sleep for simple delay (blocking is acceptable here)
+                            std::thread::sleep(std::time::Duration::from_secs(retry_delay));
+                        }
+
+                        // Handle different error types appropriately
+                        match last_error.as_ref().unwrap() {
+                            crate::Error::ContainerExpired { .. } => {
+                                // Prune expired containers from context if enabled
+                                if self.recovery_policy.auto_prune_expired_containers {
+                                    current_request = self.prune_expired_context(current_request);
+                                } else {
+                                    // Just clear the previous_response_id to start fresh
+                                    current_request.previous_response_id = None;
+                                }
+                            }
+                            crate::Error::BadGateway { .. }
+                            | crate::Error::ServiceUnavailable { .. }
+                            | crate::Error::GatewayTimeout { .. }
+                            | crate::Error::ServerError { .. }
+                            | crate::Error::RateLimited { .. } => {
+                                // For these errors, we don't need to modify the request
+                                // Just retry as-is after the delay
+                            }
+                            _ => {
+                                // For other recoverable errors, clear context as fallback
+                                current_request.previous_response_id = None;
+                            }
                         }
                     } else {
                         // Can't recover or max retries exceeded
@@ -395,16 +477,94 @@ impl Responses {
                     // Check if response is OK
                     if !response.status().is_success() {
                         let status = response.status();
-                        let error_body = match response.text().await {
-                            Ok(text) => text,
-                            Err(_) => "<failed to read response body>".to_string(),
-                        };
-                        return Some((
-                            Err(crate::Error::Stream(format!(
-                                "HTTP error: {status} - {error_body}"
-                            ))),
-                            None,
-                        ));
+                        
+                        // Use our enhanced error parsing for streaming responses
+                        match crate::error::try_parse_api_error(response).await {
+                            Ok(_) => {
+                                // This shouldn't happen since we already checked !is_success()
+                                return Some((
+                                    Err(crate::Error::Stream(format!(
+                                        "Unexpected success status after failure check: {status}"
+                                    ))),
+                                    None,
+                                ));
+                            }
+                            Err(error) => {
+                                // Convert our enhanced errors to stream errors with better context
+                                let stream_error = match &error {
+                                    crate::Error::BadGateway { retry_after, .. } => {
+                                        let retry_msg = if let Some(seconds) = retry_after {
+                                            format!(" (retry in {}s)", seconds)
+                                        } else {
+                                            String::new()
+                                        };
+                                        crate::Error::Stream(format!(
+                                            "Streaming failed: Service temporarily unavailable (Bad Gateway){retry_msg}"
+                                        ))
+                                    }
+                                    crate::Error::ServiceUnavailable { retry_after, .. } => {
+                                        let retry_msg = if let Some(seconds) = retry_after {
+                                            format!(" (retry in {}s)", seconds)
+                                        } else {
+                                            String::new()
+                                        };
+                                        crate::Error::Stream(format!(
+                                            "Streaming failed: Service unavailable{retry_msg}"
+                                        ))
+                                    }
+                                    crate::Error::GatewayTimeout { retry_after, .. } => {
+                                        let retry_msg = if let Some(seconds) = retry_after {
+                                            format!(" (retry in {}s)", seconds)
+                                        } else {
+                                            String::new()
+                                        };
+                                        crate::Error::Stream(format!(
+                                            "Streaming failed: Gateway timeout{retry_msg}"
+                                        ))
+                                    }
+                                    crate::Error::RateLimited { retry_after, .. } => {
+                                        let retry_msg = if let Some(seconds) = retry_after {
+                                            format!(" (retry in {}s)", seconds)
+                                        } else {
+                                            String::new()
+                                        };
+                                        crate::Error::Stream(format!(
+                                            "Streaming failed: Rate limited{retry_msg}"
+                                        ))
+                                    }
+                                    crate::Error::ServerError { user_message, .. } => {
+                                        crate::Error::Stream(format!(
+                                            "Streaming failed: {user_message}"
+                                        ))
+                                    }
+                                    crate::Error::AuthenticationFailed { suggestion, .. } => {
+                                        crate::Error::Stream(format!(
+                                            "Streaming failed: Authentication error - {suggestion}"
+                                        ))
+                                    }
+                                    crate::Error::AuthorizationFailed { suggestion, .. } => {
+                                        crate::Error::Stream(format!(
+                                            "Streaming failed: Authorization error - {suggestion}"
+                                        ))
+                                    }
+                                    crate::Error::ClientError { message, suggestion, .. } => {
+                                        let suggestion_text = suggestion.as_ref()
+                                            .map(|s| format!(" - {s}"))
+                                            .unwrap_or_default();
+                                        crate::Error::Stream(format!(
+                                            "Streaming failed: {message}{suggestion_text}"
+                                        ))
+                                    }
+                                    _ => {
+                                        crate::Error::Stream(format!(
+                                            "Streaming failed: {}", error.user_message()
+                                        ))
+                                    }
+                                };
+                                
+                                return Some((Err(stream_error), None));
+                            }
+                        }
                     }
 
                     response_opt = Some(response);
@@ -449,18 +609,61 @@ impl Responses {
                                 }
 
                                 // Try to parse as JSON
-                                if let Ok(event) = serde_json::from_str::<serde_json::Value>(data) {
-                                    if let Some(result) = Self::parse_stream_event(&event) {
-                                        return Some((Ok(result), response_opt));
+                                match serde_json::from_str::<serde_json::Value>(data) {
+                                    Ok(event) => {
+                                        if let Some(result) = Self::parse_stream_event(&event) {
+                                            return Some((Ok(result), response_opt));
+                                        }
+                                        // If parse_stream_event returns None, it might be an error event
+                                        // Check if this was an error event and handle it appropriately
+                                        if let Some(event_type) = event.get("type").and_then(|t| t.as_str()) {
+                                            if event_type == "response.error" {
+                                                let error_msg = event.get("error")
+                                                    .and_then(|e| e.get("message"))
+                                                    .and_then(|m| m.as_str())
+                                                    .unwrap_or("Unknown streaming error");
+                                                return Some((
+                                                    Err(crate::Error::Stream(format!(
+                                                        "Server-side streaming error: {error_msg}"
+                                                    ))),
+                                                    None,
+                                                ));
+                                            }
+                                        }
+                                    }
+                                    Err(json_err) => {
+                                        // Log JSON parsing errors but continue processing
+                                        log::debug!("Failed to parse SSE JSON data: {} (error: {})", data, json_err);
                                     }
                                 }
                             }
                             // Handle direct JSONL format
-                            else if let Ok(event) =
-                                serde_json::from_str::<serde_json::Value>(line)
-                            {
-                                if let Some(result) = Self::parse_stream_event(&event) {
-                                    return Some((Ok(result), response_opt));
+                            else {
+                                match serde_json::from_str::<serde_json::Value>(line) {
+                                    Ok(event) => {
+                                        if let Some(result) = Self::parse_stream_event(&event) {
+                                            return Some((Ok(result), response_opt));
+                                        }
+                                        // Check for error events in JSONL format too
+                                        if let Some(event_type) = event.get("type").and_then(|t| t.as_str()) {
+                                            if event_type == "response.error" {
+                                                let error_msg = event.get("error")
+                                                    .and_then(|e| e.get("message"))
+                                                    .and_then(|m| m.as_str())
+                                                    .unwrap_or("Unknown streaming error");
+                                                return Some((
+                                                    Err(crate::Error::Stream(format!(
+                                                        "Server-side streaming error: {error_msg}"
+                                                    ))),
+                                                    None,
+                                                ));
+                                            }
+                                        }
+                                    }
+                                    Err(json_err) => {
+                                        // Log JSON parsing errors but continue processing
+                                        log::debug!("Failed to parse JSONL data: {} (error: {})", line, json_err);
+                                    }
                                 }
                             }
                         }
@@ -500,14 +703,70 @@ impl Responses {
                     return Some(crate::types::StreamEvent::Done);
                 }
                 "response.error" => {
-                    // Handle errors outside this function since StreamEvent doesn't have Error variant
+                    // Handle errors by logging them and returning None
+                    // The caller should handle this by checking for None and potentially stopping the stream
+                    if let Some(error_details) = event.get("error") {
+                        log::error!("Stream error event received: {}", error_details);
+                    } else {
+                        log::error!("Stream error event received without details");
+                    }
                     return None;
                 }
+                "response.tool_call.created" => {
+                    if let Some(tool_call) = event.get("tool_call") {
+                        if let (Some(id), Some(name)) = (
+                            tool_call.get("id").and_then(|i| i.as_str()),
+                            tool_call.get("function").and_then(|f| f.get("name")).and_then(|n| n.as_str())
+                        ) {
+                            return Some(crate::types::StreamEvent::ToolCallCreated {
+                                id: id.to_string(),
+                                name: name.to_string(),
+                                index: 0, // Default index
+                            });
+                        }
+                    }
+                }
+                "response.tool_call.delta" => {
+                    if let Some(tool_call) = event.get("tool_call") {
+                        if let (Some(id), Some(delta)) = (
+                            tool_call.get("id").and_then(|i| i.as_str()),
+                            event.get("delta").and_then(|d| d.as_str())
+                        ) {
+                            return Some(crate::types::StreamEvent::ToolCallDelta {
+                                id: id.to_string(),
+                                content: delta.to_string(),
+                                index: 0, // Default index
+                            });
+                        }
+                    }
+                }
+                "response.tool_call.completed" => {
+                    if let Some(tool_call) = event.get("tool_call") {
+                        if let Some(id) = tool_call.get("id").and_then(|i| i.as_str()) {
+                            return Some(crate::types::StreamEvent::ToolCallCompleted {
+                                id: id.to_string(),
+                                index: 0, // Default index
+                            });
+                        }
+                    }
+                }
+                "response.image.progress" => {
+                    if let Some(image_data) = event.get("image") {
+                        let url = image_data.get("url").and_then(|u| u.as_str()).map(|s| s.to_string());
+                        let index = image_data.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as u32;
+                        return Some(crate::types::StreamEvent::ImageProgress { url, index });
+                    }
+                }
                 _ => {
+                    // Log unknown event types for debugging
+                    log::debug!("Unknown stream event type: {}", event_type);
                     return Some(crate::types::StreamEvent::Unknown);
                 }
             }
         }
+        
+        // If we can't parse the event, log it for debugging
+        log::debug!("Failed to parse stream event: {}", event);
         None
     }
 }
