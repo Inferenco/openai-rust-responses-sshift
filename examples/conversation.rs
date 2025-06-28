@@ -143,10 +143,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Conversation analytics
     println!("\n📊 Conversation Analytics:");
     println!("   🔄 Total turns: 3");
-    println!(
-        "   📝 Total tokens consumed: {tokens}",
-        tokens = final_total_tokens
-    );
+    println!("   📝 Total tokens consumed: {final_total_tokens}");
     println!(
         "   ⚡ Average tokens per turn: {:.1}",
         final_total_tokens as f64 / 3.0
