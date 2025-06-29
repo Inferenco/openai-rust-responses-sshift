@@ -1334,6 +1334,16 @@ let request = Request::builder()
     // Note: O4Mini doesn't support temperature parameter (built-in optimization)
     .build();
 
+// Balanced reasoning  
+let request = Request::builder()
+    .model(Model::O4Mini)  // Good balance of speed and capability
+    .input("Analyze this business case study")
+    .reasoning(ReasoningParams::new()
+        .with_effort(Effort::Medium)           // Balanced approach
+        .with_summary(SummarySetting::Auto))   // Automatic summary generation
+    .max_output_tokens(2000)  // Allow space for reasoning
+    .build();
+
 // Thorough, detailed reasoning  
 let request = Request::builder()
     .model(Model::O3)  // Most capable reasoning model
@@ -1348,7 +1358,7 @@ let request = Request::builder()
 
 ### Available Options
 
-- **Effort Levels**: `Effort::Low` (fast) or `Effort::High` (thorough)
+- **Effort Levels**: `Effort::Low` (fast), `Effort::Medium` (balanced), or `Effort::High` (thorough)
 - **Summary Settings**: `SummarySetting::Auto`, `SummarySetting::Concise`, or `SummarySetting::Detailed`
 
 ### Token Optimization for Reasoning

@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub enum Effort {
     /// Low effort reasoning - faster responses
     Low,
+    /// Medium effort reasoning - balanced speed and thoroughness
+    Medium,
     /// High effort reasoning - more thorough analysis (enables background mode)
     High,
 }
@@ -41,7 +43,7 @@ impl From<&str> for SummarySetting {
 /// Reasoning parameters for controlling reasoning model behavior
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReasoningParams {
-    /// Effort level for reasoning (low/high)
+    /// Effort level for reasoning (low/medium/high)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
 
@@ -74,6 +76,12 @@ impl ReasoningParams {
         self
     }
 
+    /// Enable medium effort reasoning (balanced speed and thoroughness)
+    #[must_use]
+    pub fn medium_effort() -> Self {
+        Self::new().with_effort(Effort::Medium)
+    }
+
     /// Enable high effort reasoning (enables background mode)
     #[must_use]
     pub fn high_effort() -> Self {
@@ -96,6 +104,30 @@ impl ReasoningParams {
     #[must_use]
     pub fn detailed_summary() -> Self {
         Self::new().with_summary(SummarySetting::Detailed)
+    }
+
+    /// Create reasoning params with medium effort and auto summary
+    #[must_use]
+    pub fn medium_effort_with_summary() -> Self {
+        Self::new()
+            .with_effort(Effort::Medium)
+            .with_summary(SummarySetting::Auto)
+    }
+
+    /// Create reasoning params with medium effort and concise summary
+    #[must_use]
+    pub fn medium_effort_concise() -> Self {
+        Self::new()
+            .with_effort(Effort::Medium)
+            .with_summary(SummarySetting::Concise)
+    }
+
+    /// Create reasoning params with medium effort and detailed summary
+    #[must_use]
+    pub fn medium_effort_detailed() -> Self {
+        Self::new()
+            .with_effort(Effort::Medium)
+            .with_summary(SummarySetting::Detailed)
     }
 
     /// Create reasoning params with high effort and auto summary
@@ -150,6 +182,7 @@ mod tests {
     #[test]
     fn test_effort_serialization() {
         let effort_low = Effort::Low;
+        let effort_medium = Effort::Medium;
         let effort_high = Effort::High;
 
         assert_eq!(
@@ -157,9 +190,34 @@ mod tests {
             r#""low""#
         );
         assert_eq!(
+            serde_json::to_string(&effort_medium).expect("effort_medium should serialize"),
+            r#""medium""#
+        );
+        assert_eq!(
             serde_json::to_string(&effort_high).expect("effort_high should serialize"),
             r#""high""#
         );
+    }
+
+    #[test]
+    fn test_medium_effort_builders() {
+        // Test medium effort builder
+        let medium_effort = ReasoningParams::medium_effort();
+        assert_eq!(medium_effort.effort, Some(Effort::Medium));
+        assert_eq!(medium_effort.summary, None);
+
+        // Test combined medium effort builders
+        let medium_with_summary = ReasoningParams::medium_effort_with_summary();
+        assert_eq!(medium_with_summary.effort, Some(Effort::Medium));
+        assert_eq!(medium_with_summary.summary, Some(SummarySetting::Auto));
+
+        let medium_concise = ReasoningParams::medium_effort_concise();
+        assert_eq!(medium_concise.effort, Some(Effort::Medium));
+        assert_eq!(medium_concise.summary, Some(SummarySetting::Concise));
+
+        let medium_detailed = ReasoningParams::medium_effort_detailed();
+        assert_eq!(medium_detailed.effort, Some(Effort::Medium));
+        assert_eq!(medium_detailed.summary, Some(SummarySetting::Detailed));
     }
 
     #[test]

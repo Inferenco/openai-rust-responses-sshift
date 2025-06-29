@@ -5,6 +5,77 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2025-01-24
+
+### 🧠 **Enhanced Reasoning Capabilities** - Medium Effort Level Addition
+**Balanced Reasoning Options**: Added `Effort::Medium` to provide a balanced approach between speed and thoroughness for reasoning tasks.
+
+#### **New Effort Level**
+- **Added `Effort::Medium`**: New balanced reasoning effort level between `Low` and `High`
+  - Provides optimal balance of speed and analytical depth
+  - Ideal for business analysis, complex problem-solving, and detailed reasoning tasks
+  - Maintains cost-effectiveness while delivering more thorough analysis than `Low` effort
+
+#### **Enhanced Builder Methods**
+- **New Convenience Methods**: Added comprehensive builder pattern support for medium effort
+  - `ReasoningParams::medium_effort()` - Create medium effort reasoning parameters
+  - `ReasoningParams::medium_effort_with_summary()` - Medium effort with auto summary
+  - `ReasoningParams::medium_effort_concise()` - Medium effort with concise summary
+  - `ReasoningParams::medium_effort_detailed()` - Medium effort with detailed summary
+
+#### **Updated Documentation**
+- **Enhanced Effort Level Documentation**: Updated all documentation to reflect three-tier effort system
+  - `Effort::Low` (fast), `Effort::Medium` (balanced), `Effort::High` (thorough)
+  - Added balanced reasoning example in documentation
+  - Updated reasoning demo example to showcase medium effort capabilities
+
+#### **Comprehensive Testing**
+- **New Test Coverage**: Added comprehensive test suite for medium effort functionality
+  - Serialization tests for `Effort::Medium` → `"medium"`
+  - Builder method tests for all medium effort convenience functions
+  - Integration tests with reasoning parameters
+
+### ✨ **Real-World Applications**
+- **Business Analysis**: Perfect for analyzing case studies and business scenarios
+- **Problem Solving**: Balanced approach for complex but not extremely difficult problems
+- **Educational Content**: Optimal for explaining concepts with moderate complexity
+- **Code Review**: Thorough analysis without excessive computational overhead
+
+### 🔧 **Technical Implementation**
+- **Zero Breaking Changes**: All existing `Low` and `High` effort code continues to work unchanged
+- **Backward Compatibility**: Existing applications gain access to medium effort without modification
+- **Efficient Serialization**: Medium effort serializes to `"medium"` in JSON API calls
+- **Type Safety**: Full compile-time validation of effort levels
+
+### 📊 **Usage Examples**
+```rust
+// New balanced reasoning approach
+let request = Request::builder()
+    .model(Model::O4Mini)
+    .input("Analyze this business case study")
+    .reasoning(ReasoningParams::medium_effort_with_summary())
+    .build();
+
+// Direct effort specification
+let reasoning = ReasoningParams::new()
+    .with_effort(Effort::Medium)
+    .with_summary(SummarySetting::Auto);
+```
+
+### ✅ **Quality Assurance**
+- **58 Tests Passing**: All existing functionality preserved with new medium effort support
+- **New Test Functions**: 4 new test functions specifically for medium effort validation
+- **Code Quality**: Passes all clippy lints and formatting checks
+- **Documentation Updated**: Examples and documentation reflect the enhanced three-tier system
+
+### 💡 **Key Benefits**
+- **Optimal Balance**: Perfect middle ground between speed and analytical depth
+- **Cost Effective**: More thorough than low effort while remaining efficient
+- **Flexible Usage**: Suitable for a wide range of reasoning tasks
+- **Developer Friendly**: Intuitive API with clear naming conventions
+
+**This enhancement provides users with more granular control over reasoning performance, enabling optimal balance between speed, cost, and analytical depth for diverse use cases.**
+
 ## [0.2.7] - 2025-01-24
 
 ### 🛡️ **Comprehensive Error Handling Overhaul** - Production-Grade Error Management

@@ -88,7 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .model(Model::O4Mini) // Continue using O4Mini for reasoning
         .input("Three friends - Alice, Bob, and Charlie - each have a different pet: a cat, a dog, and a bird. Alice doesn't have the cat. Bob doesn't have the dog. Who has which pet?")
         .instructions("Solve this step-by-step using logical deduction")
-        .reasoning(ReasoningParams::high_effort_with_summary())
+        .reasoning(ReasoningParams::medium_effort_with_summary())
         .max_output_tokens(300)
         // Note: O4Mini doesn't support temperature parameter
         .user("reasoning-demo") // Maintain user identity across requests
@@ -96,7 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     println!("🧩 Puzzle: Three friends with different pets and three clues...");
-    println!("💭 Using medium-effort reasoning...\n");
+    println!("💭 Using medium-effort reasoning (balanced approach)...\n");
 
     let logic_response = client.responses.create(logic_request).await?;
 
