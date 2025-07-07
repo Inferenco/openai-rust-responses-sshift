@@ -905,7 +905,7 @@ mod unit_tests {
         assert_eq!(formatted, expected);
 
         println!("Tool usage tracking test passed!");
-        println!("Formatted usage:\n{}", formatted);
+        println!("Formatted usage:\n{formatted}");
     }
 
     #[test]
