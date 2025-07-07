@@ -711,6 +711,10 @@ mod unit_tests {
                 total_tokens: 30,
                 output_tokens_details: None,
                 prompt_tokens_details: None,
+                web_search: None,
+                file_search: None,
+                image_generation: None,
+                code_interpreter: None,
             }),
             temperature: None,
             top_p: None,
@@ -799,6 +803,112 @@ mod unit_tests {
     }
 
     #[test]
+    fn test_tool_usage_tracking() {
+        use crate::types::{MessageContent, Response, ResponseItem, Usage};
+        use chrono::Utc;
+
+        // Create a response with mixed tool calls and token usage
+        let response = Response {
+            id: "resp_test123".to_string(),
+            object: "response".to_string(),
+            created_at: Utc::now(),
+            model: "gpt-4o".to_string(),
+            status: "completed".to_string(),
+            output: vec![
+                ResponseItem::Message {
+                    id: "msg_1".to_string(),
+                    content: vec![MessageContent::OutputText {
+                        text: "I'll search for that information.".to_string(),
+                        annotations: vec![],
+                        logprobs: None,
+                    }],
+                    role: "assistant".to_string(),
+                    status: Some("completed".to_string()),
+                },
+                ResponseItem::WebSearchCall {
+                    id: "ws_1".to_string(),
+                    status: "completed".to_string(),
+                },
+                ResponseItem::ImageGenerationCall {
+                    id: "img_1".to_string(),
+                    result: "base64_image_data".to_string(),
+                    status: "completed".to_string(),
+                },
+                ResponseItem::ImageGenerationCall {
+                    id: "img_2".to_string(),
+                    result: "base64_image_data_2".to_string(),
+                    status: "completed".to_string(),
+                },
+                ResponseItem::Message {
+                    id: "msg_2".to_string(),
+                    content: vec![MessageContent::OutputText {
+                        text: "Here's what I found and the images I generated.".to_string(),
+                        annotations: vec![],
+                        logprobs: None,
+                    }],
+                    role: "assistant".to_string(),
+                    status: Some("completed".to_string()),
+                },
+            ],
+            output_text: None,
+            previous_response_id: None,
+            instructions: None,
+            metadata: None,
+            usage: Some(Usage {
+                input_tokens: 150,
+                output_tokens: 75,
+                total_tokens: 225,
+                output_tokens_details: None,
+                prompt_tokens_details: None,
+                web_search: None,
+                file_search: None,
+                image_generation: None,
+                code_interpreter: None,
+            }),
+            temperature: None,
+            top_p: None,
+            max_output_tokens: None,
+            parallel_tool_calls: None,
+            tool_choice: None,
+            tools: None,
+            text: None,
+            top_logprobs: None,
+            truncation: None,
+            reasoning: None,
+            reasoning_effort: None,
+            user: None,
+            incomplete_details: None,
+            error: None,
+        };
+
+        // Test tool usage calculation
+        let (web_search, file_search, image_generation, code_interpreter) =
+            response.calculate_tool_usage();
+        assert_eq!(web_search, 1);
+        assert_eq!(file_search, 0);
+        assert_eq!(image_generation, 2);
+        assert_eq!(code_interpreter, 0);
+
+        // Test usage with tools
+        let usage_with_tools = response.usage_with_tools().unwrap();
+        assert_eq!(usage_with_tools.input_tokens, 150);
+        assert_eq!(usage_with_tools.output_tokens, 75);
+        assert_eq!(usage_with_tools.total_tokens, 225);
+        assert_eq!(usage_with_tools.web_search, Some(1));
+        assert_eq!(usage_with_tools.file_search, None);
+        assert_eq!(usage_with_tools.image_generation, Some(2));
+        assert_eq!(usage_with_tools.code_interpreter, None);
+
+        // Test formatted output
+        let formatted = response.format_usage();
+        let expected = "input tokens: 150\noutput tokens: 75\ntotal tokens: 225\nweb search: 1\nfile search: 0\nimage generation: 2\ncode interpreter: 0";
+        assert_eq!(formatted, expected);
+
+        println!("Tool usage tracking test passed!");
+        println!("Formatted usage:\n{formatted}");
+    }
+
+    #[test]
     fn test_mcp_tool_with_approval() {
         let tool =
             crate::Tool::mcp_with_approval("github", "https://api.github.com", "never", None);
@@ -857,6 +967,10 @@ mod unit_tests {
             prompt_tokens_details: Some(crate::types::PromptTokensDetails {
                 cached_tokens: Some(30),
             }),
+            web_search: None,
+            file_search: None,
+            image_generation: None,
+            code_interpreter: None,
         };
 
         let json = serde_json::to_string(&usage).unwrap();

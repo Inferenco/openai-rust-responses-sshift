@@ -1,5 +1,6 @@
 # Open AI Rust Responses by SShift - Documentation
 
+> **🔧 v0.2.9 Update**: **Automatic Tool Usage Tracking** - Revolutionary analytics! SDK now automatically tracks built-in tool usage (web search, file search, image generation, code interpreter) with zero client changes. Get detailed usage statistics in your exact requested format. Zero breaking changes!
 > **🛡️ v0.2.5 Update**: **Advanced Container Recovery System** - Revolutionary error handling! SDK now automatically handles container expiration with configurable recovery policies. Choose from Default (auto-retry), Conservative (manual control), or Aggressive (maximum resilience) strategies. Zero breaking changes!
 > **🎨 v0.2.4 Update**: **Image-Guided Generation** - Revolutionary new feature! Use input images to guide image generation with the GPT Image 1 model. Create style transfers, combine multiple images into logos, and generate artistic interpretations. See the comprehensive new example!
 > **🧑‍💻 v0.2.3 Update**: Code Interpreter tool support! Run Python code in a secure container and get results directly from the model. See the new example and docs.
@@ -7,7 +8,7 @@
 > **🎉 v0.2.1 Update**: Vision input (image understanding) now supported! Use `input_image_url(...)` to send pictures to GPT-4o and get rich descriptions back.
 > **🚀 v0.2.2 Update**: Multi-image vision support added! Use `input_image_urls(&[...])` or chain `push_image_url()` for albums and comparisons.
 
-This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, production-ready streaming, **working image generation**, and **revolutionary image-guided generation**.
+This document provides comprehensive documentation for the Open AI Rust Responses by SShift library, a Rust SDK for the OpenAI Responses API with advanced reasoning parameters, background processing, enhanced models, production-ready streaming, **working image generation**, **automatic tool usage tracking**, and **revolutionary image-guided generation**.
 
 ## Table of Contents
 
@@ -15,6 +16,23 @@ This document provides comprehensive documentation for the Open AI Rust Response
 2. [Installation](#installation)
 3. [Authentication](#authentication)
 4. [Basic Usage](#basic-usage)
+5. [**Tool Usage Tracking**](#tool-usage-tracking) *(Automatic New Feature in v0.2.9)*
+6. [Responses API](#responses-api)
+7. [**Advanced Container Recovery System**](#advanced-container-recovery-system) *(Revolutionary New Feature in v0.2.5)*
+8. [Messages API](#messages-api)
+9. [Files API](#files-api)
+10. [Vector Stores API](#vector-stores-api)
+11. [Tools API](#tools-api)
+12. [**Image-Guided Generation**](#image-guided-generation) *(Revolutionary New Feature in v0.2.4)*
+13. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
+14. [**Image Input (Vision)**](#image-input-vision) *(Updated in v0.2.2)*
+15. [**Code Interpreter**](#code-interpreter) *(New in v0.2.3)*
+16. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
+17. [**Reasoning Parameters**](#reasoning-parameters)
+18. [**Background Processing**](#background-processing)
+19. [**Enhanced Models**](#enhanced-models)
+20. [**Type-Safe Includes**](#type-safe-includes)
+21. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
 5. [Responses API](#responses-api)
 6. [**Advanced Container Recovery System**](#advanced-container-recovery-system) *(Revolutionary New Feature in v0.2.5)*
 7. [Messages API](#messages-api)
@@ -132,6 +150,143 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### 🔧 **Advanced Usage Patterns**
+
+#### **Enhanced Usage Object**
+```rust
+// Access enhanced usage object with tool counts
+if let Some(usage) = response.usage_with_tools() {
+    println!("Token usage:");
+    println!("  Input tokens: {}", usage.input_tokens);
+    println!("  Output tokens: {}", usage.output_tokens);
+    println!("  Total tokens: {}", usage.total_tokens);
+    
+    println!("Tool usage:");
+    if let Some(web_count) = usage.web_search {
+        println!("  Web searches: {}", web_count);
+    }
+    if let Some(image_count) = usage.image_generation {
+        println!("  Images generated: {}", image_count);
+    }
+    if let Some(code_count) = usage.code_interpreter {
+        println!("  Code executions: {}", code_count);
+    }
+    if let Some(file_count) = usage.file_search {
+        println!("  File searches: {}", file_count);
+    }
+}
+```
+
+#### **Raw Tool Counts**
+```rust
+// Get raw counts for custom formatting
+let (web_search, file_search, image_generation, code_interpreter) = response.calculate_tool_usage();
+
+println!("Custom format:");
+println!("Web: {}, File: {}, Image: {}, Code: {}", 
+    web_search, file_search, image_generation, code_interpreter);
+```
+
+#### **Conditional Tool Tracking**
+```rust
+// Only show tools that were actually used
+let (web, file, image, code) = response.calculate_tool_usage();
+
+if web > 0 { println!("🔍 Web searches: {}", web); }
+if file > 0 { println!("📄 File searches: {}", file); }
+if image > 0 { println!("🎨 Images generated: {}", image); }
+if code > 0 { println!("💻 Code executions: {}", code); }
+```
+
+### 📊 **Usage Statistics Structure**
+
+The enhanced `Usage` struct now includes:
+
+```rust
+pub struct Usage {
+    // Existing token fields
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    pub total_tokens: u32,
+    
+    // New tool usage fields (optional, only included when > 0)
+    pub web_search: Option<u32>,
+    pub file_search: Option<u32>,
+    pub image_generation: Option<u32>,
+    pub code_interpreter: Option<u32>,
+    
+    // Additional token details
+    pub output_tokens_details: Option<OutputTokensDetails>,
+    pub prompt_tokens_details: Option<PromptTokensDetails>,
+}
+```
+
+### 🎯 **Response Methods**
+
+Three new methods provide different levels of tool usage access:
+
+| Method | Returns | Use Case |
+|--------|---------|----------|
+| `format_usage()` | `String` | Exact requested format output |
+| `usage_with_tools()` | `Option<Usage>` | Enhanced usage object with tool counts |
+| `calculate_tool_usage()` | `(u32, u32, u32, u32)` | Raw counts as tuple |
+
+### 🔍 **Automatic Detection**
+
+The SDK automatically detects these tool usage patterns in response items:
+
+- **`WebSearchCall`** - Web search tool invocations
+- **`FileSearchCall`** - File search tool invocations  
+- **`ImageGenerationCall`** - Image generation tool invocations
+- **`CodeInterpreterCall`** - Code interpreter tool invocations
+
+### 💡 **Key Benefits**
+
+- **🔄 Automatic Operation**: No client-side changes required
+- **📊 Detailed Analytics**: Track both token usage and tool utilization
+- **🎯 User-Requested Format**: Exact output format as specified
+- **💰 Cost Monitoring**: Monitor tool costs alongside token costs
+- **📈 Usage Insights**: Understand AI tool utilization patterns
+- **🔗 Backward Compatible**: All existing code continues to work unchanged
+
+### 🎯 **Real-World Applications**
+
+**Usage Analytics**:
+- Monitor which tools are used most frequently in your application
+- Track tool utilization trends over time
+- Optimize tool selection based on actual usage patterns
+
+**Cost Tracking**:
+- Calculate costs for both token usage and tool invocations
+- Allocate costs to different users or projects
+- Budget planning with detailed usage breakdowns
+
+**Application Insights**:
+- Understand how users interact with AI tools
+- Identify bottlenecks and optimization opportunities
+- Make data-driven decisions about tool availability
+
+**Billing Integration**:
+- Provide detailed usage reports to customers
+- Implement usage-based pricing models
+- Track costs across different service tiers
+
+### ✅ **Zero Configuration Required**
+
+Tool usage tracking works automatically without any setup:
+
+```rust
+// This code automatically includes tool usage tracking
+let response = client.responses.create(request).await?;
+
+// All three methods are immediately available:
+println!("{}", response.format_usage());                    // Formatted output
+let usage = response.usage_with_tools();                     // Enhanced object  
+let (w, f, i, c) = response.calculate_tool_usage();          // Raw counts
+```
+
+The tool usage tracking feature provides comprehensive analytics while maintaining the exact format you requested, with zero breaking changes to existing code.
 
 ## Responses API
 

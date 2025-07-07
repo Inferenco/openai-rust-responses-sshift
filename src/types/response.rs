@@ -20,6 +20,22 @@ pub struct Usage {
     /// Additional details about input tokens  
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_tokens_details: Option<PromptTokensDetails>,
+
+    /// Number of web search tool calls
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub web_search: Option<u32>,
+
+    /// Number of file search tool calls
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_search: Option<u32>,
+
+    /// Number of image generation tool calls
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_generation: Option<u32>,
+
+    /// Number of code interpreter tool calls
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_interpreter: Option<u32>,
 }
 
 /// Details about output tokens
@@ -317,6 +333,135 @@ impl Response {
                 _ => None,
             })
             .collect()
+    }
+
+    /// Calculates tool usage counts from the response output
+    #[must_use]
+    pub fn calculate_tool_usage(&self) -> (u32, u32, u32, u32) {
+        let mut web_search_count = 0;
+        let mut file_search_count = 0;
+        let mut image_generation_count = 0;
+        let mut code_interpreter_count = 0;
+
+        for item in &self.output {
+            match item {
+                crate::types::ResponseItem::WebSearchCall { .. } => web_search_count += 1,
+                crate::types::ResponseItem::FileSearchCall { .. } => file_search_count += 1,
+                crate::types::ResponseItem::ImageGenerationCall { .. } => {
+                    image_generation_count += 1;
+                }
+                crate::types::ResponseItem::CodeInterpreterCall { .. } => {
+                    code_interpreter_count += 1;
+                }
+                _ => {}
+            }
+        }
+
+        (
+            web_search_count,
+            file_search_count,
+            image_generation_count,
+            code_interpreter_count,
+        )
+    }
+
+    /// Returns a usage object with token counts and tool usage populated
+    #[must_use]
+    pub fn usage_with_tools(&self) -> Option<Usage> {
+        let (web_search, file_search, image_generation, code_interpreter) =
+            self.calculate_tool_usage();
+
+        if let Some(existing_usage) = &self.usage {
+            Some(Usage {
+                input_tokens: existing_usage.input_tokens,
+                output_tokens: existing_usage.output_tokens,
+                total_tokens: existing_usage.total_tokens,
+                output_tokens_details: existing_usage.output_tokens_details.clone(),
+                prompt_tokens_details: existing_usage.prompt_tokens_details.clone(),
+                web_search: if web_search > 0 {
+                    Some(web_search)
+                } else {
+                    None
+                },
+                file_search: if file_search > 0 {
+                    Some(file_search)
+                } else {
+                    None
+                },
+                image_generation: if image_generation > 0 {
+                    Some(image_generation)
+                } else {
+                    None
+                },
+                code_interpreter: if code_interpreter > 0 {
+                    Some(code_interpreter)
+                } else {
+                    None
+                },
+            })
+        } else {
+            // If no token usage, but we have tool usage, create a minimal usage object
+            if web_search > 0 || file_search > 0 || image_generation > 0 || code_interpreter > 0 {
+                Some(Usage {
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    total_tokens: 0,
+                    output_tokens_details: None,
+                    prompt_tokens_details: None,
+                    web_search: if web_search > 0 {
+                        Some(web_search)
+                    } else {
+                        None
+                    },
+                    file_search: if file_search > 0 {
+                        Some(file_search)
+                    } else {
+                        None
+                    },
+                    image_generation: if image_generation > 0 {
+                        Some(image_generation)
+                    } else {
+                        None
+                    },
+                    code_interpreter: if code_interpreter > 0 {
+                        Some(code_interpreter)
+                    } else {
+                        None
+                    },
+                })
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Returns formatted usage statistics in the requested format
+    #[must_use]
+    pub fn format_usage(&self) -> String {
+        if let Some(usage) = self.usage_with_tools() {
+            use std::fmt::Write;
+            let mut result = String::new();
+            writeln!(result, "input tokens: {}", usage.input_tokens).unwrap();
+            writeln!(result, "output tokens: {}", usage.output_tokens).unwrap();
+            writeln!(result, "total tokens: {}", usage.total_tokens).unwrap();
+            writeln!(result, "web search: {}", usage.web_search.unwrap_or(0)).unwrap();
+            writeln!(result, "file search: {}", usage.file_search.unwrap_or(0)).unwrap();
+            writeln!(
+                result,
+                "image generation: {}",
+                usage.image_generation.unwrap_or(0)
+            )
+            .unwrap();
+            write!(
+                result,
+                "code interpreter: {}",
+                usage.code_interpreter.unwrap_or(0)
+            )
+            .unwrap();
+            result
+        } else {
+            "No usage information available".to_string()
+        }
     }
 }
 
