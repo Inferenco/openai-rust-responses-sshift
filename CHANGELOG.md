@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-08-08
+
+### 🚀 GPT‑5 Support
+- Added new model variants:
+  - `Model::GPT5` (flagship)
+  - `Model::GPT5Mini` (balanced)
+  - `Model::GPT5Nano` (fastest)
+- New example: `examples/gpt5_demo.rs` demonstrates fast/balanced/quality modes, reasoning effort, verbosity, and a structured SQL function tool.
+
+### 🧠 Reasoning Controls (GPT‑5)
+- Added `ReasoningEffort` enum (`Minimal` | `Medium` | `High`).
+- New builder method: `RequestBuilder::reasoning_effort(...)` maps to `reasoning.effort` in the API wire format.
+- `ReasoningParams::with_reasoning_effort(...)` now sets both an internal hint and the API-compatible `effort` field.
+- API compatibility: `reasoning.reasoning_effort` is not serialized; only `reasoning.effort` is sent (per Responses API spec).
+
+### 🗣️ Verbosity (GPT‑5)
+- Added `Verbosity` enum (`Low` | `Medium` | `High`).
+- Added `TextConfig.verbosity` + `RequestBuilder::verbosity(...)` to tune output detail for GPT‑5 models.
+
+### 🛠️ Tools: Free‑form & Grammar
+- `Tool` now supports GPT‑5 function styles:
+  - `free_form: Option<bool>` (accept raw text instead of JSON when true)
+  - `grammar: Option<ContextFreeGrammar>` (simple CFG for constrained outputs)
+- New helpers:
+  - `Tool::free_form_function(name, description)`
+  - `Tool::grammar_function(name, description, grammar)`
+- Existing constructors (`Tool::function`, `Tool::web_search_preview`, `Tool::image_generation`, etc.) initialize new fields, so typical usage remains unchanged.
+
+### 🔧 API Compatibility
+- No changes to existing wire format for non‑GPT‑5 models.
+- Default model remains `GPT4o`; existing examples and code paths continue to work.
+
+### 💥 Breaking Changes (source‑level only)
+- Added optional public fields to public structs:
+  - `Tool` (adds `free_form`, `grammar`)
+  - `TextConfig` (adds `verbosity`)
+  - `ReasoningParams` (adds non‑serialized `reasoning_effort`)
+- This is a source‑breaking change for code that constructs these types using struct literals. Migration options:
+  - Prefer the provided constructors/builders (recommended), or
+  - Add `..Default::default()` to struct literals to populate future fields automatically.
+- New `Model` variants can break exhaustive `match` statements. Add a wildcard arm (`_ => {}`) or handle the new variants explicitly.
+
+### ✅ Quality & CI
+- `cargo fmt`, `cargo clippy -- -D warnings`, and tests pass.
+- Verified `examples/basic.rs` and `examples/gpt5_demo.rs` run successfully against the Responses API.
+
+### 🧭 Migration Guide
+1. Update dependency: `open-ai-rust-responses-by-sshift = "0.3"`.
+2. If you use struct literals for `Tool`, `TextConfig`, or `ReasoningParams`, either:
+   - Switch to builders (`Request::builder()`, `Tool::function(...)`, etc.), or
+   - Add `..Default::default()` to your literals.
+3. If you have exhaustive `match` on `Model`, add a wildcard arm or handle `GPT5`, `GPT5Mini`, `GPT5Nano`.
+4. For GPT‑5 reasoning, use `RequestBuilder::reasoning_effort(...)` (maps to `reasoning.effort`).
+5. For GPT‑5 verbosity, use `RequestBuilder::verbosity(...)`.
+
 ## [0.2.9] - 2025-01-25
 
 ### 🔧 **Tool Usage Tracking** - Automatic Built-in Tool Monitoring

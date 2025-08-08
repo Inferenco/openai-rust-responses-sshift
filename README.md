@@ -1,5 +1,6 @@
 # OpenAI Rust Responses by SShift
 
+> **🚀 v0.3.0 Update**: **GPT‑5 family support** (flagship, mini, nano), new verbosity control, reasoning effort tuning for GPT‑5, structured/free‑form function improvements, and an expanded example. Note: source‑level break only for users constructing public structs with literals or exhaustively matching `Model`.
 > **🛡️ v0.2.5 Update**: **Advanced Container Recovery System** - Revolutionary error handling! SDK now automatically handles container expiration with configurable recovery policies. Choose from Default (auto-retry), Conservative (manual control), or Aggressive (maximum resilience) strategies. Zero breaking changes!
 > **🎨 v0.2.4 Update**: **Image-Guided Generation** - Revolutionary new feature! Use input images to guide image generation with the GPT Image 1 model. Create style transfers, combine multiple images into logos, and generate artistic interpretations. See the comprehensive new example!
 > **🧑‍💻 v0.2.3 Update**: Code Interpreter tool support! Run Python code in a secure container and get results directly from the model. See the new example and docs.
@@ -24,14 +25,45 @@ A comprehensive, async Rust SDK for the OpenAI Responses API with advanced reaso
 - **🛠️ Advanced Tools**: Web search, file search, custom functions, **built-in image generation**, and MCP integration
 - **🎨 Image Generation**: Working implementation via direct API and the new built-in tool
 - **📸 Image Input (Vision)**: Describe user-supplied images with GPT-4o Vision
-- **🧠 Reasoning Parameters**: Low/high effort reasoning with auto/concise/detailed summaries
+- **🧠 Reasoning Parameters**: Low/high effort reasoning with auto/concise/detailed summaries; GPT‑5 supports explicit reasoning effort
 - **🔄 Background Processing**: Async operation handling for long-running tasks
-- **🎯 Enhanced Models**: Support for o3, o4-mini, all o1 variants, and GPT-4o family
+- **🎯 Enhanced Models**: Support for GPT‑5 family, o3, o4-mini, all o1 variants, and GPT-4o family
 - **⚡ Async/Await**: Built on `tokio` and `reqwest` for high performance
 - **🔒 Type Safety**: Comprehensive error handling, type-safe includes, and compile-time validation
 - **📊 Full API Parity**: 85% coverage of OpenAI May 2025 specification with 100% backward compatibility
 - **📚 Rich Documentation**: Extensive examples and API documentation
 - **🧑‍💻 Code Interpreter Tool**: Run Python code and get results directly from the model
+
+## 🧠 GPT‑5 at a glance (new)
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, ReasoningEffort, Verbosity};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+
+    // Standard generation (no reasoning params required)
+    let standard = Request::builder()
+        .model(Model::GPT5Mini)
+        .input("Summarize this paragraph in 2 bullet points.")
+        .verbosity(Verbosity::Low) // Optional (GPT‑5 only): Low|Medium|High
+        .build();
+
+    // Reasoning-style control (maps to reasoning.effort on the wire)
+    let reasoning = Request::builder()
+        .model(Model::GPT5)
+        .input("Plan a multi-step data migration with trade-offs.")
+        .reasoning_effort(ReasoningEffort::High) // Minimal|Medium|High
+        .build();
+
+    let _ = client.responses.create(standard).await?;
+    let _ = client.responses.create(reasoning).await?;
+    Ok(())
+}
+```
+
+See `examples/gpt5_demo.rs` for a complete, runnable showcase with function calling and usage reporting.
 
 ## 🆕 Advanced Capabilities
 
@@ -367,11 +399,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.2.2"
+open-ai-rust-responses-by-sshift = "0.3.0"
 tokio = { version = "1.0", features = ["full"] }
 
 # Optional: Enable streaming
-# open-ai-rust-responses-by-sshift = { version = "0.2.2", features = ["stream"] }
+# open-ai-rust-responses-by-sshift = { version = "0.3.0", features = ["stream"] }
 ```
 
 ### Basic Usage
@@ -474,7 +506,7 @@ Enable the `stream` feature:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.2.2", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.3.0", features = ["stream"] }
 ```
 
 ```rust
@@ -890,3 +922,12 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 - Inspired by the official OpenAI Python client
 - Thanks to the Rust community for excellent async ecosystem
 - Phase 1 implementation based on OpenAI May 2025 specification
+
+---
+
+## 📦 Migration notes (0.2.x → 0.3.0)
+
+- Additive, but potentially source‑breaking in two cases:
+  - If you use struct literals for public types (`Tool`, `TextConfig`, `ReasoningParams`), add `..Default::default()` or switch to the builders/constructors.
+  - If you exhaustively `match` on `Model`, add arms for GPT‑5 variants or a wildcard.
+- Runtime behavior for existing models is unchanged.

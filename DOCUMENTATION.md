@@ -1,5 +1,6 @@
 # Open AI Rust Responses by SShift - Documentation
 
+> **🚀 v0.3.0 Update**: **GPT‑5 support** (flagship, mini, nano), new `Verbosity` control, `ReasoningEffort` tuning for GPT‑5, structured/free‑form function improvements, and a richer example. Note: minor source‑level break for struct literals and exhaustive `Model` matches.
 > **🔧 v0.2.9 Update**: **Automatic Tool Usage Tracking** - Revolutionary analytics! SDK now automatically tracks built-in tool usage (web search, file search, image generation, code interpreter) with zero client changes. Get detailed usage statistics in your exact requested format. Zero breaking changes!
 > **🛡️ v0.2.5 Update**: **Advanced Container Recovery System** - Revolutionary error handling! SDK now automatically handles container expiration with configurable recovery policies. Choose from Default (auto-retry), Conservative (manual control), or Aggressive (maximum resilience) strategies. Zero breaking changes!
 > **🎨 v0.2.4 Update**: **Image-Guided Generation** - Revolutionary new feature! Use input images to guide image generation with the GPT Image 1 model. Create style transfers, combine multiple images into logos, and generate artistic interpretations. See the comprehensive new example!
@@ -16,44 +17,30 @@ This document provides comprehensive documentation for the Open AI Rust Response
 2. [Installation](#installation)
 3. [Authentication](#authentication)
 4. [Basic Usage](#basic-usage)
-5. [**Tool Usage Tracking**](#tool-usage-tracking) *(Automatic New Feature in v0.2.9)*
-6. [Responses API](#responses-api)
-7. [**Advanced Container Recovery System**](#advanced-container-recovery-system) *(Revolutionary New Feature in v0.2.5)*
-8. [Messages API](#messages-api)
-9. [Files API](#files-api)
-10. [Vector Stores API](#vector-stores-api)
-11. [Tools API](#tools-api)
-12. [**Image-Guided Generation**](#image-guided-generation) *(Revolutionary New Feature in v0.2.4)*
-13. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
-14. [**Image Input (Vision)**](#image-input-vision) *(Updated in v0.2.2)*
-15. [**Code Interpreter**](#code-interpreter) *(New in v0.2.3)*
-16. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
-17. [**Reasoning Parameters**](#reasoning-parameters)
-18. [**Background Processing**](#background-processing)
-19. [**Enhanced Models**](#enhanced-models)
-20. [**Type-Safe Includes**](#type-safe-includes)
-21. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
-5. [Responses API](#responses-api)
-6. [**Advanced Container Recovery System**](#advanced-container-recovery-system) *(Revolutionary New Feature in v0.2.5)*
-7. [Messages API](#messages-api)
-8. [Files API](#files-api)
-9. [Vector Stores API](#vector-stores-api)
-10. [Tools API](#tools-api)
-11. [**Image-Guided Generation**](#image-guided-generation) *(Revolutionary New Feature in v0.2.4)*
-12. [**Image Generation**](#image-generation) *(Overhauled in v0.2.0)*
-13. [**Image Input (Vision)**](#image-input-vision) *(Updated in v0.2.2)*
-14. [**Code Interpreter**](#code-interpreter) *(New in v0.2.3)*
-15. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
-16. [**Reasoning Parameters**](#reasoning-parameters)
-17. [**Background Processing**](#background-processing)
-18. [**Enhanced Models**](#enhanced-models)
-19. [**Type-Safe Includes**](#type-safe-includes)
-20. [**Enhanced Response Fields**](#enhanced-response-fields) *(Phase 1)*
-21. [Production-Ready Streaming](#production-ready-streaming)
-22. [Error Handling](#error-handling)
-23. [Advanced Configuration](#advanced-configuration)
-24. [Feature Flags](#feature-flags)
-25. [Testing and Examples](#testing-and-examples)
+5. [GPT‑5 Usage](#gpt5-usage)
+6. [Tool Usage Tracking](#tool-usage-tracking)
+7. [Responses API](#responses-api)
+8. [Advanced Container Recovery System](#advanced-container-recovery-system)
+9. [Messages API](#messages-api)
+10. [Files API](#files-api)
+11. [Vector Stores API](#vector-stores-api)
+12. [Tools API](#tools-api)
+13. [Image-Guided Generation](#image-guided-generation)
+14. [Image Generation](#image-generation)
+15. [Image Input (Vision)](#image-input-vision)
+16. [Code Interpreter](#code-interpreter)
+17. [Function Calling & Tool Outputs](#function-calling--tool-outputs)
+18. [Reasoning Parameters](#reasoning-parameters)
+19. [Model Parameter Compatibility and Requirements](#model-parameter-compatibility-and-requirements)
+20. [Background Processing](#background-processing)
+21. [Enhanced Models](#enhanced-models)
+22. [Type-Safe Includes](#type-safe-includes)
+23. [Enhanced Response Fields](#enhanced-response-fields)
+24. [Production-Ready Streaming](#production-ready-streaming)
+25. [Error Handling](#error-handling)
+26. [Advanced Configuration](#advanced-configuration)
+27. [Feature Flags](#feature-flags)
+28. [Testing and Examples](#testing-and-examples)
 
 ## Quick Start
 
@@ -98,15 +85,48 @@ Add the library to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.2.2"
+open-ai-rust-responses-by-sshift = "0.3.0"
 ```
 
 If you want to use streaming responses, make sure to include the `stream` feature (enabled by default):
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.2.2", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.3.0", features = ["stream"] }
 ```
+
+## GPT‑5 Usage
+
+GPT‑5 can be used as a standard model or with explicit reasoning control.
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, ReasoningEffort, Verbosity};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+
+    // Concise general generation
+    let concise = Request::builder()
+        .model(Model::GPT5Nano)
+        .input("Explain Raft in 3 bullets")
+        .verbosity(Verbosity::Low)
+        .build();
+
+    // Reasoning depth control
+    let deep = Request::builder()
+        .model(Model::GPT5)
+        .input("Design a blue/green deployment strategy with rollback")
+        .reasoning_effort(ReasoningEffort::High)
+        .build();
+
+    let _ = client.responses.create(concise).await?;
+    let _ = client.responses.create(deep).await?;
+    Ok(())
+}
+```
+
+See `examples/gpt5_demo.rs` for a full walkthrough including structured tool calling.
 
 ## Authentication
 
@@ -1548,6 +1568,68 @@ let reasoning_request = Request::builder()
 3. **Effort Level**: Start with Low effort and increase if needed
 4. **Summary Setting**: Use Auto for most cases, Detailed for complex outputs
 
+## Model Parameter Compatibility and Requirements
+
+This section summarizes which request parameters are supported or discouraged by model family. Always check API error messages in case of upstream changes.
+
+### Key requirements (all models)
+- model: required (use `Model` enum)
+- input (or input_items/messages): required
+- max_output_tokens: optional but recommended
+- tools/tool_choice/parallel_tool_calls: optional, supported on all
+- previous_response_id/store: optional, recommended for conversation continuity
+- include: optional
+
+### Sampling and control parameters
+
+| Parameter | GPT‑4o family (general) | O‑series (o1/o3/o4‑mini) | GPT‑5 family |
+|---|---|---|---|
+| temperature | Supported | Not supported (ignored/invalid) | Not supported (returns error) |
+| top_p | Supported | Not supported | Not supported |
+| top_logprobs | Supported | Not supported | Not supported |
+| max_output_tokens | Supported (typical 500) | Supported (recommend 2000) | Supported |
+| reasoning.effort | N/A | Supported (Low/Medium/High) | Supported via `ReasoningEffort` (mapped to `reasoning.effort`) |
+| text.verbosity | N/A | N/A | Supported (Low/Medium/High) |
+| tools/function calling | Supported | Supported | Supported |
+
+Notes
+- O‑series and GPT‑5 optimize internally and generally reject classic sampling controls (temperature/top_p/top_logprobs).
+- For GPT‑5, use `RequestBuilder::reasoning_effort(...)` to engage deeper reasoning behavior when needed, and `verbosity(...)` to tune output detail.
+- For long chains with O‑series, prefer `store(false)` and larger `max_output_tokens` (≈2000) to avoid truncation.
+
+### Minimal request examples
+
+```rust
+// General chat (GPT‑4o family)
+let req = Request::builder()
+    .model(Model::GPT4oMini)
+    .input("Tell me a short joke")
+    .temperature(0.7)
+    .max_output_tokens(500)
+    .build();
+
+// Reasoning (O‑series)
+let req = Request::builder()
+    .model(Model::O3)
+    .input("Prove a property about AVL trees")
+    .reasoning(ReasoningParams::new().with_effort(Effort::High))
+    .max_output_tokens(2000)
+    .build();
+
+// GPT‑5, concise vs deep
+let concise = Request::builder()
+    .model(Model::GPT5Mini)
+    .input("Summarize in 2 bullets")
+    .verbosity(Verbosity::Low)
+    .build();
+
+let deep = Request::builder()
+    .model(Model::GPT5)
+    .input("Plan a data migration with rollback strategies")
+    .reasoning_effort(ReasoningEffort::High)
+    .build();
+```
+
 ## **Background Processing**
 
 Handle long-running operations with background processing:
@@ -2060,8 +2142,17 @@ Example of using a specific TLS implementation:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.2.2", default-features = false, features = ["stream", "native-tls"] }
+open-ai-rust-responses-by-sshift = { version = "0.3.0", default-features = false, features = ["stream", "native-tls"] }
 ```
+
+---
+
+### Migration notes (0.2.x → 0.3.0)
+
+- Potential source breaks only if:
+  - You construct public structs with literals (`Tool`, `TextConfig`, `ReasoningParams`). Use builders or `..Default::default()`.
+  - You exhaustively match `Model`. Handle new GPT‑5 variants or add a wildcard arm.
+- Existing runtime behavior (wire format, defaults) is unchanged for prior models.
 
 This will use the native TLS implementation instead of rustls.
 

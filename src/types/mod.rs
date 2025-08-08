@@ -13,7 +13,7 @@ pub use background::{BackgroundHandle, BackgroundStatus, BackgroundStatusRespons
 pub use config::*;
 pub use helpers::*;
 pub use item::*;
-pub use reasoning::{Effort, ReasoningParams, SummarySetting};
+pub use reasoning::{Effort, ReasoningEffort, ReasoningParams, SummarySetting};
 pub use request::*;
 pub use response::*;
 pub use stream::*;
