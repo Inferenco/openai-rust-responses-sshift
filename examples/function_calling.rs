@@ -45,14 +45,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Step 1: Initial request with tools and enhanced features
     println!("1️⃣ Making initial request with function tools and enhanced features...");
     let request = Request::builder()
-        .model(Model::GPT4oMini) // Updated to use GPT-4o Mini
+        .model(Model::GPT5Mini) // Updated to use GPT-5 Mini
         .input("Calculate the result of 15 * 7 + 23, explain the calculation, and tell me the weather in San Francisco")
         .instructions("Be thorough in your explanations and use the available tools")
         .tools(vec![calculator_tool.clone(), weather_tool.clone()])
         .tool_choice(ToolChoice::auto())
         .parallel_tool_calls(true) // Enable parallel tool execution
         .max_output_tokens(500) // Use preferred parameter
-        .temperature(0.3) // Lower temperature for more consistent tool usage
         .user("function-calling-example") // Add user tracking
         .build();
 
@@ -169,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n3️⃣ Submitting function outputs and continuing conversation...");
 
     let continuation_request = Request::builder()
-        .model(Model::GPT4oMini)
+        .model(Model::GPT5Mini)
         .with_function_outputs(response.id(), function_outputs)
         .tools(vec![calculator_tool, weather_tool]) // Keep tools available for potential follow-ups
         .instructions("Provide a comprehensive summary based on the tool results")
