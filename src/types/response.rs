@@ -85,6 +85,10 @@ pub struct TextConfig {
     /// Stop sequences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop: Option<Vec<String>>,
+
+    /// Verbosity level for GPT-5 text responses
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verbosity: Option<Verbosity>,
 }
 
 /// Text format configuration
@@ -93,6 +97,15 @@ pub struct TextFormat {
     /// Format type (e.g., "text")
     #[serde(rename = "type")]
     pub format_type: String,
+}
+
+/// Verbosity levels for controlling response detail and length (GPT-5)
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Verbosity {
+    Low,
+    Medium,
+    High,
 }
 
 /// Truncation configuration - can be either a string ("disabled", "auto") or a config object

@@ -36,7 +36,10 @@ mod unit_tests {
         assert_eq!(Model::GPT4o20240513.to_string(), "gpt-4o-2024-05-13");
         assert_eq!(Model::GPT4oMini.to_string(), "gpt-4o-mini");
 
-        // Test GPT-4 family
+        // Test GPT-5 and GPT-4 families
+        assert_eq!(Model::GPT5.to_string(), "gpt-5");
+        assert_eq!(Model::GPT5Mini.to_string(), "gpt-5-mini");
+        assert_eq!(Model::GPT5Nano.to_string(), "gpt-5-nano");
         assert_eq!(Model::GPT4Turbo.to_string(), "gpt-4-turbo");
         assert_eq!(
             Model::GPT4Turbo20240409.to_string(),
@@ -70,7 +73,10 @@ mod unit_tests {
         assert_eq!(Model::from("o1-preview"), Model::O1Preview);
         assert_eq!(Model::from("o1-mini"), Model::O1Mini);
 
-        // Test GPT-4o family
+        // Test GPT-5 and GPT-4o family
+        assert_eq!(Model::from("gpt-5"), Model::GPT5);
+        assert_eq!(Model::from("gpt-5-mini"), Model::GPT5Mini);
+        assert_eq!(Model::from("gpt-5-nano"), Model::GPT5Nano);
         assert_eq!(Model::from("gpt-4o-2024-11-20"), Model::GPT4o20241120);
         assert_eq!(Model::from("gpt-4o-2024-08-06"), Model::GPT4o20240806);
         assert_eq!(Model::from("gpt-4o-2024-05-13"), Model::GPT4o20240513);
@@ -86,6 +92,11 @@ mod unit_tests {
     #[test]
     fn test_request_with_new_models() {
         use crate::types::{Model, Request};
+        let request_gpt5 = Request::builder()
+            .model(Model::GPT5)
+            .input("Test with gpt-5 model")
+            .build();
+        assert_eq!(request_gpt5.model, Model::GPT5);
 
         // Test that we can create requests with the new models
         let request_o3 = Request::builder()
@@ -111,6 +122,33 @@ mod unit_tests {
             .input("Test with o1 reasoning model")
             .build();
         assert_eq!(request_o1.model, Model::O1);
+    }
+
+    #[test]
+    fn test_gpt5_reasoning_effort_and_verbosity_builders() {
+        let request = crate::Request::builder()
+            .model(crate::Model::GPT5)
+            .input("Short answer please")
+            .verbosity(crate::types::Verbosity::Low)
+            .reasoning_effort(crate::types::ReasoningEffort::Minimal)
+            .build();
+        assert_eq!(request.model, crate::Model::GPT5);
+        assert_eq!(
+            request
+                .text
+                .as_ref()
+                .and_then(|t| t.verbosity.as_ref())
+                .cloned(),
+            Some(crate::types::Verbosity::Low)
+        );
+        assert_eq!(
+            request
+                .reasoning
+                .as_ref()
+                .and_then(|r| r.reasoning_effort.as_ref())
+                .cloned(),
+            Some(crate::types::ReasoningEffort::Minimal)
+        );
     }
 
     #[test]
@@ -947,12 +985,14 @@ mod unit_tests {
                 format_type: "text".to_string(),
             }),
             stop: Some(vec!["END".to_string(), "STOP".to_string()]),
+            verbosity: Some(crate::types::Verbosity::Medium),
         };
 
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("text"));
         assert!(json.contains("END"));
         assert!(json.contains("STOP"));
+        assert!(json.contains("\"medium\""));
     }
 
     #[test]

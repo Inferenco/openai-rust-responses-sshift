@@ -1,6 +1,6 @@
 [package]
 name = "open-ai-rust-responses-by-sshift"
-version = "0.2.9"
+version = "0.3.0"
 edition = "2021"
 description = "A feature-rich, async-first Rust wrapper for the OpenAI Responses API, with built-in support for streaming, function calling, file handling, and enhanced response monitoring"
 license = "MIT"

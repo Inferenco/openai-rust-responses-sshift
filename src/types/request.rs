@@ -356,6 +356,37 @@ impl RequestBuilder {
         self
     }
 
+    /// Sets the verbosity level (GPT-5) in text config
+    #[must_use]
+    pub fn verbosity(mut self, verbosity: crate::types::Verbosity) -> Self {
+        let mut cfg = self
+            .request
+            .text
+            .take()
+            .unwrap_or(crate::types::TextConfig {
+                format: None,
+                stop: None,
+                verbosity: None,
+            });
+        cfg.verbosity = Some(verbosity);
+        self.request.text = Some(cfg);
+        self
+    }
+
+    /// Sets GPT-5 reasoning effort level (top-level)
+    #[must_use]
+    pub fn reasoning_effort(mut self, effort: crate::types::ReasoningEffort) -> Self {
+        // Ensure reasoning object exists and map effort accordingly
+        let reasoning = self
+            .request
+            .reasoning
+            .take()
+            .unwrap_or_default()
+            .with_reasoning_effort(effort);
+        self.request.reasoning = Some(reasoning);
+        self
+    }
+
     /// Sets user identifier
     #[must_use]
     pub fn user(mut self, user: impl Into<String>) -> Self {

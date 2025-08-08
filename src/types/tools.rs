@@ -77,6 +77,14 @@ pub struct Tool {
     /// Function definition for the tool (legacy support)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function: Option<ToolFunction>,
+
+    /// When true, indicates a free-form function that accepts raw text instead of JSON
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub free_form: Option<bool>,
+
+    /// Optional grammar constraints (context-free grammar) for free-form outputs
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grammar: Option<ContextFreeGrammar>,
 }
 
 /// Function definition for a tool
@@ -90,6 +98,27 @@ pub struct ToolFunction {
 
     /// Parameters for the function in JSON Schema format
     pub parameters: serde_json::Value,
+}
+
+/// Context-free grammar specification for constraining function output
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ContextFreeGrammar {
+    /// Grammar production rules
+    pub rules: Vec<GrammarRule>,
+    /// Starting symbol for the grammar
+    pub start_symbol: String,
+    /// Optional grammar description for documentation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// Individual grammar rule definition
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GrammarRule {
+    /// Left-hand side symbol (non-terminal)
+    pub symbol: String,
+    /// Right-hand side productions
+    pub productions: Vec<String>,
 }
 
 /// Tool choice configuration for the OpenAI Responses API
@@ -137,6 +166,54 @@ impl Tool {
             server_url: None,
             headers: None,
             function: None,
+            free_form: None,
+            grammar: None,
+        }
+    }
+
+    /// Creates a free-form function tool (GPT-5) that accepts raw text
+    #[must_use]
+    pub fn free_form_function(name: impl Into<String>, description: impl Into<String>) -> Self {
+        Self {
+            tool_type: "function".to_string(),
+            name: Some(name.into()),
+            description: Some(description.into()),
+            parameters: None,
+            vector_store_ids: None,
+            container: None,
+            partial_images: None,
+            require_approval: None,
+            server_label: None,
+            server_url: None,
+            headers: None,
+            function: None,
+            free_form: Some(true),
+            grammar: None,
+        }
+    }
+
+    /// Creates a grammar-constrained free-form function (GPT-5)
+    #[must_use]
+    pub fn grammar_function(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        grammar: ContextFreeGrammar,
+    ) -> Self {
+        Self {
+            tool_type: "function".to_string(),
+            name: Some(name.into()),
+            description: Some(description.into()),
+            parameters: None,
+            vector_store_ids: None,
+            container: None,
+            partial_images: None,
+            require_approval: None,
+            server_label: None,
+            server_url: None,
+            headers: None,
+            function: None,
+            free_form: Some(true),
+            grammar: Some(grammar),
         }
     }
 
@@ -156,6 +233,8 @@ impl Tool {
             server_url: None,
             headers: None,
             function: None,
+            free_form: None,
+            grammar: None,
         }
     }
 
@@ -175,6 +254,8 @@ impl Tool {
             server_label: None,
             server_url: None,
             headers: None,
+            free_form: None,
+            grammar: None,
         }
     }
 
@@ -194,6 +275,8 @@ impl Tool {
             server_url: None,
             headers: None,
             function: None,
+            free_form: None,
+            grammar: None,
         }
     }
 
@@ -213,6 +296,8 @@ impl Tool {
             server_url: None,
             headers: None,
             function: None,
+            free_form: None,
+            grammar: None,
         }
     }
 
@@ -234,6 +319,8 @@ impl Tool {
             server_url: None,
             headers: None,
             function: None,
+            free_form: None,
+            grammar: None,
         }
     }
 
@@ -257,6 +344,8 @@ impl Tool {
             server_url: Some(server_url.into()),
             headers,
             function: None,
+            free_form: None,
+            grammar: None,
         }
     }
 
@@ -281,6 +370,8 @@ impl Tool {
             server_url: Some(server_url.into()),
             headers,
             function: None,
+            free_form: None,
+            grammar: None,
         }
     }
 }

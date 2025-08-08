@@ -201,6 +201,19 @@ impl Config {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub enum Model {
+    // === GPT-5 Series (2025-08-07) ===
+    /// GPT-5 model (2025-08-07) - Latest flagship model with advanced agentic capabilities
+    #[serde(rename = "gpt-5")]
+    GPT5,
+
+    /// GPT-5 Mini model (2025-08-07) - Balanced performance and efficiency
+    #[serde(rename = "gpt-5-mini")]
+    GPT5Mini,
+
+    /// GPT-5 Nano model (2025-08-07) - Fastest, most efficient variant
+    #[serde(rename = "gpt-5-nano")]
+    GPT5Nano,
+
     // === Latest Generation (2025) ===
     /// o3 reasoning model (2025-04-16) - Latest reasoning model
     #[serde(rename = "o3")]
@@ -307,6 +320,11 @@ pub enum Model {
 impl From<String> for Model {
     fn from(s: String) -> Self {
         match s.as_str() {
+            // GPT-5 Series
+            "gpt-5" => Self::GPT5,
+            "gpt-5-mini" => Self::GPT5Mini,
+            "gpt-5-nano" => Self::GPT5Nano,
+
             // Latest Generation (2025)
             "o3" => Self::O3,
             "o4-mini" => Self::O4Mini,
@@ -357,6 +375,11 @@ impl From<&str> for Model {
 impl std::fmt::Display for Model {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            // GPT-5 Series
+            Model::GPT5 => write!(f, "gpt-5"),
+            Model::GPT5Mini => write!(f, "gpt-5-mini"),
+            Model::GPT5Nano => write!(f, "gpt-5-nano"),
+
             // Latest Generation (2025)
             Model::O3 => write!(f, "o3"),
             Model::O4Mini => write!(f, "o4-mini"),

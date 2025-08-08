@@ -50,6 +50,11 @@ pub struct ReasoningParams {
     /// Summary setting for reasoning output
     #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<SummarySetting>,
+
+    /// GPT-5 reasoning effort control (minimal/medium/high)
+    /// Internal only: we derive `effort` for wire format as API expects
+    #[serde(skip_serializing)]
+    pub reasoning_effort: Option<ReasoningEffort>,
 }
 
 impl ReasoningParams {
@@ -59,6 +64,7 @@ impl ReasoningParams {
         Self {
             effort: None,
             summary: None,
+            reasoning_effort: None,
         }
     }
 
@@ -75,6 +81,20 @@ impl ReasoningParams {
         self.summary = Some(summary);
         self
     }
+
+    /// Set GPT-5 reasoning effort level; also map to `effort` for backward compatibility
+    #[must_use]
+    pub fn with_reasoning_effort(mut self, effort: ReasoningEffort) -> Self {
+        self.effort = Some(match effort {
+            ReasoningEffort::Minimal => Effort::Low,
+            ReasoningEffort::Medium => Effort::Medium,
+            ReasoningEffort::High => Effort::High,
+        });
+        self.reasoning_effort = Some(effort);
+        self
+    }
+
+    // (second with_reasoning_effort removed; deduplicated)
 
     /// Enable medium effort reasoning (balanced speed and thoroughness)
     #[must_use]
@@ -153,6 +173,18 @@ impl ReasoningParams {
             .with_effort(Effort::High)
             .with_summary(SummarySetting::Detailed)
     }
+}
+
+/// Reasoning effort levels for GPT-5 models
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ReasoningEffort {
+    /// Minimal reasoning tokens for fast, deterministic tasks
+    Minimal,
+    /// Balanced reasoning depth and performance (default)
+    Medium,
+    /// Maximum reasoning depth for complex problem-solving
+    High,
 }
 
 impl Default for ReasoningParams {
