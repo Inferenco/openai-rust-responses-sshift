@@ -108,7 +108,7 @@ mod tests {
     fn test_filter_serialization() {
         let filter = Filter::and(vec![
             FilterCondition::eq("tags", json!(["aptos", "validators"])),
-            FilterCondition::lte("valid_from", json!(1640995200)),
+            FilterCondition::lte("valid_from", json!(1_640_995_200)),
         ]);
 
         let serialized = serde_json::to_string(&filter).unwrap();
@@ -133,9 +133,9 @@ mod tests {
         assert_eq!(contains_condition.operator, "contains_any");
         assert_eq!(contains_condition.value, json!(["rust", "api"]));
 
-        let gte_condition = FilterCondition::gte("created_at", json!(1640995200));
+        let gte_condition = FilterCondition::gte("created_at", json!(1_640_995_200));
         assert_eq!(gte_condition.operator, "gte");
-        assert_eq!(gte_condition.value, json!(1640995200));
+        assert_eq!(gte_condition.value, json!(1_640_995_200));
     }
 
     #[test]

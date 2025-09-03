@@ -1276,7 +1276,7 @@ mod unit_tests {
         // Test file search with filters (new functionality)
         let filters = Filter::and(vec![
             FilterCondition::contains_any("tags", vec![json!("aptos"), json!("validators")]),
-            FilterCondition::lte("valid_from", json!(1640995200)),
+            FilterCondition::lte("valid_from", json!(1_640_995_200)),
         ]);
         let filter_tool = Tool::file_search_with_filters(
             vec!["vs_abc".to_string()],
@@ -1371,8 +1371,8 @@ mod unit_tests {
         let eq_condition = FilterCondition::eq("status", json!("active"));
         let in_condition = FilterCondition::in_array("type", vec![json!("doc"), json!("pdf")]);
         let contains_condition = FilterCondition::contains_any("tags", vec![json!("rust")]);
-        let lte_condition = FilterCondition::lte("created_at", json!(1640995200));
-        let gte_condition = FilterCondition::gte("updated_at", json!(1640995200));
+        let lte_condition = FilterCondition::lte("created_at", json!(1_640_995_200));
+        let gte_condition = FilterCondition::gte("updated_at", json!(1_640_995_200));
         let lt_condition = FilterCondition::lt("size", json!(1000));
         let gt_condition = FilterCondition::gt("priority", json!(5));
         let ne_condition = FilterCondition::ne("deleted", json!(true));
