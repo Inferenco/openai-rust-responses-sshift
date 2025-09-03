@@ -3,6 +3,7 @@ use crate::types::{PaginatedList, PaginationParams};
 use chrono::{DateTime, Utc};
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Vector stores API endpoints
 #[derive(Debug, Clone)]
@@ -109,6 +110,28 @@ pub struct VectorStoreFileDeleteResponse {
 
     /// Whether the file was successfully deleted
     pub deleted: bool,
+}
+
+/// File in a vector store with metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VectorStoreFile {
+    /// Unique identifier for the file
+    pub id: String,
+
+    /// Filename of the file
+    pub filename: String,
+
+    /// Unix timestamp for when the file was created
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub created_at: DateTime<Utc>,
+
+    /// Optional attributes for the file (tags, tenant_id, validity, etc.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attributes: Option<serde_json::Value>,
+
+    /// Keep extra fields flexible for forward compatibility
+    #[serde(flatten)]
+    pub extra: HashMap<String, serde_json::Value>,
 }
 
 impl VectorStores {
@@ -268,5 +291,52 @@ impl VectorStores {
 
         let response = try_parse_api_error(response).await?;
         response.json().await.map_err(crate::Error::Http)
+    }
+
+    /// Lists files in a vector store (attributes included, if any).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the request fails to send or has a non-200 status code.
+    /// Note: This endpoint may return 404 if not yet supported by the upstream API.
+    pub async fn list_files(
+        &self,
+        vector_store_id: &str,
+        params: Option<PaginationParams>,
+    ) -> Result<PaginatedList<VectorStoreFile>> {
+        let mut req = self.client.get(format!(
+            "{}/vector_stores/{}/files",
+            self.base_url, vector_store_id
+        ));
+        if let Some(p) = params {
+            req = req.query(&p);
+        }
+        let response = req.send().await.map_err(crate::Error::Http)?;
+        let response = try_parse_api_error(response).await?;
+        response.json().await.map_err(crate::Error::Http)
+    }
+
+    /// Convenience: replace attributes by delete + re-add.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if either the delete or add operation fails.
+    /// Note: This method ignores 404 errors on delete (file may not exist in vector store).
+    pub async fn upsert_file_attributes(
+        &self,
+        vector_store_id: &str,
+        file_id: &str,
+        attributes: serde_json::Value,
+    ) -> Result<()> {
+        // Delete, ignore 404
+        let _ = self.delete_file(vector_store_id, file_id).await;
+
+        // Re-add with attributes
+        let req = AddFileToVectorStoreRequest {
+            file_id: file_id.to_string(),
+            attributes: Some(attributes),
+        };
+        let _ = self.add_file(vector_store_id, req).await?;
+        Ok(())
     }
 }

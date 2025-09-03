@@ -50,7 +50,7 @@ pub use images::{ImageData, ImageGenerateRequest, ImageGenerateResponse};
 // Re-export vector store types
 pub use vector_stores::{
     AddFileToVectorStoreRequest, CreateVectorStoreRequest, SearchVectorStoreRequest,
-    SearchVectorStoreResponse, VectorStore, VectorStoreFileDeleteResponse,
+    SearchVectorStoreResponse, VectorStore, VectorStoreFile, VectorStoreFileDeleteResponse,
 };
 
 // Re-export error types

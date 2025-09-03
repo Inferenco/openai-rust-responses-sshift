@@ -85,6 +85,10 @@ pub struct Tool {
     /// Optional grammar constraints (context-free grammar) for free-form outputs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grammar: Option<ContextFreeGrammar>,
+
+    /// Metadata filters for file_search (schema is backend-defined; pass raw JSON)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filters: Option<serde_json::Value>,
 }
 
 /// Function definition for a tool
@@ -168,6 +172,7 @@ impl Tool {
             function: None,
             free_form: None,
             grammar: None,
+            filters: None,
         }
     }
 
@@ -189,6 +194,7 @@ impl Tool {
             function: None,
             free_form: Some(true),
             grammar: None,
+            filters: None,
         }
     }
 
@@ -214,6 +220,7 @@ impl Tool {
             function: None,
             free_form: Some(true),
             grammar: Some(grammar),
+            filters: None,
         }
     }
 
@@ -235,6 +242,7 @@ impl Tool {
             function: None,
             free_form: None,
             grammar: None,
+            filters: None,
         }
     }
 
@@ -256,6 +264,32 @@ impl Tool {
             headers: None,
             free_form: None,
             grammar: None,
+            filters: None,
+        }
+    }
+
+    /// Creates a file search tool with filters
+    #[must_use]
+    pub fn file_search_with_filters(
+        vector_store_ids: Vec<String>,
+        filters: serde_json::Value,
+    ) -> Self {
+        Self {
+            tool_type: "file_search".to_string(),
+            name: None,
+            description: None,
+            parameters: None,
+            function: None,
+            vector_store_ids: Some(vector_store_ids),
+            container: None,
+            partial_images: None,
+            require_approval: None,
+            server_label: None,
+            server_url: None,
+            headers: None,
+            free_form: None,
+            grammar: None,
+            filters: Some(filters),
         }
     }
 
@@ -277,6 +311,7 @@ impl Tool {
             function: None,
             free_form: None,
             grammar: None,
+            filters: None,
         }
     }
 
@@ -298,6 +333,7 @@ impl Tool {
             function: None,
             free_form: None,
             grammar: None,
+            filters: None,
         }
     }
 
@@ -321,6 +357,7 @@ impl Tool {
             function: None,
             free_form: None,
             grammar: None,
+            filters: None,
         }
     }
 
@@ -346,6 +383,7 @@ impl Tool {
             function: None,
             free_form: None,
             grammar: None,
+            filters: None,
         }
     }
 
@@ -372,7 +410,15 @@ impl Tool {
             function: None,
             free_form: None,
             grammar: None,
+            filters: None,
         }
+    }
+
+    /// Adds filters to an existing tool (builder pattern)
+    #[must_use]
+    pub fn with_filters(mut self, filters: serde_json::Value) -> Self {
+        self.filters = Some(filters);
+        self
     }
 }
 
