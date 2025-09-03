@@ -1260,6 +1260,141 @@ mod unit_tests {
     }
 
     #[test]
+    fn test_file_search_with_filters() {
+        use crate::types::{Filter, FilterCondition, Tool};
+        use serde_json::json;
+
+        // Test file search without filters (existing functionality)
+        let basic_tool = Tool::file_search(vec!["vs_123".to_string()]);
+        assert_eq!(basic_tool.tool_type, "file_search");
+        assert_eq!(
+            basic_tool.vector_store_ids,
+            Some(vec!["vs_123".to_string()])
+        );
+        assert!(basic_tool.filters.is_none());
+
+        // Test file search with filters (new functionality)
+        let filters = Filter::and(vec![
+            FilterCondition::contains_any("tags", vec![json!("aptos"), json!("validators")]),
+            FilterCondition::lte("valid_from", json!(1640995200)),
+        ]);
+        let filter_tool = Tool::file_search_with_filters(
+            vec!["vs_abc".to_string()],
+            serde_json::to_value(filters).unwrap(),
+        );
+
+        assert_eq!(filter_tool.tool_type, "file_search");
+        assert_eq!(
+            filter_tool.vector_store_ids,
+            Some(vec!["vs_abc".to_string()])
+        );
+        assert!(filter_tool.filters.is_some());
+
+        // Test builder pattern
+        let builder_tool = Tool::file_search(vec!["vs_def".to_string()])
+            .with_filters(json!({"type": "and", "conditions": []}));
+        assert!(builder_tool.filters.is_some());
+    }
+
+    #[test]
+    fn test_tool_serialization_with_filters() {
+        use crate::types::{Filter, FilterCondition, Tool};
+        use serde_json::json;
+
+        let filters = Filter::and(vec![FilterCondition::contains_any(
+            "tags",
+            vec![json!("aptos"), json!("validators")],
+        )]);
+        let tool = Tool::file_search_with_filters(
+            vec!["vs_abc".to_string()],
+            serde_json::to_value(filters).unwrap(),
+        );
+
+        let serialized = serde_json::to_string(&tool).unwrap();
+        assert!(serialized.contains("\"type\":\"file_search\""));
+        assert!(serialized.contains("\"vector_store_ids\":[\"vs_abc\"]"));
+        assert!(serialized.contains("\"filters\""));
+        assert!(serialized.contains("\"contains_any\""));
+
+        // Test that filters are excluded when None
+        let basic_tool = Tool::file_search(vec!["vs_123".to_string()]);
+        let basic_serialized = serde_json::to_string(&basic_tool).unwrap();
+        assert!(!basic_serialized.contains("\"filters\""));
+    }
+
+    #[test]
+    fn test_vector_store_file_serialization() {
+        use crate::vector_stores::VectorStoreFile;
+        use chrono::Utc;
+        use serde_json::json;
+        use std::collections::HashMap;
+
+        let mut extra = HashMap::new();
+        extra.insert("custom_field".to_string(), json!("custom_value"));
+        extra.insert("object".to_string(), json!("vector_store.file"));
+
+        let file = VectorStoreFile {
+            id: "file_123".to_string(),
+            filename: "test.txt".to_string(),
+            created_at: Utc::now(),
+            attributes: Some(json!({
+                "tags": ["rust", "api"],
+                "tenant_id": "user_456"
+            })),
+            extra,
+        };
+
+        // Test serialization
+        let json_str = serde_json::to_string(&file).unwrap();
+        assert!(json_str.contains("\"id\":\"file_123\""));
+        assert!(json_str.contains("\"filename\":\"test.txt\""));
+        assert!(json_str.contains("\"attributes\""));
+        assert!(json_str.contains("\"custom_field\":\"custom_value\""));
+
+        // Test deserialization (roundtrip)
+        let deserialized: VectorStoreFile = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(deserialized.id, "file_123");
+        assert_eq!(deserialized.filename, "test.txt");
+        assert!(deserialized.attributes.is_some());
+        assert_eq!(
+            deserialized.extra.get("custom_field"),
+            Some(&json!("custom_value"))
+        );
+    }
+
+    #[test]
+    fn test_filter_builder_comprehensive() {
+        use crate::types::{Filter, FilterCondition};
+        use serde_json::json;
+
+        // Test all condition types
+        let eq_condition = FilterCondition::eq("status", json!("active"));
+        let in_condition = FilterCondition::in_array("type", vec![json!("doc"), json!("pdf")]);
+        let contains_condition = FilterCondition::contains_any("tags", vec![json!("rust")]);
+        let lte_condition = FilterCondition::lte("created_at", json!(1640995200));
+        let gte_condition = FilterCondition::gte("updated_at", json!(1640995200));
+        let lt_condition = FilterCondition::lt("size", json!(1000));
+        let gt_condition = FilterCondition::gt("priority", json!(5));
+        let ne_condition = FilterCondition::ne("deleted", json!(true));
+
+        // Test complex nested filter
+        let complex_filter = Filter::or(vec![eq_condition.clone(), contains_condition.clone()]);
+
+        // Should serialize without errors
+        let _json = serde_json::to_string(&complex_filter).unwrap();
+
+        // Test individual conditions
+        assert_eq!(eq_condition.operator, "eq");
+        assert_eq!(in_condition.operator, "in");
+        assert_eq!(contains_condition.operator, "contains_any");
+        assert_eq!(lte_condition.operator, "lte");
+        assert_eq!(gte_condition.operator, "gte");
+        assert_eq!(lt_condition.operator, "lt");
+        assert_eq!(gt_condition.operator, "gt");
+        assert_eq!(ne_condition.operator, "ne");
+    }
+
+    #[test]
     fn test_image_input_base64() {
         use crate::types::InputItem;
 
