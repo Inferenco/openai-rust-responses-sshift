@@ -407,7 +407,7 @@ pub struct ToolResult {
 }
 
 /// Function call information
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionCallInfo {
     /// Name of the function
     pub name: String,
