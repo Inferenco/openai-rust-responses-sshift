@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2025-01-27
+
+### 🔧 Serialization Support
+- Added `Serialize` and `Deserialize` derives to `FunctionCallInfo` struct
+- Enables JSON serialization/deserialization of function call information
+- Improves interoperability with external systems and APIs
+
 ## [0.3.0] - 2025-08-08
 
 ### 🚀 GPT‑5 Support
