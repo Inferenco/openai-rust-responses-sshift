@@ -73,6 +73,16 @@ This SDK includes cutting-edge features with full API parity:
 
 **Revolutionary error handling**: SDK automatically detects and recovers from expired containers without breaking user flow!
 
+* 🔁 Fine-tune retry behavior with [`RetryScope`](src/types/config.rs) and
+  inspect the active policy via `client.responses.recovery_policy()`.
+* ⚙️ Use `Client::from_env_with_recovery_policy()` to load optional overrides
+  (`OAI_RECOVERY_MAX_RETRIES`, `OAI_RECOVERY_AUTO_RETRY`,
+  `OAI_RECOVERY_AUTO_PRUNE`, `OAI_RECOVERY_LOG`, `OAI_RECOVERY_SCOPE`). Leaving
+  them unset preserves legacy defaults.
+* 🚫 Call `create_no_recovery` when you need the very first error without any
+  retry loop.
+* 📚 [Read the full documentation »](./DOCUMENTATION.md#advanced-container-recovery-system)
+
 ```rust
 use open_ai_rust_responses_by_sshift::{Client, RecoveryPolicy, Request, Tool, Container};
 
@@ -99,6 +109,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Success: {}", response.output_text());
     Ok(())
 }
+```
+
+```rust
+// Inspect the policy currently in use
+let policy = client.responses.recovery_policy();
+println!("retry scope: {}", policy.retry_scope.as_str());
 ```
 
 **Recovery Policies**:
@@ -132,11 +148,33 @@ if response_with_recovery.had_recovery() {
 println!("Response: {}", response_with_recovery.response.output_text());
 ```
 
+**Skip Recovery When Needed**:
+```rust
+// Surface the first failure without retrying
+let response = client.responses.create_no_recovery(request).await?;
+```
+
 **Manual Context Pruning**:
 ```rust
 // Proactively clean expired context
 let cleaned_request = client.responses.prune_expired_context_manual(request);
 let response = client.responses.create(cleaned_request).await?;
+```
+
+**Debugging Retries**:
+```rust
+let verbose_policy = RecoveryPolicy::default()
+    .with_logging(true)
+    .with_max_retries(2);
+
+let client = Client::new_with_recovery(&api_key, verbose_policy)?;
+```
+
+```
+DEBUG Preparing to send attempt 1 (retry_count=0, has_last_error=false)
+DEBUG handle_error_with_retry: classification=container_expired, scope=all_recoverable, retry_count=0->1, retry_after=1s, decision=Continue
+DEBUG Preparing to send attempt 2 (retry_count=1, has_last_error=true)
+INFO  Successfully recovered after 1 attempt(s) (classification=container_expired)
 ```
 
 **Environment Overrides**:

@@ -417,6 +417,22 @@ let client = Client::new_with_recovery(&api_key, policy)?;
 // - Logging: enabled
 ```
 
+### 🧭 **Retry Scope Control**
+
+Each policy carries a [`RetryScope`](src/types/config.rs) that limits which
+recoverable errors trigger automatic retries. The default scope is
+`RetryScope::AllRecoverable`, but you can opt into targeted behavior:
+
+```rust
+use open_ai_rust_responses_by_sshift::{RecoveryPolicy, RetryScope};
+
+let container_only = RecoveryPolicy::default().with_retry_scope(RetryScope::ContainerOnly);
+let transient_only = RecoveryPolicy::aggressive().with_retry_scope(RetryScope::TransientOnly);
+```
+
+Scopes can also be selected through the `OAI_RECOVERY_SCOPE` environment
+variable (`all`, `container`, or `transient`).
+
 ### 🔧 **Custom Recovery Policies**
 
 Build your own recovery strategy:
@@ -457,6 +473,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+#### **Skip Recovery When Needed**
+
+Need to surface the first failure without retries? Use
+`create_no_recovery` to bypass the container recovery loop while keeping the
+configured policy intact for other calls:
+
+```rust
+let response = client.responses.create_no_recovery(request).await?; // Returns immediately on error
+```
+
 #### **Recovery with Detailed Information**
 ```rust
 use open_ai_rust_responses_by_sshift::ResponseWithRecovery;
@@ -480,6 +506,23 @@ if response_with_recovery.had_recovery() {
 
 println!("Response: {}", response_with_recovery.response.output_text());
 ```
+
+### 🪪 **Inspecting the Active Policy**
+
+The recovery policy is stored on the `Responses` service and can be inspected at
+runtime:
+
+```rust
+let policy = client.responses.recovery_policy();
+println!(
+    "Retries: {}, scope: {}",
+    policy.max_retries,
+    policy.retry_scope.as_str()
+);
+```
+
+This is particularly helpful when policies are provided by dependency injection
+or environment configuration.
 
 ### 🧹 **Manual Context Pruning**
 
@@ -558,10 +601,21 @@ let client = Client::from_env_with_base_url_and_recovery(
 let client = Client::from_env_with_recovery_policy()?;
 ```
 
-`RecoveryPolicy::from_env()` respects the library defaults: if an override variable is missing or
-cannot be parsed, the corresponding field simply keeps its default value. Supported overrides are
-`OAI_RECOVERY_MAX_RETRIES` (`u32`), `OAI_RECOVERY_AUTO_RETRY`, `OAI_RECOVERY_AUTO_PRUNE`,
-`OAI_RECOVERY_LOG` (all `bool`), and `OAI_RECOVERY_SCOPE` (`all`, `container`, or `transient`).
+`Client::from_env_with_recovery_policy()` uses
+[`RecoveryPolicy::from_env`](src/types/config.rs) to construct a policy. Every
+override is optional—if you leave the environment unset the historic default
+behavior remains intact. Supported keys:
+
+| Variable | Type | Effect |
+| --- | --- | --- |
+| `OAI_RECOVERY_MAX_RETRIES` | `u32` | Overrides the retry cap |
+| `OAI_RECOVERY_AUTO_RETRY` | `bool` | Enables/disables automatic retry |
+| `OAI_RECOVERY_AUTO_PRUNE` | `bool` | Controls context pruning |
+| `OAI_RECOVERY_LOG` | `bool` | Enables recovery debug logging |
+| `OAI_RECOVERY_SCOPE` | `all` \| `container` \| `transient` | Sets the [`RetryScope`](src/types/config.rs) |
+
+Each value is parsed individually; missing or invalid entries leave the current
+defaults untouched.
 
 #### **HTTP Client with Recovery**
 ```rust
@@ -617,6 +671,32 @@ The SDK automatically detects these container expiration patterns:
 - `"Container expired"`
 - `"Session expired"`
 - API error types indicating container lifecycle issues
+
+### 🐛 **Debugging Retries**
+
+Enable `log_recovery_attempts` on your policy (or set `OAI_RECOVERY_LOG=true`)
+to trace every retry classification and decision:
+
+```rust
+let verbose_policy = RecoveryPolicy::default()
+    .with_logging(true)
+    .with_max_retries(2);
+
+let client = Client::new_with_recovery(&api_key, verbose_policy)?;
+```
+
+Sample log output:
+
+```
+DEBUG Preparing to send attempt 1 (retry_count=0, has_last_error=false)
+DEBUG handle_error_with_retry: classification=container_expired, scope=all_recoverable, retry_count=0->1, retry_after=1s, decision=Continue
+DEBUG Preparing to send attempt 2 (retry_count=1, has_last_error=true)
+INFO  Successfully recovered after 1 attempt(s) (classification=container_expired)
+```
+
+Each entry highlights the error classification, retry scope, and final decision,
+making it easy to distinguish container-expiration recovery from transient
+retries.
 
 ### 📊 **Benefits**
 
