@@ -1,6 +1,7 @@
 use crate::error::{try_parse_api_error, Result};
 use crate::types::{RecoveryCallback, RecoveryPolicy};
 use reqwest::Client as HttpClient;
+use std::fmt;
 use std::sync::Arc;
 
 /// Decision for retry logic
@@ -9,6 +10,40 @@ enum RetryDecision {
     Continue,
     /// Return error
     Error(crate::Error),
+}
+
+/// Lightweight formatter for recovery policy snapshots
+struct FormattedRecoveryPolicy<'a> {
+    policy: &'a RecoveryPolicy,
+}
+
+impl<'a> fmt::Display for FormattedRecoveryPolicy<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let policy = self.policy;
+        let reset_message = policy
+            .reset_message
+            .as_deref()
+            .unwrap_or("<default>");
+        let retry_scope = policy_retry_scope(policy).unwrap_or("<unset>");
+
+        write!(
+            f,
+            "auto_retry_on_expired_container={}, notify_on_reset={}, max_retries={}, \
+auto_prune_expired_containers={}, log_recovery_attempts={}, reset_message={}, retry_scope={}",
+            policy.auto_retry_on_expired_container,
+            policy.notify_on_reset,
+            policy.max_retries,
+            policy.auto_prune_expired_containers,
+            policy.log_recovery_attempts,
+            reset_message,
+            retry_scope
+        )
+    }
+}
+
+fn policy_retry_scope(policy: &RecoveryPolicy) -> Option<&str> {
+    let _ = policy;
+    None
 }
 
 /// Recovery result information
@@ -172,6 +207,16 @@ impl Responses {
         self
     }
 
+    fn policy_snapshot(&self) -> Option<FormattedRecoveryPolicy<'_>> {
+        if !self.recovery_policy.log_recovery_attempts {
+            return None;
+        }
+
+        Some(FormattedRecoveryPolicy {
+            policy: &self.recovery_policy,
+        })
+    }
+
     /// Creates a response with automatic recovery from container expiration
     ///
     /// # Errors
@@ -182,11 +227,23 @@ impl Responses {
         &self,
         request: crate::Request,
     ) -> Result<ResponseWithRecovery> {
+        if let Some(snapshot) = self.policy_snapshot() {
+            log::debug!("Starting recovery-enabled request with policy: {snapshot}");
+        }
+
         let mut current_request = request;
-        let mut retry_count = 0;
+        let mut retry_count: u32 = 0;
         let mut last_error: Option<crate::Error> = None;
 
         loop {
+            if self.recovery_policy.log_recovery_attempts {
+                let attempt_number = retry_count.saturating_add(1);
+                let has_last_error = last_error.is_some();
+                log::debug!(
+                    "Preparing to send attempt {attempt_number} (retry_count={retry_count}, has_last_error={has_last_error})"
+                );
+            }
+
             match self.create_internal(&current_request).await {
                 Ok(response) => {
                     return Ok(self.handle_successful_response(
@@ -230,9 +287,14 @@ impl Responses {
             );
 
             if self.recovery_policy.log_recovery_attempts {
-                log::info!(
-                    "Successfully recovered from container expiration after {retry_count} attempts"
-                );
+                if let Some(error) = last_error {
+                    log::info!(
+                        "Successfully recovered after {retry_count} attempt(s) (classification={})",
+                        error.classify()
+                    );
+                } else {
+                    log::info!("Successfully recovered after {retry_count} attempt(s)");
+                }
             }
 
             return ResponseWithRecovery::with_recovery(response, recovery_info);
@@ -249,13 +311,26 @@ impl Responses {
         retry_count: &mut u32,
         last_error: &mut Option<crate::Error>,
     ) -> RetryDecision {
-        if error.is_recoverable()
+        let logging_enabled = self.recovery_policy.log_recovery_attempts;
+        let classification = error.classify();
+        let suggested_retry_after = error.retry_after();
+        let current_retry_count = *retry_count;
+        let can_retry = error.is_recoverable()
             && self.recovery_policy.auto_retry_on_expired_container
-            && *retry_count < self.recovery_policy.max_retries
-        {
-            *retry_count += 1;
-            let retry_delay = error.retry_after().unwrap_or(1);
+            && *retry_count < self.recovery_policy.max_retries;
 
+        if can_retry {
+            let before_retry_count = current_retry_count;
+            let next_retry_count = retry_count.saturating_add(1);
+            let retry_delay = suggested_retry_after.unwrap_or(1);
+
+            if logging_enabled {
+                log::debug!(
+                    "handle_error_with_retry: classification={classification}, retry_count={before_retry_count}->{next_retry_count}, retry_after={retry_delay}s, decision=Continue"
+                );
+            }
+
+            *retry_count = next_retry_count;
             self.log_retry_attempt(&error, *retry_count, retry_delay);
             *last_error = Some(error);
 
@@ -274,12 +349,22 @@ impl Responses {
             // Can't recover or max retries exceeded
             if *retry_count > 0 {
                 if self.recovery_policy.log_recovery_attempts {
+                    if logging_enabled {
+                        log::debug!(
+                            "handle_error_with_retry: classification={classification}, retry_count={current_retry_count}->{current_retry_count}, retry_after={suggested_retry_after:?}, decision=MaxRetriesExceeded"
+                        );
+                    }
                     log::error!("Recovery failed after {} attempts: {error}", *retry_count);
                 }
                 RetryDecision::Error(crate::Error::MaxRetriesExceeded {
                     attempts: *retry_count,
                 })
             } else {
+                if logging_enabled {
+                    log::debug!(
+                        "handle_error_with_retry: classification={classification}, retry_count={current_retry_count}, retry_after={suggested_retry_after:?}, decision=Propagate"
+                    );
+                }
                 RetryDecision::Error(error)
             }
         }
@@ -432,7 +517,20 @@ impl Responses {
     ///
     /// Returns an error if the request fails to send or has a non-200 status code.
     pub async fn create(&self, request: crate::Request) -> Result<crate::Response> {
-        if self.recovery_policy.auto_retry_on_expired_container {
+        let use_recovery = self.recovery_policy.auto_retry_on_expired_container;
+
+        if let Some(snapshot) = self.policy_snapshot() {
+            let branch = if use_recovery {
+                "recovery loop"
+            } else {
+                "direct"
+            };
+            log::debug!(
+                "create() delegating via {branch} branch; active policy: {snapshot}"
+            );
+        }
+
+        if use_recovery {
             // Use the recovery-enabled version and extract just the response
             self.create_with_recovery(request).await.map(|r| r.response)
         } else {

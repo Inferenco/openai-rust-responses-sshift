@@ -176,6 +176,31 @@ pub enum Error {
 }
 
 impl Error {
+    /// Returns a short classification label for logging and metrics purposes
+    #[must_use]
+    pub fn classify(&self) -> &'static str {
+        match self {
+            Self::Api { .. } => "api",
+            Self::ServerError { .. } => "server_error",
+            Self::BadGateway { .. } => "bad_gateway",
+            Self::ServiceUnavailable { .. } => "service_unavailable",
+            Self::GatewayTimeout { .. } => "gateway_timeout",
+            Self::RateLimited { .. } => "rate_limited",
+            Self::AuthenticationFailed { .. } => "authentication_failed",
+            Self::AuthorizationFailed { .. } => "authorization_failed",
+            Self::ClientError { .. } => "client_error",
+            Self::ContainerExpired { .. } => "container_expired",
+            Self::Http(_) => "http",
+            Self::HttpStatus(_) => "http_status",
+            Self::Json(_) => "json",
+            Self::Stream(_) => "stream",
+            Self::InvalidApiKey => "invalid_api_key",
+            Self::ApiKeyNotFound => "api_key_not_found",
+            Self::ContextRecovery(_) => "context_recovery",
+            Self::MaxRetriesExceeded { .. } => "max_retries_exceeded",
+        }
+    }
+
     /// Returns true if this error indicates a container has expired
     #[must_use]
     pub fn is_container_expired(&self) -> bool {
