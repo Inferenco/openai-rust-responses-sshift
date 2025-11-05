@@ -148,6 +148,16 @@ impl Client {
         Self::from_env_with_base_url("https://api.openai.com/v1")
     }
 
+    /// Creates a client from the environment, loading both API key and recovery policy.
+    ///
+    /// The `OPENAI_API_KEY` variable is required; the recovery policy uses
+    /// [`RecoveryPolicy::from_env`], so any recovery-related environment variables that are
+    /// missing (or invalid) keep their default values.
+    pub fn from_env_with_recovery_policy() -> std::result::Result<Self, CreateError> {
+        let recovery_policy = RecoveryPolicy::from_env();
+        Self::from_env_with_recovery(recovery_policy)
+    }
+
     /// Creates a client from the `OPENAI_API_KEY` environment variable with a custom base URL
     ///
     /// # Errors

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::env;
 
 /// Scope that controls which recoverable errors should be retried automatically.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,7 +30,10 @@ impl Default for RetryScope {
     }
 }
 
-/// Recovery policy for handling container expiration and other recoverable errors
+/// Recovery policy for handling container expiration and other recoverable errors.
+///
+/// When constructed via [`RecoveryPolicy::from_env`], any environment variables that are
+/// missing (or fail to parse) leave the default values unchanged.
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RecoveryPolicy {
@@ -75,6 +79,110 @@ impl RecoveryPolicy {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Creates a recovery policy by reading optional environment overrides.
+    ///
+    /// Supported variables:
+    ///
+    /// - `OAI_RECOVERY_MAX_RETRIES` (`u32`)
+    /// - `OAI_RECOVERY_AUTO_RETRY` (`bool`)
+    /// - `OAI_RECOVERY_AUTO_PRUNE` (`bool`)
+    /// - `OAI_RECOVERY_LOG` (`bool`)
+    /// - `OAI_RECOVERY_SCOPE` (`all | container | transient`)
+    ///
+    /// Any variable that is unset or fails to parse will leave the default value intact.
+    #[must_use]
+    pub fn from_env() -> Self {
+        let mut policy = Self::default();
+
+        if let Ok(value) = env::var("OAI_RECOVERY_MAX_RETRIES") {
+            let trimmed = value.trim();
+            match trimmed.parse::<u32>() {
+                Ok(parsed) => {
+                    policy.max_retries = parsed;
+                }
+                Err(error) => {
+                    log::warn!(
+                        "Failed to parse OAI_RECOVERY_MAX_RETRIES='{}': {error}; using default {}",
+                        trimmed,
+                        policy.max_retries
+                    );
+                }
+            }
+        }
+
+        if let Ok(value) = env::var("OAI_RECOVERY_AUTO_RETRY") {
+            let trimmed = value.trim();
+            match trimmed.parse::<bool>() {
+                Ok(parsed) => {
+                    policy.auto_retry_on_expired_container = parsed;
+                }
+                Err(error) => {
+                    log::warn!(
+                        "Failed to parse OAI_RECOVERY_AUTO_RETRY='{}': {error}; using default {}",
+                        trimmed,
+                        policy.auto_retry_on_expired_container
+                    );
+                }
+            }
+        }
+
+        if let Ok(value) = env::var("OAI_RECOVERY_AUTO_PRUNE") {
+            let trimmed = value.trim();
+            match trimmed.parse::<bool>() {
+                Ok(parsed) => {
+                    policy.auto_prune_expired_containers = parsed;
+                }
+                Err(error) => {
+                    log::warn!(
+                        "Failed to parse OAI_RECOVERY_AUTO_PRUNE='{}': {error}; using default {}",
+                        trimmed,
+                        policy.auto_prune_expired_containers
+                    );
+                }
+            }
+        }
+
+        if let Ok(value) = env::var("OAI_RECOVERY_LOG") {
+            let trimmed = value.trim();
+            match trimmed.parse::<bool>() {
+                Ok(parsed) => {
+                    policy.log_recovery_attempts = parsed;
+                }
+                Err(error) => {
+                    log::warn!(
+                        "Failed to parse OAI_RECOVERY_LOG='{}': {error}; using default {}",
+                        trimmed,
+                        policy.log_recovery_attempts
+                    );
+                }
+            }
+        }
+
+        if let Ok(value) = env::var("OAI_RECOVERY_SCOPE") {
+            let trimmed = value.trim().to_ascii_lowercase();
+            match trimmed.as_str() {
+                "all" => {
+                    policy.retry_scope = RetryScope::AllRecoverable;
+                }
+                "container" => {
+                    policy.retry_scope = RetryScope::ContainerOnly;
+                }
+                "transient" => {
+                    policy.retry_scope = RetryScope::TransientOnly;
+                }
+                _ => {
+                    log::warn!(
+                        "Unrecognized OAI_RECOVERY_SCOPE='{}'; expected all|container|transient; using default {}",
+                        trimmed,
+                        policy.retry_scope.as_str()
+                    );
+                }
+            }
+        }
+
+        policy
     }
 
     /// Creates a conservative recovery policy (no automatic retries)

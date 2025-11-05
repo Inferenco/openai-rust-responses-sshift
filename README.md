@@ -139,6 +139,26 @@ let cleaned_request = client.responses.prune_expired_context_manual(request);
 let response = client.responses.create(cleaned_request).await?;
 ```
 
+**Environment Overrides**:
+```rust
+use open_ai_rust_responses_by_sshift::{Client, RecoveryPolicy};
+
+// Load defaults, overriding only when specific env vars are provided
+let policy = RecoveryPolicy::from_env();
+
+// OPENAI_API_KEY is still required, but recovery env vars are optional
+let client = Client::from_env_with_recovery_policy()?;
+```
+
+Environment variables only adjust the fields you set—everything else keeps the library defaults.
+Supported overrides include:
+
+- `OAI_RECOVERY_MAX_RETRIES` (`u32`)
+- `OAI_RECOVERY_AUTO_RETRY` (`bool`)
+- `OAI_RECOVERY_AUTO_PRUNE` (`bool`)
+- `OAI_RECOVERY_LOG` (`bool`)
+- `OAI_RECOVERY_SCOPE` (`all`, `container`, or `transient`)
+
 **Key Benefits**:
 - 🔄 **Transparent Recovery**: Container expiration handled automatically
 - ⚙️ **Configurable Policies**: Choose the strategy that fits your app
