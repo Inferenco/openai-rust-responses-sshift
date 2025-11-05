@@ -122,7 +122,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@1.82.0  # Updated to support modern dependencies
+    - uses: dtolnay/rust-toolchain@1.83.0  # Updated to support modern dependencies (ICU 2.1.1 requires 1.83)
     - name: Check MSRV
       run: cargo check --all-features
     - name: Check MSRV examples
