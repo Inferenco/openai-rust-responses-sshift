@@ -1030,6 +1030,8 @@ impl Responses {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{RecoveryPolicy, RetryScope};
+    use std::time::Duration;
 
     #[tokio::test]
     async fn create_no_recovery_surfaces_first_error_without_retry() {
@@ -1065,5 +1067,77 @@ mod tests {
         }
 
         _mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn max_retries_three_yields_max_retries_exceeded() {
+        let mut server = mockito::Server::new_async().await;
+        let failure_body =
+            r#"{"error":{"message":"temporary disruption","type":"server_error"}}"#;
+
+        let mocks: Vec<_> = (0..4)
+            .map(|_| {
+                server
+                    .mock("POST", "/responses")
+                    .expect(1)
+                    .with_status(502)
+                    .with_header("retry-after", "0")
+                    .with_body(failure_body)
+                    .create()
+            })
+            .collect();
+
+        let client = reqwest::Client::builder()
+            .build()
+            .expect("failed to construct client");
+
+        let policy = RecoveryPolicy::aggressive().with_logging(false);
+        let responses = Responses::new_with_recovery(client, server.url(), policy);
+
+        let error = responses
+            .create(crate::Request::default())
+            .await
+            .expect_err("expected retries to exhaust");
+
+        match error {
+            crate::Error::MaxRetriesExceeded { attempts } => assert_eq!(attempts, 3),
+            other => panic!("expected max retries exceeded, got {other:?}"),
+        }
+
+        for mock in mocks {
+            mock.assert_async().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn container_only_scope_does_not_retry_transient_http_errors() {
+        let client = reqwest::Client::builder()
+            .connect_timeout(Duration::from_millis(100))
+            .build()
+            .expect("failed to construct client");
+
+        let policy = RecoveryPolicy::aggressive()
+            .with_logging(false)
+            .with_retry_scope(RetryScope::ContainerOnly);
+
+        let responses = Responses::new_with_recovery(
+            client,
+            "http://127.0.0.1:9".to_string(),
+            policy,
+        );
+
+        let error = responses
+            .create(crate::Request::default())
+            .await
+            .expect_err("expected transient http error");
+
+        if let crate::Error::Http(ref http_error) = error {
+            assert!(
+                http_error.is_connect() || http_error.is_timeout(),
+                "unexpected http error variant: {http_error:?}"
+            );
+        } else {
+            panic!("expected http error, got {error:?}");
+        }
     }
 }
