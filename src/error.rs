@@ -1,4 +1,37 @@
 use serde::{Deserialize, Serialize};
+use std::fmt;
+
+/// High-level classification for errors to drive retry and logging behavior
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorClass {
+    ContainerExpired,
+    TransientHttp,
+    RetryableServer,
+    RateLimited,
+    ApiContainerExpired,
+    NonRecoverable,
+}
+
+impl ErrorClass {
+    /// Returns a human-friendly label for logging purposes
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ContainerExpired => "container_expired",
+            Self::TransientHttp => "transient_http",
+            Self::RetryableServer => "retryable_server",
+            Self::RateLimited => "rate_limited",
+            Self::ApiContainerExpired => "api_container_expired",
+            Self::NonRecoverable => "non_recoverable",
+        }
+    }
+}
+
+impl fmt::Display for ErrorClass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 /// API error response
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -176,71 +209,75 @@ pub enum Error {
 }
 
 impl Error {
+    /// Returns a classification label for logging and retry policies
+    #[must_use]
+    pub fn classify(&self) -> ErrorClass {
+        match self {
+            Self::ContainerExpired { .. } => ErrorClass::ContainerExpired,
+            Self::Api { message, .. } if message_indicates_container_expired(message) => {
+                ErrorClass::ApiContainerExpired
+            }
+            Self::BadGateway { .. }
+            | Self::ServiceUnavailable { .. }
+            | Self::GatewayTimeout { .. }
+            | Self::ServerError {
+                retry_suggested: true,
+                ..
+            } => ErrorClass::RetryableServer,
+            Self::RateLimited { .. } => ErrorClass::RateLimited,
+            Self::Http(reqwest_error)
+                if reqwest_error.is_timeout()
+                    || reqwest_error.is_connect()
+                    || reqwest_error.is_request() =>
+            {
+                ErrorClass::TransientHttp
+            }
+            _ => ErrorClass::NonRecoverable,
+        }
+    }
+
     /// Returns true if this error indicates a container has expired
     #[must_use]
     pub fn is_container_expired(&self) -> bool {
-        match self {
-            Self::ContainerExpired { .. } => true,
-            Self::Api { message, .. } => {
-                message.to_lowercase().contains("container is expired")
-                    || message.to_lowercase().contains("container expired")
-                    || message.to_lowercase().contains("session expired")
-            }
-            _ => false,
-        }
+        matches!(
+            self.classify(),
+            ErrorClass::ContainerExpired | ErrorClass::ApiContainerExpired
+        )
     }
 
     /// Returns true if this error can be automatically recovered from
     #[must_use]
     pub fn is_recoverable(&self) -> bool {
-        match self {
-            // Always recoverable errors
-            Self::ContainerExpired { .. }
-            | Self::BadGateway { .. }
-            | Self::ServiceUnavailable { .. }
-            | Self::GatewayTimeout { .. }
-            | Self::RateLimited { .. } => true,
-
-            // Server errors that may be recoverable
-            Self::ServerError {
-                retry_suggested, ..
-            } => *retry_suggested,
-
-            // Network errors are often recoverable
-            Self::Http(reqwest_error) => {
-                reqwest_error.is_timeout()
-                    || reqwest_error.is_connect()
-                    || reqwest_error.is_request()
-            }
-
-            // Check API errors for container expiration
-            Self::Api { message, .. } => {
-                message.to_lowercase().contains("container is expired")
-                    || message.to_lowercase().contains("container expired")
-                    || message.to_lowercase().contains("session expired")
-            }
-
-            // Other errors are not automatically recoverable
-            _ => false,
+        match self.classify() {
+            ErrorClass::ContainerExpired
+            | ErrorClass::RetryableServer
+            | ErrorClass::RateLimited
+            | ErrorClass::ApiContainerExpired => true,
+            ErrorClass::TransientHttp => matches!(
+                self,
+                Self::Http(reqwest_error)
+                    if reqwest_error.is_timeout()
+                        || reqwest_error.is_connect()
+                        || reqwest_error.is_request()
+            ),
+            ErrorClass::NonRecoverable => false,
         }
     }
 
     /// Returns true if this is a transient error that should be retried
     #[must_use]
     pub fn is_transient(&self) -> bool {
-        match self {
-            Self::BadGateway { .. }
-            | Self::ServiceUnavailable { .. }
-            | Self::GatewayTimeout { .. }
-            | Self::RateLimited { .. } => true,
-
-            Self::ServerError {
-                retry_suggested, ..
-            } => *retry_suggested,
-
-            Self::Http(reqwest_error) => reqwest_error.is_timeout() || reqwest_error.is_connect(),
-
-            _ => self.is_container_expired(),
+        match self.classify() {
+            ErrorClass::ContainerExpired
+            | ErrorClass::RetryableServer
+            | ErrorClass::RateLimited
+            | ErrorClass::ApiContainerExpired => true,
+            ErrorClass::TransientHttp => matches!(
+                self,
+                Self::Http(reqwest_error)
+                    if reqwest_error.is_timeout() || reqwest_error.is_connect()
+            ),
+            ErrorClass::NonRecoverable => false,
         }
     }
 
@@ -393,6 +430,13 @@ impl Error {
             limit_type,
         }
     }
+}
+
+fn message_indicates_container_expired(message: &str) -> bool {
+    let normalized = message.to_ascii_lowercase();
+    normalized.contains("container is expired")
+        || normalized.contains("container expired")
+        || normalized.contains("session expired")
 }
 
 impl From<ApiErrorDetails> for Error {
@@ -604,6 +648,7 @@ pub(crate) async fn try_parse_api_error(response: reqwest::Response) -> Result<r
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn test_new_error_types() {
@@ -910,5 +955,81 @@ mod tests {
         } else {
             panic!("Expected ServerError");
         }
+    }
+
+    #[test]
+    fn classify_error_classes() {
+        let container = Error::container_expired("Session expired", false);
+        assert_eq!(container.classify(), ErrorClass::ContainerExpired);
+        assert!(container.is_recoverable());
+        assert!(container.is_transient());
+
+        let api_container = Error::Api {
+            message: "Your container expired in the middle of processing".to_string(),
+            error_type: "api_error".to_string(),
+            code: None,
+        };
+        assert_eq!(api_container.classify(), ErrorClass::ApiContainerExpired);
+        assert!(api_container.is_recoverable());
+        assert!(api_container.is_transient());
+
+        let retryable_server = Error::server_error("Server hiccup", None, true);
+        assert_eq!(retryable_server.classify(), ErrorClass::RetryableServer);
+
+        let rate_limited = Error::rate_limited(Some(1), None);
+        assert_eq!(rate_limited.classify(), ErrorClass::RateLimited);
+
+        let runtime = tokio::runtime::Runtime::new().expect("runtime");
+
+        let timeout_http = runtime.block_on(async {
+            reqwest::Client::builder()
+                .timeout(Duration::from_millis(1))
+                .build()
+                .unwrap()
+                .get("http://10.255.255.1")
+                .send()
+                .await
+                .unwrap_err()
+        });
+        assert!(timeout_http.is_timeout());
+        let timeout_error = Error::Http(timeout_http);
+        assert_eq!(timeout_error.classify(), ErrorClass::TransientHttp);
+        assert!(timeout_error.is_recoverable());
+        assert!(timeout_error.is_transient());
+
+        let connect_http = runtime.block_on(async {
+            reqwest::Client::new()
+                .get("http://127.0.0.1:1")
+                .send()
+                .await
+                .unwrap_err()
+        });
+        assert!(connect_http.is_connect());
+        let connect_error = Error::Http(connect_http);
+        assert_eq!(connect_error.classify(), ErrorClass::TransientHttp);
+        assert!(connect_error.is_recoverable());
+        assert!(connect_error.is_transient());
+
+        let request_http = runtime.block_on(async {
+            reqwest::Client::builder()
+                .timeout(Duration::from_millis(50))
+                .build()
+                .unwrap()
+                .get("http://127.0.0.1:9")
+                .send()
+                .await
+                .unwrap_err()
+        });
+        assert!(request_http.is_request());
+        let request_error = Error::Http(request_http);
+        assert_eq!(request_error.classify(), ErrorClass::TransientHttp);
+        assert!(request_error.is_recoverable());
+
+        drop(runtime);
+
+        let hard_failure = Error::InvalidApiKey;
+        assert_eq!(hard_failure.classify(), ErrorClass::NonRecoverable);
+        assert!(!hard_failure.is_recoverable());
+        assert!(!hard_failure.is_transient());
     }
 }

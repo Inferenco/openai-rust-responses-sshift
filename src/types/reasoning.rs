@@ -1,21 +1,16 @@
 use serde::{Deserialize, Serialize};
 
 /// Effort level for reasoning models
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum Effort {
     /// Low effort reasoning - faster responses
+    #[default]
     Low,
     /// Medium effort reasoning - balanced speed and thoroughness
     Medium,
     /// High effort reasoning - more thorough analysis (enables background mode)
     High,
-}
-
-impl Default for Effort {
-    fn default() -> Self {
-        Self::Low
-    }
 }
 
 /// Summary setting for reasoning output

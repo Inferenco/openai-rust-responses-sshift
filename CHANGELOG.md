@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2025-02-18
+
+### 📚 Documentation
+- Expanded the Advanced Container Recovery System guide with coverage for `create_no_recovery`, `RetryScope`, `RecoveryPolicy::from_env`, and the `recovery_policy()` getter.
+- Added a "Debugging retries" subsection describing `log_recovery_attempts`, including annotated sample log output.
+
+### 📝 README Updates
+- Highlighted the new recovery customization and debugging options in the feature list, with links back to the detailed guide.
+- Clarified how environment variables influence recovery behavior and the default behavior when none are set.
+
 ## [0.3.2] - 2025-01-27
 
 ### 🔧 Serialization Support

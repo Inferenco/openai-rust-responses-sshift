@@ -39,7 +39,7 @@ pub use types::{
 };
 
 // Re-export container and tool types
-pub use types::{Container, RecoveryCallback, RecoveryPolicy};
+pub use types::{Container, RecoveryCallback, RecoveryPolicy, RetryScope};
 
 // Re-export recovery types
 pub use responses::{RecoveryInfo, ResponseWithRecovery};
@@ -54,7 +54,7 @@ pub use vector_stores::{
 };
 
 // Re-export error types
-pub use error::{Error, Result};
+pub use error::{Error, ErrorClass, Result};
 
 use reqwest::{header, Client as HttpClient};
 use std::env;
@@ -146,6 +146,20 @@ impl Client {
     /// Returns `CreateError::InvalidApiKey` if the environment variable is not set or invalid
     pub fn from_env() -> std::result::Result<Self, CreateError> {
         Self::from_env_with_base_url("https://api.openai.com/v1")
+    }
+
+    /// Creates a client from the environment, loading both API key and recovery policy.
+    ///
+    /// The `OPENAI_API_KEY` variable is required; the recovery policy uses
+    /// [`RecoveryPolicy::from_env`], so any recovery-related environment variables that are
+    /// missing (or invalid) keep their default values.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CreateError::InvalidApiKey` if the environment variable is not set or invalid
+    pub fn from_env_with_recovery_policy() -> std::result::Result<Self, CreateError> {
+        let recovery_policy = RecoveryPolicy::from_env();
+        Self::from_env_with_recovery(recovery_policy)
     }
 
     /// Creates a client from the `OPENAI_API_KEY` environment variable with a custom base URL

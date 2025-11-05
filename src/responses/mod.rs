@@ -1,6 +1,7 @@
 use crate::error::{try_parse_api_error, Result};
-use crate::types::{RecoveryCallback, RecoveryPolicy};
+use crate::types::{RecoveryCallback, RecoveryPolicy, RetryScope};
 use reqwest::Client as HttpClient;
+use std::fmt;
 use std::sync::Arc;
 
 /// Decision for retry logic
@@ -9,6 +10,36 @@ enum RetryDecision {
     Continue,
     /// Return error
     Error(crate::Error),
+}
+
+/// Lightweight formatter for recovery policy snapshots
+struct FormattedRecoveryPolicy<'a> {
+    policy: &'a RecoveryPolicy,
+}
+
+impl fmt::Display for FormattedRecoveryPolicy<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let policy = self.policy;
+        let reset_message = policy.reset_message.as_deref().unwrap_or("<default>");
+        let retry_scope = policy_retry_scope(policy);
+
+        write!(
+            f,
+            "auto_retry_on_expired_container={}, notify_on_reset={}, max_retries={}, \
+auto_prune_expired_containers={}, log_recovery_attempts={}, reset_message={}, retry_scope={}",
+            policy.auto_retry_on_expired_container,
+            policy.notify_on_reset,
+            policy.max_retries,
+            policy.auto_prune_expired_containers,
+            policy.log_recovery_attempts,
+            reset_message,
+            retry_scope
+        )
+    }
+}
+
+fn policy_retry_scope(policy: &RecoveryPolicy) -> &str {
+    policy.retry_scope.as_str()
 }
 
 /// Recovery result information
@@ -172,6 +203,25 @@ impl Responses {
         self
     }
 
+    /// Returns the currently configured recovery policy.
+    ///
+    /// Defaults remain unchanged; this accessor simply exposes a shared
+    /// reference so callers can inspect the policy that `create` will honor.
+    #[must_use]
+    pub fn recovery_policy(&self) -> &RecoveryPolicy {
+        &self.recovery_policy
+    }
+
+    fn policy_snapshot(&self) -> Option<FormattedRecoveryPolicy<'_>> {
+        if !self.recovery_policy.log_recovery_attempts {
+            return None;
+        }
+
+        Some(FormattedRecoveryPolicy {
+            policy: &self.recovery_policy,
+        })
+    }
+
     /// Creates a response with automatic recovery from container expiration
     ///
     /// # Errors
@@ -182,11 +232,23 @@ impl Responses {
         &self,
         request: crate::Request,
     ) -> Result<ResponseWithRecovery> {
+        if let Some(snapshot) = self.policy_snapshot() {
+            log::debug!("Starting recovery-enabled request with policy: {snapshot}");
+        }
+
         let mut current_request = request;
-        let mut retry_count = 0;
+        let mut retry_count: u32 = 0;
         let mut last_error: Option<crate::Error> = None;
 
         loop {
+            if self.recovery_policy.log_recovery_attempts {
+                let attempt_number = retry_count.saturating_add(1);
+                let has_last_error = last_error.is_some();
+                log::debug!(
+                    "Preparing to send attempt {attempt_number} (retry_count={retry_count}, has_last_error={has_last_error})"
+                );
+            }
+
             match self.create_internal(&current_request).await {
                 Ok(response) => {
                     return Ok(self.handle_successful_response(
@@ -230,9 +292,14 @@ impl Responses {
             );
 
             if self.recovery_policy.log_recovery_attempts {
-                log::info!(
-                    "Successfully recovered from container expiration after {retry_count} attempts"
-                );
+                if let Some(error) = last_error {
+                    log::info!(
+                        "Successfully recovered after {retry_count} attempt(s) (classification={})",
+                        error.classify()
+                    );
+                } else {
+                    log::info!("Successfully recovered after {retry_count} attempt(s)");
+                }
             }
 
             return ResponseWithRecovery::with_recovery(response, recovery_info);
@@ -249,13 +316,42 @@ impl Responses {
         retry_count: &mut u32,
         last_error: &mut Option<crate::Error>,
     ) -> RetryDecision {
-        if error.is_recoverable()
-            && self.recovery_policy.auto_retry_on_expired_container
-            && *retry_count < self.recovery_policy.max_retries
-        {
-            *retry_count += 1;
-            let retry_delay = error.retry_after().unwrap_or(1);
+        let logging_enabled = self.recovery_policy.log_recovery_attempts;
+        let classification = error.classify();
+        let suggested_retry_after = error.retry_after();
+        let current_retry_count = *retry_count;
+        let scope = self.recovery_policy.retry_scope;
+        let scope_label = scope.as_str();
+        let scope_allows_retry = match scope {
+            RetryScope::AllRecoverable => error.is_recoverable(),
+            RetryScope::ContainerOnly => matches!(
+                classification,
+                crate::error::ErrorClass::ContainerExpired
+                    | crate::error::ErrorClass::ApiContainerExpired
+            ),
+            RetryScope::TransientOnly => matches!(
+                classification,
+                crate::error::ErrorClass::TransientHttp | crate::error::ErrorClass::RetryableServer
+            ),
+        };
+        let within_retry_limit = *retry_count < self.recovery_policy.max_retries;
+        let auto_retry_enabled = self.recovery_policy.auto_retry_on_expired_container;
+        let is_recoverable = error.is_recoverable();
+        let can_retry =
+            is_recoverable && auto_retry_enabled && scope_allows_retry && within_retry_limit;
 
+        if can_retry {
+            let before_retry_count = current_retry_count;
+            let next_retry_count = retry_count.saturating_add(1);
+            let retry_delay = suggested_retry_after.unwrap_or(1);
+
+            if logging_enabled {
+                log::debug!(
+                    "handle_error_with_retry: classification={classification}, scope={scope_label}, retry_count={before_retry_count}->{next_retry_count}, retry_after={retry_delay}s, decision=Continue"
+                );
+            }
+
+            *retry_count = next_retry_count;
             self.log_retry_attempt(&error, *retry_count, retry_delay);
             *last_error = Some(error);
 
@@ -274,12 +370,42 @@ impl Responses {
             // Can't recover or max retries exceeded
             if *retry_count > 0 {
                 if self.recovery_policy.log_recovery_attempts {
+                    if logging_enabled {
+                        let reason = if !within_retry_limit {
+                            "max_retries_reached"
+                        } else if !scope_allows_retry {
+                            "scope_restricted"
+                        } else if !auto_retry_enabled {
+                            "auto_retry_disabled"
+                        } else if !is_recoverable {
+                            "non_recoverable"
+                        } else {
+                            "unknown"
+                        };
+                        log::debug!(
+                            "handle_error_with_retry: classification={classification}, scope={scope_label}, retry_count={current_retry_count}->{current_retry_count}, retry_after={suggested_retry_after:?}, decision=MaxRetriesExceeded, reason={reason}"
+                        );
+                    }
                     log::error!("Recovery failed after {} attempts: {error}", *retry_count);
                 }
                 RetryDecision::Error(crate::Error::MaxRetriesExceeded {
                     attempts: *retry_count,
                 })
             } else {
+                if logging_enabled {
+                    let reason = if !scope_allows_retry {
+                        "scope_restricted"
+                    } else if !auto_retry_enabled {
+                        "auto_retry_disabled"
+                    } else if !is_recoverable {
+                        "non_recoverable"
+                    } else {
+                        "unknown"
+                    };
+                    log::debug!(
+                        "handle_error_with_retry: classification={classification}, scope={scope_label}, retry_count={current_retry_count}, retry_after={suggested_retry_after:?}, decision=Propagate, reason={reason}"
+                    );
+                }
                 RetryDecision::Error(error)
             }
         }
@@ -291,36 +417,73 @@ impl Responses {
             return;
         }
 
-        match error {
-            crate::Error::ContainerExpired { .. } => {
-                log::warn!(
-                    "Container expired, attempting recovery (attempt {}/{})",
+        let classification = error.classify();
+
+        match classification {
+            crate::error::ErrorClass::ContainerExpired
+            | crate::error::ErrorClass::ApiContainerExpired => {
+                Self::log_container_expired_retry(retry_count, self.recovery_policy.max_retries);
+            }
+            crate::error::ErrorClass::RetryableServer => {
+                Self::log_retryable_server_retry(
+                    error,
                     retry_count,
-                    self.recovery_policy.max_retries
+                    retry_delay,
+                    self.recovery_policy.max_retries,
                 );
             }
+            crate::error::ErrorClass::RateLimited => {
+                Self::log_rate_limited_retry(
+                    retry_count,
+                    retry_delay,
+                    self.recovery_policy.max_retries,
+                );
+            }
+            crate::error::ErrorClass::TransientHttp => {
+                Self::log_transient_http_retry(
+                    error,
+                    retry_count,
+                    retry_delay,
+                    self.recovery_policy.max_retries,
+                );
+            }
+            crate::error::ErrorClass::NonRecoverable => {
+                Self::log_non_recoverable_retry(
+                    error,
+                    classification,
+                    retry_count,
+                    self.recovery_policy.max_retries,
+                );
+            }
+        }
+    }
+
+    /// Logs container expired retry attempt
+    fn log_container_expired_retry(retry_count: u32, max_retries: u32) {
+        log::warn!("Container expired, attempting recovery (attempt {retry_count}/{max_retries})");
+    }
+
+    /// Logs retryable server error retry attempt
+    fn log_retryable_server_retry(
+        error: &crate::Error,
+        retry_count: u32,
+        retry_delay: u64,
+        max_retries: u32,
+    ) {
+        match error {
             crate::Error::BadGateway { .. } => {
                 log::warn!(
-                    "Bad Gateway error, retrying in {}s (attempt {}/{})",
-                    retry_delay,
-                    retry_count,
-                    self.recovery_policy.max_retries
+                    "Bad Gateway error, retrying in {retry_delay}s (attempt {retry_count}/{max_retries})"
                 );
             }
             crate::Error::ServiceUnavailable { .. } => {
                 log::warn!(
-                    "Service unavailable, retrying in {}s (attempt {}/{})",
-                    retry_delay,
-                    retry_count,
-                    self.recovery_policy.max_retries
+                    "Service unavailable, retrying in {retry_delay}s (attempt {retry_count}/{max_retries})"
                 );
             }
             crate::Error::GatewayTimeout { .. } => {
                 log::warn!(
-                    "Gateway timeout, retrying in {}s (attempt {}/{})",
-                    retry_delay,
-                    retry_count,
-                    self.recovery_policy.max_retries
+                    "Gateway timeout, retrying in {retry_delay}s (attempt {retry_count}/{max_retries})"
                 );
             }
             crate::Error::ServerError {
@@ -328,29 +491,75 @@ impl Responses {
                 ..
             } => {
                 log::warn!(
-                    "Server error (retryable), retrying in {}s (attempt {}/{})",
-                    retry_delay,
-                    retry_count,
-                    self.recovery_policy.max_retries
-                );
-            }
-            crate::Error::RateLimited { .. } => {
-                log::warn!(
-                    "Rate limited, retrying in {}s (attempt {}/{})",
-                    retry_delay,
-                    retry_count,
-                    self.recovery_policy.max_retries
+                    "Server error (retryable), retrying in {retry_delay}s (attempt {retry_count}/{max_retries})"
                 );
             }
             _ => {
                 log::warn!(
                     "Recoverable error, attempting recovery (attempt {}/{}): {}",
                     retry_count,
-                    self.recovery_policy.max_retries,
+                    max_retries,
                     error.user_message()
                 );
             }
         }
+    }
+
+    /// Logs rate limited retry attempt
+    fn log_rate_limited_retry(retry_count: u32, retry_delay: u64, max_retries: u32) {
+        log::warn!(
+            "Rate limited, retrying in {retry_delay}s (attempt {retry_count}/{max_retries})"
+        );
+    }
+
+    /// Logs transient HTTP error retry attempt
+    fn log_transient_http_retry(
+        error: &crate::Error,
+        retry_count: u32,
+        retry_delay: u64,
+        max_retries: u32,
+    ) {
+        if let crate::Error::Http(reqwest_error) = error {
+            if reqwest_error.is_timeout() {
+                log::warn!(
+                    "HTTP timeout, retrying in {retry_delay}s (attempt {retry_count}/{max_retries})"
+                );
+            } else if reqwest_error.is_connect() {
+                log::warn!(
+                    "HTTP connection error, retrying in {retry_delay}s (attempt {retry_count}/{max_retries})"
+                );
+            } else if reqwest_error.is_request() {
+                log::warn!(
+                    "HTTP request error, attempting recovery (attempt {retry_count}/{max_retries})"
+                );
+            } else {
+                log::warn!(
+                    "Recoverable HTTP error, attempting recovery (attempt {retry_count}/{max_retries}): {reqwest_error}"
+                );
+            }
+        } else {
+            log::warn!(
+                "Recoverable error, attempting recovery (attempt {}/{}): {}",
+                retry_count,
+                max_retries,
+                error.user_message()
+            );
+        }
+    }
+
+    /// Logs non-recoverable error retry attempt
+    fn log_non_recoverable_retry(
+        error: &crate::Error,
+        classification: crate::error::ErrorClass,
+        retry_count: u32,
+        max_retries: u32,
+    ) {
+        log::warn!(
+            "Retrying after unexpected classification ({classification}) (attempt {}/{}): {}",
+            retry_count,
+            max_retries,
+            error.user_message()
+        );
     }
 
     /// Handles retry delay based on error type
@@ -426,13 +635,37 @@ impl Responses {
         self.prune_expired_context(request)
     }
 
+    /// Creates a response without applying any recovery policy.
+    ///
+    /// Defaults remain unchanged; callers that need to bypass retry logic can
+    /// invoke this helper to surface the first error from the underlying
+    /// request.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the request fails to send or has a non-200 status code.
+    pub async fn create_no_recovery(&self, request: crate::Request) -> Result<crate::Response> {
+        self.create_internal(&request).await
+    }
+
     /// Creates a response (legacy method for backward compatibility).
     ///
     /// # Errors
     ///
     /// Returns an error if the request fails to send or has a non-200 status code.
     pub async fn create(&self, request: crate::Request) -> Result<crate::Response> {
-        if self.recovery_policy.auto_retry_on_expired_container {
+        let use_recovery = self.recovery_policy.auto_retry_on_expired_container;
+
+        if let Some(snapshot) = self.policy_snapshot() {
+            let branch = if use_recovery {
+                "recovery loop"
+            } else {
+                "direct"
+            };
+            log::debug!("create() delegating via {branch} branch; active policy: {snapshot}");
+        }
+
+        if use_recovery {
             // Use the recovery-enabled version and extract just the response
             self.create_with_recovery(request).await.map(|r| r.response)
         } else {
@@ -814,5 +1047,111 @@ impl Responses {
         // If we can't parse the event, log it for debugging
         log::debug!("Failed to parse stream event: {event}");
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{RecoveryPolicy, RetryScope};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn create_no_recovery_surfaces_first_error_without_retry() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("POST", "/responses")
+            .expect(1)
+            .with_status(500)
+            .with_body(r#"{"error":{"message":"upstream failure","type":"server_error"}}"#)
+            .create();
+
+        let client = reqwest::Client::builder()
+            .build()
+            .expect("failed to construct client");
+
+        let responses =
+            Responses::new_with_recovery(client, server.url(), RecoveryPolicy::aggressive());
+
+        let request = crate::Request::default();
+        let error = responses
+            .create_no_recovery(request)
+            .await
+            .expect_err("expected immediate error");
+
+        match error {
+            crate::Error::ServerError { .. } => {}
+            other => panic!("expected server error, got {other:?}"),
+        }
+
+        mock.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn max_retries_three_yields_max_retries_exceeded() {
+        let mut server = mockito::Server::new_async().await;
+        let failure_body = r#"{"error":{"message":"temporary disruption","type":"server_error"}}"#;
+
+        let mocks: Vec<_> = (0..4)
+            .map(|_| {
+                server
+                    .mock("POST", "/responses")
+                    .expect(1)
+                    .with_status(502)
+                    .with_header("retry-after", "0")
+                    .with_body(failure_body)
+                    .create()
+            })
+            .collect();
+
+        let client = reqwest::Client::builder()
+            .build()
+            .expect("failed to construct client");
+
+        let policy = RecoveryPolicy::aggressive().with_logging(false);
+        let responses = Responses::new_with_recovery(client, server.url(), policy);
+
+        let error = responses
+            .create(crate::Request::default())
+            .await
+            .expect_err("expected retries to exhaust");
+
+        match error {
+            crate::Error::MaxRetriesExceeded { attempts } => assert_eq!(attempts, 3),
+            other => panic!("expected max retries exceeded, got {other:?}"),
+        }
+
+        for mock in mocks {
+            mock.assert_async().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn container_only_scope_does_not_retry_transient_http_errors() {
+        let client = reqwest::Client::builder()
+            .connect_timeout(Duration::from_millis(100))
+            .build()
+            .expect("failed to construct client");
+
+        let policy = RecoveryPolicy::aggressive()
+            .with_logging(false)
+            .with_retry_scope(RetryScope::ContainerOnly);
+
+        let responses =
+            Responses::new_with_recovery(client, "http://127.0.0.1:9".to_string(), policy);
+
+        let error = responses
+            .create(crate::Request::default())
+            .await
+            .expect_err("expected transient http error");
+
+        if let crate::Error::Http(ref http_error) = error {
+            assert!(
+                http_error.is_connect() || http_error.is_timeout(),
+                "unexpected http error variant: {http_error:?}"
+            );
+        } else {
+            panic!("expected http error, got {error:?}");
+        }
     }
 }
