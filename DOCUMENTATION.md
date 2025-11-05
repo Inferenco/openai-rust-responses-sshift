@@ -553,7 +553,15 @@ let client = Client::from_env_with_base_url_and_recovery(
     "https://api.openai.com/v1",
     RecoveryPolicy::conservative()
 )?;
+
+// Automatically load recovery overrides from optional environment variables
+let client = Client::from_env_with_recovery_policy()?;
 ```
+
+`RecoveryPolicy::from_env()` respects the library defaults: if an override variable is missing or
+cannot be parsed, the corresponding field simply keeps its default value. Supported overrides are
+`OAI_RECOVERY_MAX_RETRIES` (`u32`), `OAI_RECOVERY_AUTO_RETRY`, `OAI_RECOVERY_AUTO_PRUNE`,
+`OAI_RECOVERY_LOG` (all `bool`), and `OAI_RECOVERY_SCOPE` (`all`, `container`, or `transient`).
 
 #### **HTTP Client with Recovery**
 ```rust
