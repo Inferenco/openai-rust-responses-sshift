@@ -1411,3 +1411,84 @@ mod unit_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod recovery_tests {
+    use crate::error::{Error, ErrorClass};
+    use std::time::Duration;
+
+    #[test]
+    fn classify_covers_all_error_classes_without_network_calls() {
+        let container_expired = Error::container_expired("session expired", false);
+        assert_eq!(container_expired.classify(), ErrorClass::ContainerExpired);
+
+        let api_container_expired = Error::Api {
+            message: "Your container expired before completing the task".to_string(),
+            error_type: "api_error".to_string(),
+            code: Some("container_expired".to_string()),
+        };
+        assert_eq!(
+            api_container_expired.classify(),
+            ErrorClass::ApiContainerExpired
+        );
+
+        let retryable_server = Error::bad_gateway(Some(0));
+        assert_eq!(retryable_server.classify(), ErrorClass::RetryableServer);
+
+        let rate_limited = Error::rate_limited(Some(0), Some("requests".to_string()));
+        assert_eq!(rate_limited.classify(), ErrorClass::RateLimited);
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+
+        let http_timeout = runtime
+            .block_on(async {
+                reqwest::Client::builder()
+                    .timeout(Duration::from_millis(5))
+                    .build()
+                    .unwrap()
+                    .get("http://10.255.255.1")
+                    .send()
+                    .await
+                    .unwrap_err()
+            });
+        assert!(http_timeout.is_timeout());
+        let http_timeout = Error::Http(http_timeout);
+        assert_eq!(http_timeout.classify(), ErrorClass::TransientHttp);
+
+        let http_connect = runtime
+            .block_on(async {
+                reqwest::Client::builder()
+                    .timeout(Duration::from_millis(5))
+                    .build()
+                    .unwrap()
+                    .get("http://127.0.0.1:1")
+                    .send()
+                    .await
+                    .unwrap_err()
+            });
+        assert!(http_connect.is_connect());
+        let http_connect = Error::Http(http_connect);
+        assert_eq!(http_connect.classify(), ErrorClass::TransientHttp);
+
+        let non_container_api = Error::Api {
+            message: "Invalid request payload".to_string(),
+            error_type: "invalid_request_error".to_string(),
+            code: None,
+        };
+        assert_eq!(non_container_api.classify(), ErrorClass::NonRecoverable);
+
+        let non_retryable_server = Error::server_error("permanent failure", None, false);
+        assert_eq!(
+            non_retryable_server.classify(),
+            ErrorClass::NonRecoverable
+        );
+
+        let invalid_api_key = Error::InvalidApiKey;
+        assert_eq!(invalid_api_key.classify(), ErrorClass::NonRecoverable);
+
+        drop(runtime);
+    }
+}
