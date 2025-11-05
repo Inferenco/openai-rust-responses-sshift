@@ -981,48 +981,45 @@ mod tests {
 
         let runtime = tokio::runtime::Runtime::new().expect("runtime");
 
-        let timeout_http = runtime
-            .block_on(async {
-                reqwest::Client::builder()
-                    .timeout(Duration::from_millis(1))
-                    .build()
-                    .unwrap()
-                    .get("http://10.255.255.1")
-                    .send()
-                    .await
-                    .unwrap_err()
-            });
+        let timeout_http = runtime.block_on(async {
+            reqwest::Client::builder()
+                .timeout(Duration::from_millis(1))
+                .build()
+                .unwrap()
+                .get("http://10.255.255.1")
+                .send()
+                .await
+                .unwrap_err()
+        });
         assert!(timeout_http.is_timeout());
         let timeout_error = Error::Http(timeout_http);
         assert_eq!(timeout_error.classify(), ErrorClass::TransientHttp);
         assert!(timeout_error.is_recoverable());
         assert!(timeout_error.is_transient());
 
-        let connect_http = runtime
-            .block_on(async {
-                reqwest::Client::new()
-                    .get("http://127.0.0.1:1")
-                    .send()
-                    .await
-                    .unwrap_err()
-            });
+        let connect_http = runtime.block_on(async {
+            reqwest::Client::new()
+                .get("http://127.0.0.1:1")
+                .send()
+                .await
+                .unwrap_err()
+        });
         assert!(connect_http.is_connect());
         let connect_error = Error::Http(connect_http);
         assert_eq!(connect_error.classify(), ErrorClass::TransientHttp);
         assert!(connect_error.is_recoverable());
         assert!(connect_error.is_transient());
 
-        let request_http = runtime
-            .block_on(async {
-                reqwest::Client::builder()
-                    .timeout(Duration::from_millis(50))
-                    .build()
-                    .unwrap()
-                    .get("http://127.0.0.1:9")
-                    .send()
-                    .await
-                    .unwrap_err()
-            });
+        let request_http = runtime.block_on(async {
+            reqwest::Client::builder()
+                .timeout(Duration::from_millis(50))
+                .build()
+                .unwrap()
+                .get("http://127.0.0.1:9")
+                .send()
+                .await
+                .unwrap_err()
+        });
         assert!(request_http.is_request());
         let request_error = Error::Http(request_http);
         assert_eq!(request_error.classify(), ErrorClass::TransientHttp);
@@ -1035,5 +1032,4 @@ mod tests {
         assert!(!hard_failure.is_recoverable());
         assert!(!hard_failure.is_transient());
     }
-
 }

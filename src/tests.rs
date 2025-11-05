@@ -1443,32 +1443,30 @@ mod recovery_tests {
             .build()
             .expect("runtime");
 
-        let http_timeout = runtime
-            .block_on(async {
-                reqwest::Client::builder()
-                    .timeout(Duration::from_millis(5))
-                    .build()
-                    .unwrap()
-                    .get("http://10.255.255.1")
-                    .send()
-                    .await
-                    .unwrap_err()
-            });
+        let http_timeout = runtime.block_on(async {
+            reqwest::Client::builder()
+                .timeout(Duration::from_millis(5))
+                .build()
+                .unwrap()
+                .get("http://10.255.255.1")
+                .send()
+                .await
+                .unwrap_err()
+        });
         assert!(http_timeout.is_timeout());
         let http_timeout = Error::Http(http_timeout);
         assert_eq!(http_timeout.classify(), ErrorClass::TransientHttp);
 
-        let http_connect = runtime
-            .block_on(async {
-                reqwest::Client::builder()
-                    .timeout(Duration::from_millis(5))
-                    .build()
-                    .unwrap()
-                    .get("http://127.0.0.1:1")
-                    .send()
-                    .await
-                    .unwrap_err()
-            });
+        let http_connect = runtime.block_on(async {
+            reqwest::Client::builder()
+                .timeout(Duration::from_millis(5))
+                .build()
+                .unwrap()
+                .get("http://127.0.0.1:1")
+                .send()
+                .await
+                .unwrap_err()
+        });
         assert!(http_connect.is_connect());
         let http_connect = Error::Http(http_connect);
         assert_eq!(http_connect.classify(), ErrorClass::TransientHttp);
@@ -1481,10 +1479,7 @@ mod recovery_tests {
         assert_eq!(non_container_api.classify(), ErrorClass::NonRecoverable);
 
         let non_retryable_server = Error::server_error("permanent failure", None, false);
-        assert_eq!(
-            non_retryable_server.classify(),
-            ErrorClass::NonRecoverable
-        );
+        assert_eq!(non_retryable_server.classify(), ErrorClass::NonRecoverable);
 
         let invalid_api_key = Error::InvalidApiKey;
         assert_eq!(invalid_api_key.classify(), ErrorClass::NonRecoverable);
