@@ -1059,7 +1059,7 @@ mod tests {
     #[tokio::test]
     async fn create_no_recovery_surfaces_first_error_without_retry() {
         let mut server = mockito::Server::new_async().await;
-        let _mock = server
+        let mock = server
             .mock("POST", "/responses")
             .expect(1)
             .with_status(500)
@@ -1084,7 +1084,7 @@ mod tests {
             other => panic!("expected server error, got {other:?}"),
         }
 
-        _mock.assert_async().await;
+        mock.assert_async().await;
     }
 
     #[tokio::test]

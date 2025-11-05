@@ -2,9 +2,10 @@ use serde::{Deserialize, Serialize};
 use std::env;
 
 /// Scope that controls which recoverable errors should be retried automatically.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum RetryScope {
     /// Retry any recoverable error class.
+    #[default]
     AllRecoverable,
     /// Retry only container expiration style errors.
     ContainerOnly,
@@ -21,12 +22,6 @@ impl RetryScope {
             Self::ContainerOnly => "container_only",
             Self::TransientOnly => "transient_only",
         }
-    }
-}
-
-impl Default for RetryScope {
-    fn default() -> Self {
-        Self::AllRecoverable
     }
 }
 
