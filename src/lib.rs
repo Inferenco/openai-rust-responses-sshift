@@ -39,7 +39,7 @@ pub use types::{
 };
 
 // Re-export container and tool types
-pub use types::{Container, RecoveryCallback, RecoveryPolicy};
+pub use types::{Container, RecoveryCallback, RecoveryPolicy, RetryScope};
 
 // Re-export recovery types
 pub use responses::{RecoveryInfo, ResponseWithRecovery};
