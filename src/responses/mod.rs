@@ -207,6 +207,15 @@ impl Responses {
         self
     }
 
+    /// Returns the currently configured recovery policy.
+    ///
+    /// Defaults remain unchanged; this accessor simply exposes a shared
+    /// reference so callers can inspect the policy that `create` will honor.
+    #[must_use]
+    pub fn recovery_policy(&self) -> &RecoveryPolicy {
+        &self.recovery_policy
+    }
+
     fn policy_snapshot(&self) -> Option<FormattedRecoveryPolicy<'_>> {
         if !self.recovery_policy.log_recovery_attempts {
             return None;
@@ -509,6 +518,19 @@ impl Responses {
     #[must_use]
     pub fn prune_expired_context_manual(&self, request: crate::Request) -> crate::Request {
         self.prune_expired_context(request)
+    }
+
+    /// Creates a response without applying any recovery policy.
+    ///
+    /// Defaults remain unchanged; callers that need to bypass retry logic can
+    /// invoke this helper to surface the first error from the underlying
+    /// request.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the request fails to send or has a non-200 status code.
+    pub async fn create_no_recovery(&self, request: crate::Request) -> Result<crate::Response> {
+        self.create_internal(&request).await
     }
 
     /// Creates a response (legacy method for backward compatibility).
@@ -912,5 +934,46 @@ impl Responses {
         // If we can't parse the event, log it for debugging
         log::debug!("Failed to parse stream event: {event}");
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn create_no_recovery_surfaces_first_error_without_retry() {
+        let mut server = mockito::Server::new_async().await;
+        let _mock = server
+            .mock("POST", "/responses")
+            .expect(1)
+            .with_status(500)
+            .with_body(
+                r#"{"error":{"message":"upstream failure","type":"server_error"}}"#,
+            )
+            .create();
+
+        let client = reqwest::Client::builder()
+            .build()
+            .expect("failed to construct client");
+
+        let responses = Responses::new_with_recovery(
+            client,
+            server.url(),
+            RecoveryPolicy::aggressive(),
+        );
+
+        let request = crate::Request::default();
+        let error = responses
+            .create_no_recovery(request)
+            .await
+            .expect_err("expected immediate error");
+
+        match error {
+            crate::Error::ServerError { .. } => {}
+            other => panic!("expected server error, got {other:?}"),
+        }
+
+        _mock.assert_async().await;
     }
 }
