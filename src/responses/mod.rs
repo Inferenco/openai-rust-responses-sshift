@@ -385,50 +385,63 @@ impl Responses {
             return;
         }
 
-        match error {
-            crate::Error::ContainerExpired { .. } => {
+        let classification = error.classify();
+
+        match classification {
+            crate::error::ErrorClass::ContainerExpired
+            | crate::error::ErrorClass::ApiContainerExpired => {
                 log::warn!(
                     "Container expired, attempting recovery (attempt {}/{})",
                     retry_count,
                     self.recovery_policy.max_retries
                 );
             }
-            crate::Error::BadGateway { .. } => {
-                log::warn!(
-                    "Bad Gateway error, retrying in {}s (attempt {}/{})",
-                    retry_delay,
-                    retry_count,
-                    self.recovery_policy.max_retries
-                );
-            }
-            crate::Error::ServiceUnavailable { .. } => {
-                log::warn!(
-                    "Service unavailable, retrying in {}s (attempt {}/{})",
-                    retry_delay,
-                    retry_count,
-                    self.recovery_policy.max_retries
-                );
-            }
-            crate::Error::GatewayTimeout { .. } => {
-                log::warn!(
-                    "Gateway timeout, retrying in {}s (attempt {}/{})",
-                    retry_delay,
-                    retry_count,
-                    self.recovery_policy.max_retries
-                );
-            }
-            crate::Error::ServerError {
-                retry_suggested: true,
-                ..
-            } => {
-                log::warn!(
-                    "Server error (retryable), retrying in {}s (attempt {}/{})",
-                    retry_delay,
-                    retry_count,
-                    self.recovery_policy.max_retries
-                );
-            }
-            crate::Error::RateLimited { .. } => {
+            crate::error::ErrorClass::RetryableServer => match error {
+                crate::Error::BadGateway { .. } => {
+                    log::warn!(
+                        "Bad Gateway error, retrying in {}s (attempt {}/{})",
+                        retry_delay,
+                        retry_count,
+                        self.recovery_policy.max_retries
+                    );
+                }
+                crate::Error::ServiceUnavailable { .. } => {
+                    log::warn!(
+                        "Service unavailable, retrying in {}s (attempt {}/{})",
+                        retry_delay,
+                        retry_count,
+                        self.recovery_policy.max_retries
+                    );
+                }
+                crate::Error::GatewayTimeout { .. } => {
+                    log::warn!(
+                        "Gateway timeout, retrying in {}s (attempt {}/{})",
+                        retry_delay,
+                        retry_count,
+                        self.recovery_policy.max_retries
+                    );
+                }
+                crate::Error::ServerError {
+                    retry_suggested: true,
+                    ..
+                } => {
+                    log::warn!(
+                        "Server error (retryable), retrying in {}s (attempt {}/{})",
+                        retry_delay,
+                        retry_count,
+                        self.recovery_policy.max_retries
+                    );
+                }
+                _ => {
+                    log::warn!(
+                        "Recoverable error, attempting recovery (attempt {}/{}): {}",
+                        retry_count,
+                        self.recovery_policy.max_retries,
+                        error.user_message()
+                    );
+                }
+            },
+            crate::error::ErrorClass::RateLimited => {
                 log::warn!(
                     "Rate limited, retrying in {}s (attempt {}/{})",
                     retry_delay,
@@ -436,9 +449,48 @@ impl Responses {
                     self.recovery_policy.max_retries
                 );
             }
-            _ => {
+            crate::error::ErrorClass::TransientHttp => {
+                if let crate::Error::Http(reqwest_error) = error {
+                    if reqwest_error.is_timeout() {
+                        log::warn!(
+                            "HTTP timeout, retrying in {}s (attempt {}/{})",
+                            retry_delay,
+                            retry_count,
+                            self.recovery_policy.max_retries
+                        );
+                    } else if reqwest_error.is_connect() {
+                        log::warn!(
+                            "HTTP connection error, retrying in {}s (attempt {}/{})",
+                            retry_delay,
+                            retry_count,
+                            self.recovery_policy.max_retries
+                        );
+                    } else if reqwest_error.is_request() {
+                        log::warn!(
+                            "HTTP request error, attempting recovery (attempt {}/{})",
+                            retry_count,
+                            self.recovery_policy.max_retries
+                        );
+                    } else {
+                        log::warn!(
+                            "Recoverable HTTP error, attempting recovery (attempt {}/{}): {}",
+                            retry_count,
+                            self.recovery_policy.max_retries,
+                            reqwest_error
+                        );
+                    }
+                } else {
+                    log::warn!(
+                        "Recoverable error, attempting recovery (attempt {}/{}): {}",
+                        retry_count,
+                        self.recovery_policy.max_retries,
+                        error.user_message()
+                    );
+                }
+            }
+            crate::error::ErrorClass::NonRecoverable => {
                 log::warn!(
-                    "Recoverable error, attempting recovery (attempt {}/{}): {}",
+                    "Retrying after unexpected classification ({classification}) (attempt {}/{}): {}",
                     retry_count,
                     self.recovery_policy.max_retries,
                     error.user_message()

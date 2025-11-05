@@ -54,7 +54,7 @@ pub use vector_stores::{
 };
 
 // Re-export error types
-pub use error::{Error, Result};
+pub use error::{Error, ErrorClass, Result};
 
 use reqwest::{header, Client as HttpClient};
 use std::env;
