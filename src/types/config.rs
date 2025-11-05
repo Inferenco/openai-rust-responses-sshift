@@ -1,5 +1,34 @@
 use serde::{Deserialize, Serialize};
 
+/// Scope that controls which recoverable errors should be retried automatically.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RetryScope {
+    /// Retry any recoverable error class.
+    AllRecoverable,
+    /// Retry only container expiration style errors.
+    ContainerOnly,
+    /// Retry transient HTTP or server failures.
+    TransientOnly,
+}
+
+impl RetryScope {
+    /// Returns a human-friendly label for telemetry and logging.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AllRecoverable => "all_recoverable",
+            Self::ContainerOnly => "container_only",
+            Self::TransientOnly => "transient_only",
+        }
+    }
+}
+
+impl Default for RetryScope {
+    fn default() -> Self {
+        Self::AllRecoverable
+    }
+}
+
 /// Recovery policy for handling container expiration and other recoverable errors
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -21,6 +50,10 @@ pub struct RecoveryPolicy {
 
     /// Whether to log recovery attempts (useful for debugging)
     pub log_recovery_attempts: bool,
+
+    /// Scope that limits which recoverable errors are retried
+    #[serde(default)]
+    pub retry_scope: RetryScope,
 }
 
 impl Default for RecoveryPolicy {
@@ -32,6 +65,7 @@ impl Default for RecoveryPolicy {
             auto_prune_expired_containers: true,
             reset_message: None,
             log_recovery_attempts: false,
+            retry_scope: RetryScope::default(),
         }
     }
 }
@@ -53,6 +87,7 @@ impl RecoveryPolicy {
             auto_prune_expired_containers: false,
             reset_message: None,
             log_recovery_attempts: true,
+            retry_scope: RetryScope::ContainerOnly,
         }
     }
 
@@ -69,6 +104,7 @@ impl RecoveryPolicy {
                     .to_string(),
             ),
             log_recovery_attempts: true,
+            retry_scope: RetryScope::AllRecoverable,
         }
     }
 
@@ -111,6 +147,13 @@ impl RecoveryPolicy {
     #[must_use]
     pub fn with_logging(mut self, log: bool) -> Self {
         self.log_recovery_attempts = log;
+        self
+    }
+
+    /// Sets the retry scope that controls which errors can trigger retries
+    #[must_use]
+    pub fn with_retry_scope(mut self, retry_scope: RetryScope) -> Self {
+        self.retry_scope = retry_scope;
         self
     }
 

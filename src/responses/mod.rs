@@ -1,5 +1,5 @@
 use crate::error::{try_parse_api_error, Result};
-use crate::types::{RecoveryCallback, RecoveryPolicy};
+use crate::types::{RecoveryCallback, RecoveryPolicy, RetryScope};
 use reqwest::Client as HttpClient;
 use std::fmt;
 use std::sync::Arc;
@@ -42,8 +42,7 @@ auto_prune_expired_containers={}, log_recovery_attempts={}, reset_message={}, re
 }
 
 fn policy_retry_scope(policy: &RecoveryPolicy) -> Option<&str> {
-    let _ = policy;
-    None
+    Some(policy.retry_scope.as_str())
 }
 
 /// Recovery result information
@@ -324,9 +323,28 @@ impl Responses {
         let classification = error.classify();
         let suggested_retry_after = error.retry_after();
         let current_retry_count = *retry_count;
-        let can_retry = error.is_recoverable()
-            && self.recovery_policy.auto_retry_on_expired_container
-            && *retry_count < self.recovery_policy.max_retries;
+        let scope = self.recovery_policy.retry_scope;
+        let scope_label = scope.as_str();
+        let scope_allows_retry = match scope {
+            RetryScope::AllRecoverable => error.is_recoverable(),
+            RetryScope::ContainerOnly => matches!(
+                classification,
+                crate::error::ErrorClass::ContainerExpired
+                    | crate::error::ErrorClass::ApiContainerExpired
+            ),
+            RetryScope::TransientOnly => matches!(
+                classification,
+                crate::error::ErrorClass::TransientHttp
+                    | crate::error::ErrorClass::RetryableServer
+            ),
+        };
+        let within_retry_limit = *retry_count < self.recovery_policy.max_retries;
+        let auto_retry_enabled = self.recovery_policy.auto_retry_on_expired_container;
+        let is_recoverable = error.is_recoverable();
+        let can_retry = is_recoverable
+            && auto_retry_enabled
+            && scope_allows_retry
+            && within_retry_limit;
 
         if can_retry {
             let before_retry_count = current_retry_count;
@@ -335,7 +353,7 @@ impl Responses {
 
             if logging_enabled {
                 log::debug!(
-                    "handle_error_with_retry: classification={classification}, retry_count={before_retry_count}->{next_retry_count}, retry_after={retry_delay}s, decision=Continue"
+                    "handle_error_with_retry: classification={classification}, scope={scope_label}, retry_count={before_retry_count}->{next_retry_count}, retry_after={retry_delay}s, decision=Continue"
                 );
             }
 
@@ -359,8 +377,19 @@ impl Responses {
             if *retry_count > 0 {
                 if self.recovery_policy.log_recovery_attempts {
                     if logging_enabled {
+                        let reason = if !within_retry_limit {
+                            "max_retries_reached"
+                        } else if !scope_allows_retry {
+                            "scope_restricted"
+                        } else if !auto_retry_enabled {
+                            "auto_retry_disabled"
+                        } else if !is_recoverable {
+                            "non_recoverable"
+                        } else {
+                            "unknown"
+                        };
                         log::debug!(
-                            "handle_error_with_retry: classification={classification}, retry_count={current_retry_count}->{current_retry_count}, retry_after={suggested_retry_after:?}, decision=MaxRetriesExceeded"
+                            "handle_error_with_retry: classification={classification}, scope={scope_label}, retry_count={current_retry_count}->{current_retry_count}, retry_after={suggested_retry_after:?}, decision=MaxRetriesExceeded, reason={reason}"
                         );
                     }
                     log::error!("Recovery failed after {} attempts: {error}", *retry_count);
@@ -370,8 +399,17 @@ impl Responses {
                 })
             } else {
                 if logging_enabled {
+                    let reason = if !scope_allows_retry {
+                        "scope_restricted"
+                    } else if !auto_retry_enabled {
+                        "auto_retry_disabled"
+                    } else if !is_recoverable {
+                        "non_recoverable"
+                    } else {
+                        "unknown"
+                    };
                     log::debug!(
-                        "handle_error_with_retry: classification={classification}, retry_count={current_retry_count}, retry_after={suggested_retry_after:?}, decision=Propagate"
+                        "handle_error_with_retry: classification={classification}, scope={scope_label}, retry_count={current_retry_count}, retry_after={suggested_retry_after:?}, decision=Propagate, reason={reason}"
                     );
                 }
                 RetryDecision::Error(error)
