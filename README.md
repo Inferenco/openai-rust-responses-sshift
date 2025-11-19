@@ -69,6 +69,48 @@ See `examples/gpt5_demo.rs` for a complete, runnable showcase with function call
 
 This SDK includes cutting-edge features with full API parity:
 
+### 🔌 **Model Context Protocol (MCP) Support** (NEW in v0.3.3)
+Connect to any remote MCP server to extend your AI's capabilities with external tools and resources.
+
+```rust
+use open_ai_rust_responses_by_sshift::mcp::{McpClient, transport::HttpTransport};
+
+// Connect to a remote MCP server via HTTP
+let transport = HttpTransport::new("http://localhost:8000/mcp");
+let client = McpClient::new(Box::new(transport));
+client.initialize().await?;
+
+// List available tools
+let tools = client.list_tools().await?;
+
+// Call a tool
+let result = client.call_tool("read_file", json!({ "path": "/path/to/file.txt" })).await?;
+```
+
+### ⚡ **Realtime API (WebSockets)** (NEW in v0.3.3)
+Interact with OpenAI's Realtime API for low-latency, multimodal experiences.
+
+```rust
+use open_ai_rust_responses_by_sshift::realtime::RealtimeClient;
+
+// Connect to the Realtime API
+let mut client = RealtimeClient::connect("sk-...", "gpt-4o-realtime-preview").await?;
+
+// Send an event
+client.send_event(json!({
+    "type": "response.create",
+    "response": {
+        "modalities": ["text"],
+        "instructions": "Hello, world!"
+    }
+})).await?;
+
+// Receive events
+while let Some(event) = client.receive_event().await? {
+    println!("Received event: {:?}", event);
+}
+```
+
 ### 🛡️ **Advanced Container Recovery System** (NEW in v0.2.5) 🔥
 
 **Revolutionary error handling**: SDK automatically detects and recovers from expired containers without breaking user flow!
