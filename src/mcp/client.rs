@@ -1,5 +1,5 @@
 use super::transport::McpTransport;
-use super::types::*;
+use super::types::{CallToolResult, JsonRpcRequest, ListToolsResult, McpTool};
 use crate::error::Result;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
@@ -10,6 +10,7 @@ pub struct McpClient {
 }
 
 impl McpClient {
+    #[must_use]
     pub fn new(transport: Box<dyn McpTransport>) -> Self {
         Self {
             transport,
@@ -23,6 +24,8 @@ impl McpClient {
         *id
     }
 
+    /// # Errors
+    /// Returns an error if the request fails, the response contains an error, or the result cannot be parsed.
     pub async fn send_request<T: serde::de::DeserializeOwned>(
         &self,
         method: &str,
@@ -41,18 +44,21 @@ impl McpClient {
         if let Some(error) = response.error {
             return Err(crate::Error::Mcp(format!(
                 "MCP Error {}: {}",
-                error.code, error.message
+                error.code,
+                error.message
             )));
         }
 
         if let Some(result) = response.result {
             serde_json::from_value(result)
-                .map_err(|e| crate::Error::Mcp(format!("Failed to parse result: {}", e)))
+                .map_err(|e| crate::Error::Mcp(format!("Failed to parse result: {e}")))
         } else {
             Err(crate::Error::Mcp("Empty result in response".to_string()))
         }
     }
 
+    /// # Errors
+    /// Returns an error if the initialization request fails or the initialized notification cannot be sent.
     pub async fn initialize(&self) -> Result<()> {
         let _: serde_json::Value = self
             .send_request(
@@ -81,11 +87,15 @@ impl McpClient {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns an error if the request to list tools fails.
     pub async fn list_tools(&self) -> Result<Vec<McpTool>> {
         let result: ListToolsResult = self.send_request("tools/list", None).await?;
         Ok(result.tools)
     }
 
+    /// # Errors
+    /// Returns an error if the tool call request fails.
     pub async fn call_tool(
         &self,
         name: &str,

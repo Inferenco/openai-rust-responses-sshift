@@ -1,4 +1,4 @@
-use super::types::*;
+use super::types::{JsonRpcRequest, JsonRpcResponse};
 use crate::error::Result;
 use async_trait::async_trait;
 use reqwest::Client;
@@ -14,6 +14,7 @@ pub struct HttpTransport {
 }
 
 impl HttpTransport {
+    #[must_use]
     pub fn new(url: &str) -> Self {
         Self {
             client: Client::new(),
@@ -31,12 +32,12 @@ impl McpTransport for HttpTransport {
             .json(message)
             .send()
             .await
-            .map_err(|e| crate::Error::Mcp(format!("HTTP request failed: {}", e)))?;
+            .map_err(|e| crate::Error::Mcp(format!("HTTP request failed: {e}")))?;
 
         let rpc_response: JsonRpcResponse = response
             .json()
             .await
-            .map_err(|e| crate::Error::Mcp(format!("Failed to parse response: {}", e)))?;
+            .map_err(|e| crate::Error::Mcp(format!("Failed to parse response: {e}")))?;
 
         Ok(rpc_response)
     }

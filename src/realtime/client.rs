@@ -10,6 +10,11 @@ pub struct RealtimeClient {
 }
 
 impl RealtimeClient {
+    /// # Panics
+    /// Panics if the Authorization or OpenAI-Beta header values cannot be parsed.
+    ///
+    /// # Errors
+    /// Returns an error if the WebSocket connection fails or the request is invalid.
     pub async fn connect(api_key: &str, model: &str) -> Result<Self> {
         let url = format!("wss://api.openai.com/v1/realtime?model={model}");
         let mut request = url
@@ -32,6 +37,8 @@ impl RealtimeClient {
         Ok(Self { socket })
     }
 
+    /// # Errors
+    /// Returns an error if the event cannot be serialized or the message cannot be sent.
     pub async fn send_event(&mut self, event: Value) -> Result<()> {
         let message = serde_json::to_string(&event).map_err(crate::Error::Json)?;
         self.socket
@@ -41,6 +48,8 @@ impl RealtimeClient {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns an error if a WebSocket error occurs or the received message cannot be deserialized.
     pub async fn receive_event(&mut self) -> Result<Option<Value>> {
         match self.socket.next().await {
             Some(Ok(msg)) => {
