@@ -1487,3 +1487,114 @@ mod recovery_tests {
         drop(runtime);
     }
 }
+
+#[cfg(test)]
+mod mcp_integration_tests {
+    use crate::mcp::{HttpTransport, McpClient};
+    use serde_json::json;
+
+    /// Integration test for MCP client connecting to a local MCP server
+    ///
+    /// This test requires a running MCP server at http://localhost:3400/rpc
+    /// Run with: `cargo test -- --ignored mcp_integration_test` if server is available
+    /// Or: `cargo test mcp_integration_test` to run normally (will fail if server not running)
+    #[tokio::test]
+    #[ignore = "Requires running MCP server at http://localhost:3400/rpc"]
+    async fn mcp_integration_test() {
+        let transport = Box::new(HttpTransport::new("http://localhost:3400/rpc"));
+        let client = McpClient::new(transport);
+
+        // Initialize the MCP connection
+        println!("Initializing MCP connection...");
+        let init_result = client.initialize().await;
+        assert!(
+            init_result.is_ok(),
+            "Failed to initialize MCP connection: {:?}",
+            init_result.err()
+        );
+        println!("✅ MCP connection initialized");
+
+        // List available tools
+        println!("Fetching available tools...");
+        let tools_result = client.list_tools().await;
+        assert!(
+            tools_result.is_ok(),
+            "Failed to list tools: {:?}",
+            tools_result.err()
+        );
+
+        let tools = tools_result.unwrap();
+        assert!(
+            !tools.is_empty(),
+            "Expected at least one tool from MCP server"
+        );
+        println!("✅ Found {} tools:", tools.len());
+
+        for tool in &tools {
+            println!(
+                "  - {}: {}",
+                tool.name,
+                tool.description.as_deref().unwrap_or("No description")
+            );
+        }
+
+        // Try to call a simple tool (get_current_time is usually available and simple)
+        let tool_name = if tools.iter().any(|t| t.name == "get_current_time") {
+            "get_current_time"
+        } else if !tools.is_empty() {
+            &tools[0].name
+        } else {
+            panic!("No tools available to test");
+        };
+
+        println!("Calling tool: {tool_name}");
+
+        // Prepare arguments based on the tool
+        let arguments = if tool_name == "get_current_time" {
+            json!({
+                "timezone": "UTC"
+            })
+        } else {
+            // For other tools, use empty arguments or minimal required args
+            json!({})
+        };
+
+        let call_result = client.call_tool(tool_name, arguments).await;
+        assert!(
+            call_result.is_ok(),
+            "Failed to call tool '{}': {:?}",
+            tool_name,
+            call_result.err()
+        );
+
+        let result = call_result.unwrap();
+        println!("✅ Tool call successful!");
+        println!("Result content items: {}", result.content.len());
+
+        // Print the result content
+        for (i, content) in result.content.iter().enumerate() {
+            match content {
+                crate::mcp::ToolContent::Text { text } => {
+                    println!("  Content {}: {}", i + 1, text);
+                }
+                crate::mcp::ToolContent::Image { data, mime_type } => {
+                    println!(
+                        "  Content {}: Image ({}), data length: {}",
+                        i + 1,
+                        mime_type,
+                        data.len()
+                    );
+                }
+                crate::mcp::ToolContent::Resource { uri, text, .. } => {
+                    println!("  Content {}: Resource ({}), text: {:?}", i + 1, uri, text);
+                }
+            }
+        }
+
+        if let Some(is_error) = result.is_error {
+            assert!(!is_error, "Tool call returned an error");
+        }
+
+        println!("✅ MCP integration test completed successfully!");
+    }
+}

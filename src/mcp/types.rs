@@ -28,6 +28,7 @@ pub struct JsonRpcError {
 pub struct McpTool {
     pub name: String,
     pub description: Option<String>,
+    #[serde(rename = "inputSchema")]
     pub input_schema: Value,
 }
 
@@ -39,6 +40,7 @@ pub struct ListToolsResult {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CallToolResult {
     pub content: Vec<ToolContent>,
+    #[serde(rename = "isError")]
     pub is_error: Option<bool>,
 }
 
@@ -48,10 +50,15 @@ pub enum ToolContent {
     #[serde(rename = "text")]
     Text { text: String },
     #[serde(rename = "image")]
-    Image { data: String, mime_type: String },
+    Image {
+        data: String,
+        #[serde(rename = "mimeType")]
+        mime_type: String,
+    },
     #[serde(rename = "resource")]
     Resource {
         uri: String,
+        #[serde(rename = "mimeType")]
         mime_type: Option<String>,
         text: Option<String>,
         blob: Option<String>,
