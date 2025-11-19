@@ -44,8 +44,7 @@ impl McpClient {
         if let Some(error) = response.error {
             return Err(crate::Error::Mcp(format!(
                 "MCP Error {}: {}",
-                error.code,
-                error.message
+                error.code, error.message
             )));
         }
 
