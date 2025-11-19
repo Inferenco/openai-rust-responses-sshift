@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2025-11-20
+
+### 🔌 Model Context Protocol (MCP)
+- **Added Header Support**: Implemented support for custom HTTP headers in `McpClient` and `HttpTransport`
+  - Enables Bearer token authorization for secure MCP server connections
+  - Allows passing custom metadata headers with requests
+  - Added `with_headers` builder method to `McpClient` configuration
+
 ## [0.3.5] - 2025-11-19
 
 ### 🔌 Model Context Protocol (MCP) - Compatibility Fixes
