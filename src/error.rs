@@ -206,6 +206,10 @@ pub enum Error {
     /// Maximum retry attempts exceeded
     #[error("Maximum retry attempts exceeded: {attempts}")]
     MaxRetriesExceeded { attempts: u32 },
+
+    /// MCP error
+    #[error("MCP error: {0}")]
+    Mcp(String),
 }
 
 impl Error {

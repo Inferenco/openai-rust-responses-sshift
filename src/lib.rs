@@ -19,11 +19,15 @@
 //! - Streaming responses via Server-Sent Events (SSE)
 //! - Built-in tools support (web search, file search)
 //! - Function calling capabilities
+//! - **Model Context Protocol (MCP)** integration
+//! - **Realtime API** support via WebSockets
 
 mod error;
 pub mod files;
 pub mod images;
+pub mod mcp;
 pub mod messages;
+pub mod realtime;
 pub mod responses;
 #[cfg(test)]
 mod tests;

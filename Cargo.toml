@@ -22,11 +22,15 @@ thiserror = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 futures = { version = "0.3", optional = true }
 async-fn-stream = { version = "0.2", optional = true }
-tokio = { version = "1.0", features = ["rt", "macros", "fs"], optional = true }
+tokio = { version = "1.0", features = ["rt", "macros", "fs", "net", "io-util"] }
 log = "0.4"
 mime_guess = "2.0"
 dotenv = { version = "0.15", optional = true }
 base64 = { version = "0.22", optional = true }
+tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
+url = "2.4"
+futures-util = "0.3"
+async-trait = "0.1"
 
 [features]
 default = ["rustls"]

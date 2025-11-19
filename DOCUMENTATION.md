@@ -2412,3 +2412,164 @@ cargo run --example image_generation_builtin
 
 # Code Interpreter example
 cargo run --example code_interpreter
+
+## MCP Integration (Model Context Protocol)
+
+The SDK supports the Model Context Protocol (MCP), allowing you to connect your AI application to external tools and resources provided by MCP servers.
+
+### Connecting to a Remote MCP Server
+
+To connect to a remote MCP server (e.g., running via SSE/HTTP), use the `HttpTransport` and `McpClient`.
+
+```rust
+use open_ai_rust_responses_by_sshift::mcp::{McpClient, transport::HttpTransport};
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize the transport with the MCP server URL
+    let transport = HttpTransport::new("http://localhost:8000/mcp");
+    
+    // Create the MCP client
+    let client = McpClient::new(Box::new(transport));
+    
+    // Initialize the connection
+    client.initialize().await?;
+    
+    // List available tools
+    let tools = client.list_tools().await?;
+    println!("Available tools: {:?}", tools);
+    
+    // Call a tool
+    let result = client.call_tool("read_file", json!({ "path": "/path/to/file.txt" })).await?;
+    println!("Tool result: {:?}", result);
+    
+    Ok(())
+}
+```
+
+### Using MCP Tools in Requests
+
+Once you have an `McpClient` and have retrieved the tools, you can convert them to the SDK's `Tool` format and use them in your requests.
+
+```rust
+use open_ai_rust_responses_by_sshift::mcp::adapter::mcp_tool_to_openai_tool;
+
+// ... (after listing tools)
+
+let openai_tools: Vec<Tool> = tools.into_iter()
+    .map(mcp_tool_to_openai_tool)
+    .collect();
+
+let request = Request::builder()
+    .model(Model::GPT4o)
+    .input("Read the file at /path/to/file.txt")
+    .tools(openai_tools)
+    .build();
+
+// ... (send request and handle tool calls)
+```
+
+## Realtime API (WebSockets)
+
+The SDK provides a client for OpenAI's Realtime API, enabling low-latency, multimodal interactions via WebSockets.
+
+### Connecting to the Realtime API
+
+```rust
+use open_ai_rust_responses_by_sshift::realtime::RealtimeClient;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to the Realtime API
+    // You can specify the model (e.g., "gpt-4o-realtime-preview")
+    let mut client = RealtimeClient::connect("sk-your-api-key", "gpt-4o-realtime-preview").await?;
+    
+    // Send an event to the API
+    client.send_event(json!({
+        "type": "response.create",
+        "response": {
+            "modalities": ["text"],
+            "instructions": "Hello, world!"
+        }
+    })).await?;
+    
+    // Receive events from the API
+    while let Some(event) = client.receive_event().await? {
+        println!("Received event: {:?}", event);
+        // Handle events (e.g., audio delta, text delta, etc.)
+    }
+    
+    Ok(())
+}
+```
+
+### Using Realtime API with MCP
+
+You can combine the Realtime API with MCP to give your realtime assistant access to external tools.
+
+```rust
+use open_ai_rust_responses_by_sshift::mcp::{McpClient, transport::HttpTransport, adapter::mcp_tool_to_openai_tool};
+use open_ai_rust_responses_by_sshift::realtime::RealtimeClient;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 1. Connect to MCP Server
+    let transport = HttpTransport::new("http://localhost:8000/mcp");
+    let mcp_client = McpClient::new(Box::new(transport));
+    mcp_client.initialize().await?;
+    
+    // 2. Get tools and convert them
+    let mcp_tools = mcp_client.list_tools().await?;
+    let openai_tools: Vec<_> = mcp_tools.into_iter().map(mcp_tool_to_openai_tool).collect();
+
+    // 3. Connect to Realtime API
+    let mut realtime_client = RealtimeClient::connect("sk-...", "gpt-4o-realtime-preview").await?;
+
+    // 4. Configure session with tools
+    realtime_client.send_event(json!({
+        "type": "session.update",
+        "session": {
+            "tools": openai_tools,
+            "tool_choice": "auto"
+        }
+    })).await?;
+
+    // 5. Event Loop
+    while let Some(event) = realtime_client.receive_event().await? {
+        if let Some(type_) = event.get("type").and_then(|t| t.as_str()) {
+            if type_ == "response.function_call_arguments.done" {
+                // Handle tool call
+                let call_id = event["call_id"].as_str().unwrap();
+                let name = event["name"].as_str().unwrap();
+                let args_str = event["arguments"].as_str().unwrap();
+                let args: serde_json::Value = serde_json::from_str(args_str)?;
+
+                println!("Calling tool: {} with {:?}", name, args);
+                
+                // Execute tool via MCP
+                let result = mcp_client.call_tool(name, args).await?;
+                
+                // Send output back to Realtime API
+                realtime_client.send_event(json!({
+                    "type": "conversation.item.create",
+                    "item": {
+                        "type": "function_call_output",
+                        "call_id": call_id,
+                        "output": serde_json::to_string(&result)?
+                    }
+                })).await?;
+                
+                // Trigger next response
+                realtime_client.send_event(json!({
+                    "type": "response.create"
+                })).await?;
+            }
+        }
+    }
+    
+    Ok(())
+}
+```
