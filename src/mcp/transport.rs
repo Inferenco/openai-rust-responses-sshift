@@ -1,6 +1,7 @@
 use super::types::{JsonRpcRequest, JsonRpcResponse};
 use crate::error::Result;
 use async_trait::async_trait;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Client;
 
 #[async_trait]
@@ -11,6 +12,7 @@ pub trait McpTransport: Send + Sync {
 pub struct HttpTransport {
     client: Client,
     url: String,
+    headers: HeaderMap,
 }
 
 impl HttpTransport {
@@ -19,7 +21,21 @@ impl HttpTransport {
         Self {
             client: Client::new(),
             url: url.to_string(),
+            headers: HeaderMap::new(),
         }
+    }
+
+    /// Adds a header to the transport.
+    ///
+    /// # Errors
+    /// Returns an error if the header name or value is invalid.
+    pub fn with_header(mut self, key: &str, value: &str) -> Result<Self> {
+        let name = HeaderName::from_bytes(key.as_bytes())
+            .map_err(|e| crate::Error::Mcp(format!("Invalid header name: {e}")))?;
+        let value = HeaderValue::from_str(value)
+            .map_err(|e| crate::Error::Mcp(format!("Invalid header value: {e}")))?;
+        self.headers.insert(name, value);
+        Ok(self)
     }
 }
 
@@ -29,6 +45,7 @@ impl McpTransport for HttpTransport {
         let response = self
             .client
             .post(&self.url)
+            .headers(self.headers.clone())
             .json(message)
             .send()
             .await

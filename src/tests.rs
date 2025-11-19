@@ -1597,4 +1597,47 @@ mod mcp_integration_tests {
 
         println!("✅ MCP integration test completed successfully!");
     }
+
+    #[test]
+    fn test_http_transport_headers() {
+        use crate::mcp::transport::HttpTransport;
+
+        let transport = HttpTransport::new("http://localhost:3400");
+        // We can't access private fields directly in integration tests,
+        // but we can verify the builder pattern works without panicking
+
+        let transport = transport
+            .with_header("Authorization", "Bearer token")
+            .expect("Failed to add header");
+
+        let _transport = transport
+            .with_header("X-Custom-Header", "custom-value")
+            .expect("Failed to add second header");
+    }
+
+    #[test]
+    fn test_http_transport_invalid_headers() {
+        use crate::mcp::transport::HttpTransport;
+
+        let transport = HttpTransport::new("http://localhost:3400");
+
+        // Test invalid header name (contains space)
+        let result = transport.with_header("Invalid Name", "value");
+        assert!(result.is_err());
+        if let Err(crate::Error::Mcp(msg)) = result {
+            assert!(msg.contains("Invalid header name"));
+        } else {
+            panic!("Expected Mcp error");
+        }
+
+        // Test invalid header value (contains newline)
+        let transport = HttpTransport::new("http://localhost:3400");
+        let result = transport.with_header("Valid-Name", "Invalid\nValue");
+        assert!(result.is_err());
+        if let Err(crate::Error::Mcp(msg)) = result {
+            assert!(msg.contains("Invalid header value"));
+        } else {
+            panic!("Expected Mcp error");
+        }
+    }
 }
