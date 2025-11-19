@@ -11,15 +11,15 @@ pub struct RealtimeClient {
 
 impl RealtimeClient {
     pub async fn connect(api_key: &str, model: &str) -> Result<Self> {
-        let url = format!("wss://api.openai.com/v1/realtime?model={}", model);
+        let url = format!("wss://api.openai.com/v1/realtime?model={model}");
         let mut request = url
             .as_str()
             .into_client_request()
-            .map_err(|e| crate::Error::Mcp(format!("Invalid request: {}", e)))?;
+            .map_err(|e| crate::Error::Mcp(format!("Invalid request: {e}")))?;
 
         request.headers_mut().insert(
             "Authorization",
-            format!("Bearer {}", api_key).parse().unwrap(),
+            format!("Bearer {api_key}").parse().unwrap(),
         );
         request
             .headers_mut()
@@ -27,17 +27,17 @@ impl RealtimeClient {
 
         let (socket, _) = connect_async(request)
             .await
-            .map_err(|e| crate::Error::Mcp(format!("Failed to connect: {}", e)))?;
+            .map_err(|e| crate::Error::Mcp(format!("Failed to connect: {e}")))?;
 
         Ok(Self { socket })
     }
 
     pub async fn send_event(&mut self, event: Value) -> Result<()> {
-        let message = serde_json::to_string(&event).map_err(|e| crate::Error::Json(e))?;
+        let message = serde_json::to_string(&event).map_err(crate::Error::Json)?;
         self.socket
             .send(tokio_tungstenite::tungstenite::Message::Text(message))
             .await
-            .map_err(|e| crate::Error::Mcp(format!("Failed to send message: {}", e)))?;
+            .map_err(|e| crate::Error::Mcp(format!("Failed to send message: {e}")))?;
         Ok(())
     }
 
@@ -45,14 +45,13 @@ impl RealtimeClient {
         match self.socket.next().await {
             Some(Ok(msg)) => {
                 if let tokio_tungstenite::tungstenite::Message::Text(text) = msg {
-                    let event: Value =
-                        serde_json::from_str(&text).map_err(|e| crate::Error::Json(e))?;
+                    let event: Value = serde_json::from_str(&text).map_err(crate::Error::Json)?;
                     Ok(Some(event))
                 } else {
                     Ok(None)
                 }
             }
-            Some(Err(e)) => Err(crate::Error::Mcp(format!("WebSocket error: {}", e))),
+            Some(Err(e)) => Err(crate::Error::Mcp(format!("WebSocket error: {e}"))),
             None => Ok(None),
         }
     }
