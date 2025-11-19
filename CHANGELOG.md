@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2025-11-19
+
+### 🔌 Model Context Protocol (MCP) - Compatibility Fixes
+- **Fixed MCP protocol field name mappings**: Updated structs to use correct camelCase JSON field names per MCP specification
+  - `input_schema` → `inputSchema` in `McpTool` struct
+  - `mime_type` → `mimeType` in `ToolContent` enum
+  - `is_error` → `isError` in `CallToolResult` struct
+- **Added MCP integration test**: Created comprehensive test suite for MCP client functionality
+  - Tests connection to MCP server at `http://localhost:3400/rpc`
+  - Validates initialization, tool listing, and tool execution
+  - Includes proper error handling and detailed output
+- **Exported `HttpTransport`**: Made `HttpTransport` publicly available from `mcp` module for easier integration
+
+### 🛠️ Code Quality
+- **Fixed all clippy warnings**: Resolved format string issues, added missing documentation, and fixed wildcard imports
+- **Fixed formatting issues**: Corrected code formatting to pass `cargo fmt --check`
+- **Enhanced documentation**: Added `# Errors` and `# Panics` sections to all MCP-related functions
+
+### ✅ Testing
+- Added integration test for MCP client (`mcp_integration_test`)
+- Test marked with `#[ignore]` flag - run with `cargo test -- --ignored` when MCP server is available
+- Test validates full MCP workflow: initialization → list tools → call tool → validate response
+
 ## [0.3.4] - 2025-11-19
 
 ### 🔌 Model Context Protocol (MCP)
