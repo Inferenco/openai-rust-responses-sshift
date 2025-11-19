@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2025-11-19
+
+### 🔌 Model Context Protocol (MCP)
+- Added the built-in MCP tool so responses can call external MCP servers, including the new `require_approval` controls for never/auto/always approval modes.
+- Documented the MCP flows and provided examples showing how to connect via `HttpTransport` plus how requests can surface MCP tool responses.
+
+### 🛠️ Maintenance
+- Bumped the crate version to `0.3.4` and refreshed README references to point at the new release.
+
 ## [0.3.3] - 2025-02-18
 
 ### 📚 Documentation

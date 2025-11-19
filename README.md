@@ -69,7 +69,7 @@ See `examples/gpt5_demo.rs` for a complete, runnable showcase with function call
 
 This SDK includes cutting-edge features with full API parity:
 
-### 🔌 **Model Context Protocol (MCP) Support** (NEW in v0.3.3)
+### 🔌 **Model Context Protocol (MCP) Support** (NEW in v0.3.4)
 Connect to any remote MCP server to extend your AI's capabilities with external tools and resources.
 
 ```rust
@@ -87,7 +87,7 @@ let tools = client.list_tools().await?;
 let result = client.call_tool("read_file", json!({ "path": "/path/to/file.txt" })).await?;
 ```
 
-### ⚡ **Realtime API (WebSockets)** (NEW in v0.3.3)
+### ⚡ **Realtime API (WebSockets)** (NEW in v0.3.4)
 Interact with OpenAI's Realtime API for low-latency, multimodal experiences.
 
 ```rust
