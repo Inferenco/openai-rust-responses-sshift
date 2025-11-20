@@ -1,5 +1,7 @@
 # Open AI Rust Responses by SShift - Documentation
 
+> **🔐 v0.4.1 Update**: **MCP Authorization** - Added `with_bearer_token()` convenience method for secure MCP server connections. Simplifies Bearer token authentication with automatic header formatting. Fully backward compatible.
+> **🔌 v0.4.0 Update**: **Unified Tool Management** - New `ToolRegistry` for seamlessly combining local Rust tools with remote MCP tools. Priority routing automatically handles tool dispatch. Added `LocalTool` trait. Fully backward compatible - all changes are additive.
 > **🚀 v0.3.0 Update**: **GPT‑5 support** (flagship, mini, nano), new `Verbosity` control, `ReasoningEffort` tuning for GPT‑5, structured/free‑form function improvements, and a richer example. Note: minor source‑level break for struct literals and exhaustive `Model` matches.
 > **🔧 v0.2.9 Update**: **Automatic Tool Usage Tracking** - Revolutionary analytics! SDK now automatically tracks built-in tool usage (web search, file search, image generation, code interpreter) with zero client changes. Get detailed usage statistics in your exact requested format. Zero breaking changes!
 > **🛡️ v0.2.5 Update**: **Advanced Container Recovery System** - Revolutionary error handling! SDK now automatically handles container expiration with configurable recovery policies. Choose from Default (auto-retry), Conservative (manual control), or Aggressive (maximum resilience) strategies. Zero breaking changes!
@@ -42,6 +44,7 @@ This document provides comprehensive documentation for the Open AI Rust Response
 27. [Feature Flags](#feature-flags)
 28. [Testing and Examples](#testing-and-examples)
 29. [MCP Integration (Model Context Protocol)](#mcp-integration-model-context-protocol)
+30. [Migration Notes](#migration-notes)
 
 ## Quick Start
 
@@ -86,14 +89,14 @@ Add the library to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.3.0"
+open-ai-rust-responses-by-sshift = "0.4.1"
 ```
 
 If you want to use streaming responses, make sure to include the `stream` feature (enabled by default):
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.3.0", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.4.1", features = ["stream"] }
 ```
 
 ## GPT‑5 Usage
@@ -2304,12 +2307,61 @@ Example of using a specific TLS implementation:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.3.0", default-features = false, features = ["stream", "native-tls"] }
+open-ai-rust-responses-by-sshift = { version = "0.4.1", default-features = false, features = ["stream", "native-tls"] }
 ```
 
 ---
 
-### Migration notes (0.2.x → 0.3.0)
+## Migration Notes
+
+### 0.4.0 → 0.4.1
+
+**Fully backward compatible** - All changes are additive. Existing code continues to work without modification.
+
+#### New Optional Features
+
+- **`with_bearer_token()` method**: New convenience method for Bearer token authentication
+  - Optional: You can continue using `with_header("Authorization", "Bearer <token>")` as before
+  - To use: `HttpTransport::new(url).with_bearer_token("your-token")?`
+  - Simplifies authentication setup with automatic `Bearer` prefix formatting
+  - Can be chained with other header methods
+
+#### No Breaking Changes
+
+- All existing MCP client APIs remain unchanged
+- Existing `with_header()` usage continues to work
+- No changes to request/response structures
+- Runtime behavior is identical
+
+### 0.3.x → 0.4.0
+
+**Fully backward compatible** - All changes are additive. Existing code continues to work without modification.
+
+#### New Optional Features
+
+- **`ToolRegistry`**: New unified tool management system for combining local and MCP tools
+  - Optional: You can continue using `McpClient` directly as before
+  - To use: Import `ToolRegistry` from `mcp` module and register your tools
+  - See `examples/local_and_mcp_tools.rs` for usage examples
+
+- **`LocalTool` Trait**: New trait for defining local Rust-based tools
+  - Optional: Only needed if you want to create custom local tools
+  - Implement the trait and register with `ToolRegistry`
+
+- **MCP Authorization Support**: Added header support for secure MCP connections
+  - Optional enhancement: Use `HttpTransport::with_bearer_token()` for Bearer token authentication
+  - Use `HttpTransport::with_header()` for custom headers
+  - Methods can be chained: `HttpTransport::new(url).with_bearer_token(token)?.with_header(key, value)?`
+  - Existing `HttpTransport::new()` continues to work without headers
+
+#### No Breaking Changes
+
+- All existing MCP client APIs remain unchanged
+- Existing tool definitions continue to work
+- No changes to request/response structures
+- Runtime behavior is identical
+
+### 0.2.x → 0.3.0
 
 - Potential source breaks only if:
   - You construct public structs with literals (`Tool`, `TextConfig`, `ReasoningParams`). Use builders or `..Default::default()`.
@@ -2415,11 +2467,13 @@ cargo run --example code_interpreter
 
 ## MCP Integration (Model Context Protocol)
 
-The SDK supports the Model Context Protocol (MCP), allowing you to connect your AI application to external tools and resources provided by MCP servers.
+The SDK supports the Model Context Protocol (MCP), allowing you to connect your AI application to external tools and resources provided by MCP servers. The SDK includes support for both direct MCP client usage and a unified `ToolRegistry` that combines local and remote tools.
 
 ### Connecting to a Remote MCP Server
 
 To connect to a remote MCP server (e.g., running via SSE/HTTP), use the `HttpTransport` and `McpClient`.
+
+#### Basic Connection (No Authentication)
 
 ```rust
 use open_ai_rust_responses_by_sshift::mcp::{McpClient, transport::HttpTransport};
@@ -2447,6 +2501,114 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+#### Connection with Bearer Token Authentication (v0.4.1)
+
+```rust
+use open_ai_rust_responses_by_sshift::mcp::{McpClient, transport::HttpTransport};
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect with Bearer token authentication
+    let transport = HttpTransport::new("http://localhost:8000/mcp")
+        .with_bearer_token("your-api-token-here")?;
+    
+    let client = McpClient::new(Box::new(transport));
+    client.initialize().await?;
+    
+    // Use the client as before
+    let tools = client.list_tools().await?;
+    Ok(())
+}
+```
+
+#### Connection with Custom Headers
+
+```rust
+// Combine Bearer token with custom headers
+let transport = HttpTransport::new("http://localhost:8000/mcp")
+    .with_header("X-Custom-Header", "value")?
+    .with_bearer_token("your-api-token")?;
+
+let client = McpClient::new(Box::new(transport));
+```
+
+### Unified Tool Management with ToolRegistry (v0.4.0)
+
+The `ToolRegistry` provides a unified interface for managing both local Rust tools and remote MCP tools, with automatic priority routing.
+
+#### Creating Local Tools
+
+```rust
+use open_ai_rust_responses_by_sshift::mcp::{LocalTool, ToolRegistry};
+use async_trait::async_trait;
+use serde_json::{json, Value};
+
+#[async_trait]
+impl LocalTool for MyLocalTool {
+    fn name(&self) -> &str {
+        "my_local_tool"
+    }
+    
+    fn description(&self) -> &'static str {
+        "A local tool that does something useful"
+    }
+    
+    fn schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "input": {
+                    "type": "string",
+                    "description": "Input parameter"
+                }
+            },
+            "required": ["input"]
+        })
+    }
+    
+    async fn call(&self, args: Value) -> crate::Result<Value> {
+        // Your tool implementation
+        Ok(json!({ "result": "success" }))
+    }
+}
+```
+
+#### Using ToolRegistry
+
+```rust
+use open_ai_rust_responses_by_sshift::mcp::{ToolRegistry, McpClient, HttpTransport};
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Set up MCP client
+    let transport = HttpTransport::new("http://localhost:8000/mcp")
+        .with_bearer_token("your-token")?;
+    let mcp_client = Arc::new(McpClient::new(Box::new(transport)));
+    mcp_client.initialize().await?;
+    
+    // Create registry and register tools
+    let mut registry = ToolRegistry::new();
+    registry.set_mcp_client(mcp_client);
+    registry.register_local_tool(Box::new(MyLocalTool));
+    
+    // Get unified list of tools (local + MCP)
+    let all_tools = registry.list_tools().await?;
+    
+    // Call tools - automatically routes to local or MCP
+    let result = registry.call_tool("my_local_tool", json!({ "input": "test" })).await?;
+    let mcp_result = registry.call_tool("mcp_tool", json!({})).await?;
+    
+    Ok(())
+}
+```
+
+**Priority Routing**: When `call_tool()` is invoked, the registry:
+1. First checks for a local tool with the given name
+2. If not found, delegates to the MCP client
+3. Returns an error if neither exists
 
 ### Using MCP Tools in Requests
 

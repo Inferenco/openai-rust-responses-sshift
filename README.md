@@ -512,11 +512,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.3.0"
+open-ai-rust-responses-by-sshift = "0.4.1"
 tokio = { version = "1.0", features = ["full"] }
 
 # Optional: Enable streaming
-# open-ai-rust-responses-by-sshift = { version = "0.3.0", features = ["stream"] }
+# open-ai-rust-responses-by-sshift = { version = "0.4.1", features = ["stream"] }
 ```
 
 ### Basic Usage
@@ -619,7 +619,7 @@ Enable the `stream` feature:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.3.0", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.4.1", features = ["stream"] }
 ```
 
 ```rust
