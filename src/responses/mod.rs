@@ -845,6 +845,8 @@ impl Responses {
 
     /// Creates a streaming response
     #[cfg(feature = "stream")]
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn stream(
         &self,
         mut request: crate::Request,
@@ -907,7 +909,7 @@ impl Responses {
                         .or_else(|| response.headers().get("x-response-id"))
                         .or_else(|| response.headers().get("response-id"))
                         .and_then(|h| h.to_str().ok())
-                        .map(|s| s.to_string());
+                        .map(ToString::to_string);
 
                     response_id_opt = response_id;
                     response_opt = Some(response);
@@ -1008,6 +1010,7 @@ impl Responses {
     }
 
     #[cfg(feature = "stream")]
+    #[allow(clippy::too_many_lines)]
     fn parse_stream_event(event: &serde_json::Value) -> Option<crate::types::StreamEvent> {
         if let Some(event_type) = event.get("type").and_then(|t| t.as_str()) {
             match event_type {
