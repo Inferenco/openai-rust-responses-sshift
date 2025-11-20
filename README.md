@@ -1023,9 +1023,55 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 - Thanks to the Rust community for excellent async ecosystem
 - Phase 1 implementation based on OpenAI May 2025 specification
 
+## 🌟 Projects Built with This SDK
+
+This SDK powers real-world applications and services. Here are some notable projects:
+
+### [Nova](https://inferenco.com/app.html#nova)
+
+**Nova** is a sophisticated AI-powered Telegram bot ecosystem with deep blockchain integration on Aptos. Built using this SDK, Nova provides:
+
+- **AI-Powered Conversations**: Access to advanced language models (GPT-5, GPT-5-mini) with tool-calling capabilities
+- **Blockchain Integration**: Native Aptos blockchain support for transparent payments and transactions
+- **Market Data Tools**: Real-time cryptocurrency prices, trending pools, DEX data, and more
+- **Image Generation**: AI-powered image creation capabilities
+- **Community Management**: Automated moderation, DAO voting, and payment systems
+
+Nova demonstrates the SDK's capabilities in production, handling real-time AI interactions, tool calling, and streaming responses for Telegram users and groups.
+
+[Learn more about Nova →](https://inferenco.com/app.html#nova)
+
 ---
 
-## 📦 Migration notes (0.2.x → 0.3.0)
+## 📦 Migration notes
+
+### 0.3.x → 0.4.0
+
+**Fully backward compatible** - All changes are additive. Existing code continues to work without modification.
+
+#### New Optional Features
+
+- **`ToolRegistry`**: New unified tool management system for combining local and MCP tools
+  - Optional: You can continue using `McpClient` directly as before
+  - To use: Import `ToolRegistry` from `mcp` module and register your tools
+  - See `examples/local_and_mcp_tools.rs` for usage examples
+
+- **`LocalTool` Trait**: New trait for defining local Rust-based tools
+  - Optional: Only needed if you want to create custom local tools
+  - Implement the trait and register with `ToolRegistry`
+
+- **MCP Authorization Support**: Added header support for secure MCP connections
+  - Optional enhancement: Use `HttpTransport::with_bearer_token()` or `with_headers()` for authenticated connections
+  - Existing `HttpTransport::new()` continues to work without headers
+
+#### No Breaking Changes
+
+- All existing MCP client APIs remain unchanged
+- Existing tool definitions continue to work
+- No changes to request/response structures
+- Runtime behavior is identical
+
+### 0.2.x → 0.3.0
 
 - Additive, but potentially source‑breaking in two cases:
   - If you use struct literals for public types (`Tool`, `TextConfig`, `ReasoningParams`), add `..Default::default()` or switch to the builders/constructors.
