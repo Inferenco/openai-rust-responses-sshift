@@ -37,6 +37,20 @@ impl HttpTransport {
         self.headers.insert(name, value);
         Ok(self)
     }
+
+    /// Adds Bearer token authorization to the transport.
+    ///
+    /// This is a convenience method for adding `Authorization: Bearer <token>` header.
+    ///
+    /// # Errors
+    /// Returns an error if the token cannot be converted to a valid header value.
+    pub fn with_bearer_token(mut self, token: &str) -> Result<Self> {
+        let auth_value = format!("Bearer {token}");
+        let value = HeaderValue::from_str(&auth_value)
+            .map_err(|e| crate::Error::Mcp(format!("Invalid bearer token: {e}")))?;
+        self.headers.insert(reqwest::header::AUTHORIZATION, value);
+        Ok(self)
+    }
 }
 
 #[async_trait]

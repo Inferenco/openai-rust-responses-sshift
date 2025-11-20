@@ -1,5 +1,7 @@
 # OpenAI Rust Responses by SShift
 
+> **🔐 v0.4.1 Update**: **MCP Authorization** - Added `with_bearer_token()` convenience method for secure MCP server connections. Simplifies Bearer token authentication with automatic header formatting. Fully backward compatible.
+> **🔌 v0.4.0 Update**: **Unified Tool Management** - New `ToolRegistry` for seamlessly combining local Rust tools with remote MCP tools. Priority routing automatically handles tool dispatch. Added `LocalTool` trait. Fully backward compatible - all changes are additive.
 > **🚀 v0.3.0 Update**: **GPT‑5 family support** (flagship, mini, nano), new verbosity control, reasoning effort tuning for GPT‑5, structured/free‑form function improvements, and an expanded example. Note: source‑level break only for users constructing public structs with literals or exhaustively matching `Model`.
 > **🛡️ v0.2.5 Update**: **Advanced Container Recovery System** - Revolutionary error handling! SDK now automatically handles container expiration with configurable recovery policies. Choose from Default (auto-retry), Conservative (manual control), or Aggressive (maximum resilience) strategies. Zero breaking changes!
 > **🎨 v0.2.4 Update**: **Image-Guided Generation** - Revolutionary new feature! Use input images to guide image generation with the GPT Image 1 model. Create style transfers, combine multiple images into logos, and generate artistic interpretations. See the comprehensive new example!
@@ -75,10 +77,21 @@ Connect to any remote MCP server to extend your AI's capabilities with external 
 ```rust
 use open_ai_rust_responses_by_sshift::mcp::{McpClient, transport::HttpTransport};
 
-// Connect to a remote MCP server via HTTP
+// Connect to a remote MCP server via HTTP (without authentication)
 let transport = HttpTransport::new("http://localhost:8000/mcp");
 let client = McpClient::new(Box::new(transport));
 client.initialize().await?;
+
+// Or connect with Bearer token authentication
+let transport = HttpTransport::new("http://localhost:8000/mcp")
+    .with_bearer_token("your-api-token-here")?;
+let client = McpClient::new(Box::new(transport));
+client.initialize().await?;
+
+// Or add custom headers
+let transport = HttpTransport::new("http://localhost:8000/mcp")
+    .with_header("X-Custom-Header", "value")?
+    .with_bearer_token("your-api-token")?;
 
 // List available tools
 let tools = client.list_tools().await?;
@@ -499,11 +512,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.3.0"
+open-ai-rust-responses-by-sshift = "0.4.1"
 tokio = { version = "1.0", features = ["full"] }
 
 # Optional: Enable streaming
-# open-ai-rust-responses-by-sshift = { version = "0.3.0", features = ["stream"] }
+# open-ai-rust-responses-by-sshift = { version = "0.4.1", features = ["stream"] }
 ```
 
 ### Basic Usage
@@ -606,7 +619,7 @@ Enable the `stream` feature:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.3.0", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.4.1", features = ["stream"] }
 ```
 
 ```rust
@@ -1045,6 +1058,25 @@ Nova demonstrates the SDK's capabilities in production, handling real-time AI in
 
 ## 📦 Migration notes
 
+### 0.4.0 → 0.4.1
+
+**Fully backward compatible** - All changes are additive. Existing code continues to work without modification.
+
+#### New Optional Features
+
+- **`with_bearer_token()` method**: New convenience method for Bearer token authentication
+  - Optional: You can continue using `with_header("Authorization", "Bearer <token>")` as before
+  - To use: `HttpTransport::new(url).with_bearer_token("your-token")?`
+  - Simplifies authentication setup with automatic `Bearer` prefix formatting
+  - Can be chained with other header methods
+
+#### No Breaking Changes
+
+- All existing MCP client APIs remain unchanged
+- Existing `with_header()` usage continues to work
+- No changes to request/response structures
+- Runtime behavior is identical
+
 ### 0.3.x → 0.4.0
 
 **Fully backward compatible** - All changes are additive. Existing code continues to work without modification.
@@ -1061,7 +1093,9 @@ Nova demonstrates the SDK's capabilities in production, handling real-time AI in
   - Implement the trait and register with `ToolRegistry`
 
 - **MCP Authorization Support**: Added header support for secure MCP connections
-  - Optional enhancement: Use `HttpTransport::with_bearer_token()` or `with_headers()` for authenticated connections
+  - Optional enhancement: Use `HttpTransport::with_bearer_token()` for Bearer token authentication
+  - Use `HttpTransport::with_header()` for custom headers
+  - Methods can be chained: `HttpTransport::new(url).with_bearer_token(token)?.with_header(key, value)?`
   - Existing `HttpTransport::new()` continues to work without headers
 
 #### No Breaking Changes

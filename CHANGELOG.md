@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2025-11-20
+
+### 🔐 Model Context Protocol (MCP) - Authorization Support
+- **Added `with_bearer_token()` method**: Convenience method for Bearer token authentication in `HttpTransport`
+  - Simplifies secure connections to authenticated MCP servers
+  - Automatically formats token as `Bearer <token>` header
+  - Can be chained with `with_header()` for additional custom headers
+- **Updated documentation**: Added comprehensive examples showing authentication patterns in README
+
 ## [0.4.0] - 2025-11-20
 
 ### 🔌 Model Context Protocol (MCP) - Unified Tool Support
@@ -12,11 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Priority Routing**: Automatically routes tool calls to the correct handler (local vs. MCP).
   - **`LocalTool` Trait**: New trait for defining local tools that can be registered alongside MCP tools.
   - **Seamless Integration**: `list_tools()` combines both local and remote tools into a single list for the LLM.
+  **Enhanced `with_header()` method**: Generic method for adding custom HTTP headers
+  - Supports any header name/value pair
+  - Enables flexible authentication and metadata passing
 - **New Example**: Added `examples/local_and_mcp_tools.rs` demonstrating how to build a hybrid tool system.
-- **Added Header Support**: Implemented support for custom HTTP headers in `McpClient` and `HttpTransport`
-  - Enables Bearer token authorization for secure MCP server connections
-  - Allows passing custom metadata headers with requests
-  - Added `with_headers` builder method to `McpClient` configuration
 
 ## [0.3.5] - 2025-11-19
 
