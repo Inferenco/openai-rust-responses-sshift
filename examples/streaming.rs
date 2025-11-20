@@ -67,9 +67,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let start_time = std::time::Instant::now();
 
         // Process the stream with enhanced event handling
+        let mut response_id: Option<String> = None;
         while let Some(event) = stream.next().await {
             match event {
                 Ok(stream_event) => match stream_event {
+                    StreamEvent::ResponseCreated { id } => {
+                        response_id = Some(id.clone());
+                        println!("\n📝 Response ID: {id}");
+                    }
                     StreamEvent::TextDelta { content, index: _ } => {
                         print!("{content}");
                         std::io::Write::flush(&mut std::io::stdout())?; // Flush to show immediately
@@ -144,6 +149,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let duration = start_time.elapsed();
 
         println!("\n📊 Enhanced Stream Statistics:");
+        if let Some(ref id) = response_id {
+            println!("   🆔 Response ID: {id}");
+        }
         println!("   📦 Total text chunks: {total_chunks}");
         println!("   📝 Total characters: {total_chars}");
         println!("   🛠️ Tool calls made: {tool_calls}");
@@ -188,6 +196,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "   🔧 Tool call delta helper: {:?}",
             tool_event.as_tool_call_delta()
+        );
+        let response_created_event = StreamEvent::ResponseCreated {
+            id: "resp_123".to_string(),
+        };
+        println!(
+            "   🆔 Response ID helper: {:?}",
+            response_created_event.as_response_id()
         );
         println!("   🏁 Is done check: {done}", done = text_event.is_done());
         println!(
