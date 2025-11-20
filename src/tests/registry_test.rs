@@ -1,4 +1,3 @@
-
 #[test]
 fn test_tool_registry_dispatch() {
     use crate::mcp::transport::McpTransport;
