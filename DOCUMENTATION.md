@@ -1,5 +1,6 @@
 # Open AI Rust Responses by SShift - Documentation
 
+> **🌊 v0.4.2 Update**: **Streaming Enhancements** - Enhanced `ResponseCreated` event support with response ID tracking, improved streaming tests, and comprehensive helper methods. Full event type coverage for production-ready streaming.
 > **🔐 v0.4.1 Update**: **MCP Authorization** - Added `with_bearer_token()` convenience method for secure MCP server connections. Simplifies Bearer token authentication with automatic header formatting. Fully backward compatible.
 > **🔌 v0.4.0 Update**: **Unified Tool Management** - New `ToolRegistry` for seamlessly combining local Rust tools with remote MCP tools. Priority routing automatically handles tool dispatch. Added `LocalTool` trait. Fully backward compatible - all changes are additive.
 > **🚀 v0.3.0 Update**: **GPT‑5 support** (flagship, mini, nano), new `Verbosity` control, `ReasoningEffort` tuning for GPT‑5, structured/free‑form function improvements, and a richer example. Note: minor source‑level break for struct literals and exhaustive `Model` matches.
@@ -89,14 +90,14 @@ Add the library to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.4.1"
+open-ai-rust-responses-by-sshift = "0.4.2"
 ```
 
 If you want to use streaming responses, make sure to include the `stream` feature (enabled by default):
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.4.1", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.4.2", features = ["stream"] }
 ```
 
 ## GPT‑5 Usage
@@ -2180,7 +2181,9 @@ if let Some(usage) = &response.usage {
 
 ## Production-Ready Streaming
 
-Streaming responses with proper HTTP chunked parsing:
+Streaming responses with proper HTTP chunked parsing and comprehensive event support:
+
+### Basic Streaming
 
 ```rust
 use futures::StreamExt;
@@ -2209,6 +2212,111 @@ while let Some(event) = stream.next().await {
             break;
         }
     }
+}
+```
+
+### Advanced Streaming with Response ID Tracking
+
+The streaming API emits a `ResponseCreated` event early in the stream, providing the response ID needed for continuation requests:
+
+```rust
+use futures::StreamExt;
+
+let mut stream = client.responses.stream(request);
+let mut response_id: Option<String> = None;
+let mut full_content = String::new();
+
+while let Some(event) = stream.next().await {
+    match event? {
+        StreamEvent::ResponseCreated { id } => {
+            response_id = Some(id.clone());
+            println!("📝 Response ID: {id}");
+        }
+        StreamEvent::TextDelta { content, .. } => {
+            print!("{content}");
+            full_content.push_str(&content);
+        }
+        StreamEvent::ImageProgress { url, .. } => {
+            if let Some(url) = url {
+                println!("\n📸 Image progress: {url}");
+            }
+        }
+        StreamEvent::ToolCallCreated { id, name, .. } => {
+            println!("\n🔧 Tool call started: {name} (id: {id})");
+        }
+        StreamEvent::ToolCallDelta { id, content, .. } => {
+            // Process tool call arguments incrementally
+            print!(".");
+        }
+        StreamEvent::ToolCallCompleted { id, .. } => {
+            println!("\n✅ Tool call completed: {id}");
+        }
+        StreamEvent::Done => {
+            println!("\n✅ Stream completed!");
+            break;
+        }
+        _ => {}
+    }
+}
+
+// Use response_id for continuation requests if needed
+if let Some(id) = response_id {
+    println!("Response ID for continuation: {id}");
+}
+```
+
+### Streaming Event Types
+
+The SDK supports all streaming event types from the OpenAI Responses API:
+
+| Event Type | Description | Helper Method |
+|------------|-------------|---------------|
+| `ResponseCreated` | Emitted when response is created, contains response ID | `as_response_id()` |
+| `TextDelta` | Incremental text content | `as_text_delta()` |
+| `TextStop` | Text generation stopped | - |
+| `ToolCallCreated` | Tool call initiated | - |
+| `ToolCallDelta` | Incremental tool call arguments | `as_tool_call_delta()` |
+| `ToolCallCompleted` | Tool call finished | - |
+| `ImageProgress` | Image generation progress with optional URL | `as_image_progress()` |
+| `Chunk` | Heartbeat chunk | - |
+| `Done` | Stream completed | `is_done()` |
+
+### Helper Methods
+
+All stream events provide convenient helper methods:
+
+```rust
+match stream_event {
+    StreamEvent::TextDelta { content, .. } => {
+        // Direct access
+        println!("Text: {content}");
+        
+        // Or use helper
+        if let Some(text) = stream_event.as_text_delta() {
+            println!("Text: {text}");
+        }
+    }
+    StreamEvent::ResponseCreated { id } => {
+        // Direct access
+        println!("Response ID: {id}");
+        
+        // Or use helper
+        if let Some(id) = stream_event.as_response_id() {
+            println!("Response ID: {id}");
+        }
+    }
+    StreamEvent::ImageProgress { url, .. } => {
+        // Use helper to get URL
+        if let Some(url) = stream_event.as_image_progress() {
+            println!("Image URL: {url}");
+        }
+    }
+    _ => {}
+}
+
+// Check if stream is done
+if stream_event.is_done() {
+    println!("Stream completed");
 }
 ```
 
@@ -2307,12 +2415,31 @@ Example of using a specific TLS implementation:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.4.1", default-features = false, features = ["stream", "native-tls"] }
+open-ai-rust-responses-by-sshift = { version = "0.4.2", default-features = false, features = ["stream", "native-tls"] }
 ```
 
 ---
 
 ## Migration Notes
+
+### 0.4.1 → 0.4.2
+
+**Fully backward compatible** - All changes are additive. Existing code continues to work without modification.
+
+#### New Optional Features
+
+- **Enhanced Streaming Support**: Improved streaming event handling and response ID tracking
+  - Optional: `ResponseCreated` events now include response IDs for continuation requests
+  - New helper methods: `as_response_id()`, `is_done()` for easier event processing
+  - Enhanced test coverage for all streaming event types
+  - Existing streaming code continues to work unchanged
+
+#### No Breaking Changes
+
+- All existing streaming APIs remain unchanged
+- Existing stream event handling continues to work
+- No changes to request/response structures
+- Runtime behavior is identical
 
 ### 0.4.0 → 0.4.1
 
@@ -2502,7 +2629,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-#### Connection with Bearer Token Authentication (v0.4.1)
+#### Connection with Bearer Token Authentication (v0.4.1+)
 
 ```rust
 use open_ai_rust_responses_by_sshift::mcp::{McpClient, transport::HttpTransport};

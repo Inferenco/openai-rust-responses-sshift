@@ -56,6 +56,13 @@ pub enum StreamEvent {
         index: u32,
     },
 
+    /// Response created event - emitted when the response is first created
+    /// This provides the response ID needed for continuation requests with tool outputs
+    ResponseCreated {
+        /// The response ID for this stream
+        id: String,
+    },
+
     /// Chunk heartbeat event
     Chunk,
 
@@ -99,6 +106,15 @@ impl StreamEvent {
     #[must_use]
     pub fn is_done(&self) -> bool {
         matches!(self, Self::Done)
+    }
+
+    /// Returns response ID if this is a ResponseCreated event
+    #[must_use]
+    pub fn as_response_id(&self) -> Option<&str> {
+        match self {
+            Self::ResponseCreated { id } => Some(id),
+            _ => None,
+        }
     }
 }
 

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2025-11-20
+
+### 🌊 Streaming Enhancements
+- **Enhanced `ResponseCreated` event support**: Streaming now properly emits `ResponseCreated` events with response IDs
+  - Enables tracking response IDs during streaming for continuation requests
+  - Response IDs extracted from HTTP headers (`openai-response-id`, `x-response-id`, `response-id`)
+  - Helper method `as_response_id()` available on `StreamEvent` for easy access
+- **Improved streaming tests**: Updated test suite to validate all streaming event types
+  - Tests now verify `ResponseCreated`, `TextDelta`, `ImageProgress`, and tool call events
+  - Enhanced test coverage for helper methods (`as_text_delta()`, `as_image_progress()`, `as_response_id()`, `is_done()`)
+  - Better error handling and event tracking in streaming tests
+- **Streaming event helpers**: Added comprehensive helper methods for stream event processing
+  - `as_response_id()`: Extract response ID from `ResponseCreated` events
+  - `is_done()`: Check if event is a completion event
+  - All helper methods properly documented with `#[must_use]` attributes
+- **Updated documentation**: Comprehensive streaming examples in README and DOCUMENTATION.md
+  - Advanced streaming examples with response ID tracking
+  - Complete event types reference with helper methods
+  - Best practices for streaming with tools and image generation
+
 ## [0.4.1] - 2025-11-20
 
 ### 🔐 Model Context Protocol (MCP) - Authorization Support
