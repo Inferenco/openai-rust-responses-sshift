@@ -491,6 +491,7 @@ mod unit_tests {
             let mut stream = std::pin::pin!(client.responses.stream(request));
             let mut events_received = 0;
             let mut full_content = String::new();
+            let mut response_id: Option<String> = None;
 
             println!("🌊 Starting streaming test...");
             print!("📖 Response: ");
@@ -501,6 +502,10 @@ mod unit_tests {
                     Ok(stream_event) => {
                         events_received += 1;
                         match stream_event {
+                            crate::types::StreamEvent::ResponseCreated { id } => {
+                                response_id = Some(id.clone());
+                                println!("\n📝 Response ID received: {id}");
+                            }
                             crate::types::StreamEvent::TextDelta { content, .. } => {
                                 print!("{content}");
                                 std::io::Write::flush(&mut std::io::stdout()).unwrap();
@@ -531,9 +536,14 @@ mod unit_tests {
                 "   Content length: {length} characters",
                 length = full_content.len()
             );
+            if let Some(ref id) = response_id {
+                println!("   Response ID: {id}");
+            }
 
             assert!(events_received > 0);
             assert!(!full_content.is_empty());
+            // ResponseCreated event may or may not be present depending on API version
+            // So we don't assert it, but we log it if present
         });
     }
 
@@ -563,6 +573,8 @@ mod unit_tests {
             let mut events_received = 0;
             let mut image_events = 0;
             let mut text_events = 0;
+            let mut response_id: Option<String> = None;
+            let mut tool_call_events = 0;
 
             println!("🌊 Starting enhanced streaming test with Phase 1 features...");
 
@@ -571,12 +583,21 @@ mod unit_tests {
                     Ok(stream_event) => {
                         events_received += 1;
                         match &stream_event {
+                            crate::types::StreamEvent::ResponseCreated { id } => {
+                                response_id = Some(id.clone());
+                                println!("📝 Response ID received: {id}");
+                            }
                             crate::types::StreamEvent::TextDelta { .. } => {
                                 text_events += 1;
                             }
                             crate::types::StreamEvent::ImageProgress { .. } => {
                                 image_events += 1;
                                 println!("📸 Image progress event detected!");
+                            }
+                            crate::types::StreamEvent::ToolCallCreated { .. }
+                            | crate::types::StreamEvent::ToolCallDelta { .. }
+                            | crate::types::StreamEvent::ToolCallCompleted { .. } => {
+                                tool_call_events += 1;
                             }
                             crate::types::StreamEvent::Done => {
                                 println!("✅ Enhanced stream completed!");
@@ -592,6 +613,13 @@ mod unit_tests {
                         if let Some(_img_url) = stream_event.as_image_progress() {
                             println!("📸 Image URL extracted via helper method");
                         }
+                        if let Some(id) = stream_event.as_response_id() {
+                            assert!(!id.is_empty());
+                        }
+                        assert_eq!(
+                            stream_event.is_done(),
+                            matches!(stream_event, crate::types::StreamEvent::Done)
+                        );
                     }
                     Err(e) => panic!("Enhanced stream error: {e:?}"),
                 }
@@ -605,6 +633,10 @@ mod unit_tests {
             println!("   Total events: {events_received}");
             println!("   Text events: {text_events}");
             println!("   Image events: {image_events}");
+            println!("   Tool call events: {tool_call_events}");
+            if let Some(ref id) = response_id {
+                println!("   Response ID: {id}");
+            }
 
             assert!(events_received > 0);
         });

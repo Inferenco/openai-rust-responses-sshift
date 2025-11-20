@@ -845,6 +845,8 @@ impl Responses {
 
     /// Creates a streaming response
     #[cfg(feature = "stream")]
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn stream(
         &self,
         mut request: crate::Request,
@@ -857,7 +859,9 @@ impl Responses {
         let client = self.client.clone();
 
         // Create stream that handles the actual OpenAI Responses API streaming format
-        let stream = futures::stream::unfold(None, move |mut response_opt| {
+        // We use a tuple to track the response, response ID, and whether we've emitted the ResponseCreated event
+        let stream = futures::stream::unfold((None, None, false), move |state| {
+            let (mut response_opt, mut response_id_opt, mut response_id_emitted) = state;
             let url = url.clone();
             let client = client.clone();
             let request = request.clone();
@@ -870,7 +874,7 @@ impl Responses {
                         Err(e) => {
                             return Some((
                                 Err(crate::Error::Stream(format!("Failed to send request: {e}"))),
-                                None,
+                                (None, None, false),
                             ));
                         }
                     };
@@ -887,30 +891,60 @@ impl Responses {
                                     Err(crate::Error::Stream(format!(
                                         "Unexpected success status after failure check: {status}"
                                     ))),
-                                    None,
+                                    (None, None, false),
                                 ));
                             }
                             Err(error) => {
                                 let stream_error = Self::convert_to_stream_error(&error);
-                                return Some((Err(stream_error), None));
+                                return Some((Err(stream_error), (None, None, false)));
                             }
                         }
                     }
 
+                    // Extract response ID from HTTP headers
+                    // OpenAI may provide it in headers like "openai-response-id" or "x-response-id"
+                    let response_id = response
+                        .headers()
+                        .get("openai-response-id")
+                        .or_else(|| response.headers().get("x-response-id"))
+                        .or_else(|| response.headers().get("response-id"))
+                        .and_then(|h| h.to_str().ok())
+                        .map(ToString::to_string);
+
+                    response_id_opt = response_id;
                     response_opt = Some(response);
                 }
 
-                let Some(response) = response_opt.as_mut() else {
+                let Some(mut response) = response_opt.take() else {
                     return Some((
                         Err(crate::Error::Stream(
                             "Response state inconsistent".to_string(),
                         )),
-                        None,
+                        (None, None, false),
                     ));
                 };
 
+                // Emit ResponseCreated event if we have the response ID and haven't emitted it yet
+                if !response_id_emitted {
+                    if let Some(ref response_id) = response_id_opt {
+                        // Put response back in state before returning
+                        response_opt = Some(response);
+                        return Some((
+                            Ok(crate::types::StreamEvent::ResponseCreated {
+                                id: response_id.clone(),
+                            }),
+                            (response_opt, response_id_opt.clone(), true),
+                        ));
+                    }
+                }
+
                 // Read chunks from the response
-                match response.chunk().await {
+                let chunk_result = response.chunk().await;
+
+                // Put response back in state immediately after reading chunk
+                response_opt = Some(response);
+
+                match chunk_result {
                     Ok(Some(chunk)) => {
                         // Convert chunk to string
                         let chunk_str = match std::str::from_utf8(&chunk) {
@@ -920,7 +954,7 @@ impl Responses {
                                     Err(crate::Error::Stream(format!(
                                         "Invalid UTF-8 in chunk: {e}"
                                     ))),
-                                    response_opt,
+                                    (response_opt, response_id_opt.clone(), response_id_emitted),
                                 ));
                             }
                         };
@@ -929,22 +963,44 @@ impl Responses {
                         for line in chunk_str.lines() {
                             if let Some(result) = Self::process_stream_line(line) {
                                 match result {
-                                    Ok(event) => return Some((Ok(event), response_opt)),
-                                    Err(error) => return Some((Err(error), None)),
+                                    Ok(event) => {
+                                        // Check if this event contains response ID (from response.created event)
+                                        if let crate::types::StreamEvent::ResponseCreated { id } =
+                                            &event
+                                        {
+                                            // Update our stored response ID if we got it from the stream
+                                            if response_id_opt.is_none() {
+                                                response_id_opt = Some(id.clone());
+                                            }
+                                            response_id_emitted = true;
+                                        }
+                                        return Some((
+                                            Ok(event),
+                                            (
+                                                response_opt,
+                                                response_id_opt.clone(),
+                                                response_id_emitted,
+                                            ),
+                                        ));
+                                    }
+                                    Err(error) => return Some((Err(error), (None, None, false))),
                                 }
                             }
                         }
 
                         // Continue to next chunk
-                        Some((Ok(crate::types::StreamEvent::Chunk), response_opt))
+                        Some((
+                            Ok(crate::types::StreamEvent::Chunk),
+                            (response_opt, response_id_opt.clone(), response_id_emitted),
+                        ))
                     }
                     Ok(None) => {
                         // End of stream
-                        Some((Ok(crate::types::StreamEvent::Done), None))
+                        Some((Ok(crate::types::StreamEvent::Done), (None, None, false)))
                     }
                     Err(e) => Some((
                         Err(crate::Error::Stream(format!("Chunk read error: {e}"))),
-                        None,
+                        (None, None, false),
                     )),
                 }
             }
@@ -954,6 +1010,7 @@ impl Responses {
     }
 
     #[cfg(feature = "stream")]
+    #[allow(clippy::too_many_lines)]
     fn parse_stream_event(event: &serde_json::Value) -> Option<crate::types::StreamEvent> {
         if let Some(event_type) = event.get("type").and_then(|t| t.as_str()) {
             match event_type {
@@ -964,6 +1021,22 @@ impl Responses {
                             index: 0, // Default index
                         };
                         return Some(text_event);
+                    }
+                }
+                "response.created" => {
+                    // Parse response.created event which contains the response ID
+                    if let Some(response_data) = event.get("response") {
+                        if let Some(id) = response_data.get("id").and_then(|i| i.as_str()) {
+                            return Some(crate::types::StreamEvent::ResponseCreated {
+                                id: id.to_string(),
+                            });
+                        }
+                    }
+                    // Fallback: try to get ID directly from event
+                    if let Some(id) = event.get("id").and_then(|i| i.as_str()) {
+                        return Some(crate::types::StreamEvent::ResponseCreated {
+                            id: id.to_string(),
+                        });
                     }
                 }
                 "response.done" => {

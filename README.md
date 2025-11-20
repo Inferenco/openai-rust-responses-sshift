@@ -1,5 +1,6 @@
 # OpenAI Rust Responses by SShift
 
+> **🌊 v0.4.2 Update**: **Streaming Enhancements** - Enhanced `ResponseCreated` event support with response ID tracking, improved streaming tests, and comprehensive helper methods. Full event type coverage for production-ready streaming.
 > **🔐 v0.4.1 Update**: **MCP Authorization** - Added `with_bearer_token()` convenience method for secure MCP server connections. Simplifies Bearer token authentication with automatic header formatting. Fully backward compatible.
 > **🔌 v0.4.0 Update**: **Unified Tool Management** - New `ToolRegistry` for seamlessly combining local Rust tools with remote MCP tools. Priority routing automatically handles tool dispatch. Added `LocalTool` trait. Fully backward compatible - all changes are additive.
 > **🚀 v0.3.0 Update**: **GPT‑5 family support** (flagship, mini, nano), new verbosity control, reasoning effort tuning for GPT‑5, structured/free‑form function improvements, and an expanded example. Note: source‑level break only for users constructing public structs with literals or exhaustively matching `Model`.
@@ -512,11 +513,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.4.1"
+open-ai-rust-responses-by-sshift = "0.4.2"
 tokio = { version = "1.0", features = ["full"] }
 
 # Optional: Enable streaming
-# open-ai-rust-responses-by-sshift = { version = "0.4.1", features = ["stream"] }
+# open-ai-rust-responses-by-sshift = { version = "0.4.2", features = ["stream"] }
 ```
 
 ### Basic Usage
@@ -619,8 +620,10 @@ Enable the `stream` feature:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.4.1", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.4.2", features = ["stream"] }
 ```
+
+#### Basic Streaming
 
 ```rust
 use open_ai_rust_responses_by_sshift::{Client, Request, Model, StreamEvent};
@@ -649,6 +652,88 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     
     Ok(())
+}
+```
+
+#### Advanced Streaming with Response ID Tracking
+
+Track response IDs during streaming for continuation requests:
+
+```rust
+use open_ai_rust_responses_by_sshift::{Client, Request, Model, StreamEvent};
+use futures::StreamExt;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?;
+    
+    let request = Request::builder()
+        .model(Model::GPT4oMini)
+        .input("Count from 1 to 5")
+        .max_output_tokens(500)
+        .build();
+    
+    let mut stream = client.responses.stream(request);
+    let mut response_id: Option<String> = None;
+    
+    while let Some(event) = stream.next().await {
+        match event? {
+            StreamEvent::ResponseCreated { id } => {
+                response_id = Some(id.clone());
+                println!("📝 Response ID: {id}");
+            }
+            StreamEvent::TextDelta { content, .. } => {
+                print!("{content}");
+            }
+            StreamEvent::ImageProgress { url, .. } => {
+                if let Some(url) = url {
+                    println!("\n📸 Image: {url}");
+                }
+            }
+            StreamEvent::ToolCallCreated { name, .. } => {
+                println!("\n🔧 Tool: {name}");
+            }
+            StreamEvent::Done => break,
+            _ => {}
+        }
+    }
+    
+    // Use response_id for continuation if needed
+    if let Some(id) = response_id {
+        println!("\nResponse ID: {id}");
+    }
+    
+    Ok(())
+}
+```
+
+#### Helper Methods
+
+Use convenient helper methods for stream events:
+
+```rust
+while let Some(event) = stream.next().await {
+    let event = event?;
+    
+    // Extract text content
+    if let Some(text) = event.as_text_delta() {
+        print!("{text}");
+    }
+    
+    // Extract response ID
+    if let Some(id) = event.as_response_id() {
+        println!("Response ID: {id}");
+    }
+    
+    // Extract image URL
+    if let Some(url) = event.as_image_progress() {
+        println!("Image: {url}");
+    }
+    
+    // Check if done
+    if event.is_done() {
+        break;
+    }
 }
 ```
 
@@ -1057,6 +1142,25 @@ Nova demonstrates the SDK's capabilities in production, handling real-time AI in
 ---
 
 ## 📦 Migration notes
+
+### 0.4.1 → 0.4.2
+
+**Fully backward compatible** - All changes are additive. Existing code continues to work without modification.
+
+#### New Optional Features
+
+- **Enhanced Streaming Support**: Improved streaming event handling and response ID tracking
+  - Optional: `ResponseCreated` events now include response IDs for continuation requests
+  - New helper methods: `as_response_id()`, `is_done()` for easier event processing
+  - Enhanced test coverage for all streaming event types
+  - Existing streaming code continues to work unchanged
+
+#### No Breaking Changes
+
+- All existing streaming APIs remain unchanged
+- Existing stream event handling continues to work
+- No changes to request/response structures
+- Runtime behavior is identical
 
 ### 0.4.0 → 0.4.1
 
