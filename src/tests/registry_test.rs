@@ -45,7 +45,7 @@ fn test_tool_registry_dispatch() {
         fn name(&self) -> &str {
             &self.name
         }
-        fn description(&self) -> &str {
+        fn description(&self) -> &'static str {
             "Mock tool"
         }
         fn schema(&self) -> serde_json::Value {

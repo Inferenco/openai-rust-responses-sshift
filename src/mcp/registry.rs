@@ -42,8 +42,15 @@ pub struct ToolRegistry {
     mcp_client: Option<Arc<McpClient>>,
 }
 
+impl Default for ToolRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ToolRegistry {
     /// Creates a new, empty tool registry.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             local_tools: HashMap::new(),
@@ -72,6 +79,9 @@ impl ToolRegistry {
     /// 2. Fetches available tools from the configured MCP server (if any).
     /// 3. Converts MCP tools to the OpenAI `Tool` format using `mcp_tool_to_openai_tool`.
     /// 4. Returns a unified vector ready to be sent in an OpenAI API request.
+    ///
+    /// # Errors
+    /// Returns an error if the MCP client fails to list tools from the remote server.
     pub async fn list_tools(&self) -> Result<Vec<Tool>> {
         let mut tools = Vec::new();
 
@@ -130,6 +140,6 @@ impl ToolRegistry {
             return Ok(Value::Null);
         }
 
-        Err(crate::Error::Mcp(format!("Tool not found: {}", name)))
+        Err(crate::Error::Mcp(format!("Tool not found: {name}")))
     }
 }
