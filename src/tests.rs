@@ -1,5 +1,7 @@
 #![allow(deprecated)] // Tests intentionally use deprecated methods for compatibility testing
 
+mod registry_test;
+
 #[cfg(test)]
 mod unit_tests {
     use crate::types::{Container, Include, StreamEvent};
