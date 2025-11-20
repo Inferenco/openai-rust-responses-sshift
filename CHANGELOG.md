@@ -5,9 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.6] - 2025-11-20
+## [0.4.0] - 2025-11-20
 
-### 🔌 Model Context Protocol (MCP)
+### 🔌 Model Context Protocol (MCP) - Unified Tool Support
+- **Added `ToolRegistry`**: A new unified registry to manage both local tools and remote MCP tools simultaneously.
+  - **Priority Routing**: Automatically routes tool calls to the correct handler (local vs. MCP).
+  - **`LocalTool` Trait**: New trait for defining local tools that can be registered alongside MCP tools.
+  - **Seamless Integration**: `list_tools()` combines both local and remote tools into a single list for the LLM.
+- **New Example**: Added `examples/local_and_mcp_tools.rs` demonstrating how to build a hybrid tool system.
 - **Added Header Support**: Implemented support for custom HTTP headers in `McpClient` and `HttpTransport`
   - Enables Bearer token authorization for secure MCP server connections
   - Allows passing custom metadata headers with requests
