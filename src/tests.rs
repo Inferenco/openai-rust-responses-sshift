@@ -1698,6 +1698,5 @@ mod mcp_integration_tests {
 
         // Verify clone preserves configuration
         // (This is implicit - if clone didn't work, the above wouldn't compile)
-        assert!(true, "HttpTransport clone works correctly");
     }
 }
