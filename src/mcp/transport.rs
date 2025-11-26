@@ -9,6 +9,23 @@ pub trait McpTransport: Send + Sync {
     async fn send(&self, message: &JsonRpcRequest) -> Result<JsonRpcResponse>;
 }
 
+/// HTTP transport for MCP servers.
+///
+/// This transport implements `Clone`, allowing you to reuse the same transport
+/// configuration (URL, headers, authentication) across multiple clients or contexts.
+///
+/// # Example
+///
+/// ```rust
+/// use open_ai_rust_responses_by_sshift::mcp::transport::HttpTransport;
+///
+/// let transport = HttpTransport::new("http://localhost:8000/mcp")
+///     .with_bearer_token("your-token")?;
+///
+/// // Clone the transport to reuse the same configuration
+/// let cloned = transport.clone();
+/// ```
+#[derive(Clone)]
 pub struct HttpTransport {
     client: Client,
     url: String,
