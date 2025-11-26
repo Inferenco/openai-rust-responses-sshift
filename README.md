@@ -1,5 +1,6 @@
 # OpenAI Rust Responses by SShift
 
+> **🛠️ v0.4.3 Update**: **Code Quality Improvements** - Fixed all Clippy warnings, added `#[must_use]` attributes, and improved code quality. Zero breaking changes - all improvements are internal enhancements.
 > **🌊 v0.4.2 Update**: **Streaming Enhancements** - Enhanced `ResponseCreated` event support with response ID tracking, improved streaming tests, and comprehensive helper methods. Full event type coverage for production-ready streaming.
 > **🔐 v0.4.1 Update**: **MCP Authorization** - Added `with_bearer_token()` convenience method for secure MCP server connections. Simplifies Bearer token authentication with automatic header formatting. Fully backward compatible.
 > **🔌 v0.4.0 Update**: **Unified Tool Management** - New `ToolRegistry` for seamlessly combining local Rust tools with remote MCP tools. Priority routing automatically handles tool dispatch. Added `LocalTool` trait. Fully backward compatible - all changes are additive.
@@ -93,6 +94,11 @@ client.initialize().await?;
 let transport = HttpTransport::new("http://localhost:8000/mcp")
     .with_header("X-Custom-Header", "value")?
     .with_bearer_token("your-api-token")?;
+
+// HttpTransport implements Clone, so you can clone it for reuse
+let transport = HttpTransport::new("http://localhost:8000/mcp")
+    .with_bearer_token("your-api-token")?;
+let cloned_transport = transport.clone(); // Clone preserves headers and configuration
 
 // List available tools
 let tools = client.list_tools().await?;
@@ -513,11 +519,11 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = "0.4.2"
+open-ai-rust-responses-by-sshift = "0.4.3"
 tokio = { version = "1.0", features = ["full"] }
 
 # Optional: Enable streaming
-# open-ai-rust-responses-by-sshift = { version = "0.4.2", features = ["stream"] }
+# open-ai-rust-responses-by-sshift = { version = "0.4.3", features = ["stream"] }
 ```
 
 ### Basic Usage
@@ -620,7 +626,7 @@ Enable the `stream` feature:
 
 ```toml
 [dependencies]
-open-ai-rust-responses-by-sshift = { version = "0.4.2", features = ["stream"] }
+open-ai-rust-responses-by-sshift = { version = "0.4.3", features = ["stream"] }
 ```
 
 #### Basic Streaming
@@ -1142,6 +1148,19 @@ Nova demonstrates the SDK's capabilities in production, handling real-time AI in
 ---
 
 ## 📦 Migration notes
+
+### 0.4.2 → 0.4.3
+
+**Fully backward compatible** - All changes are internal code quality improvements. No API changes or breaking changes.
+
+#### Code Quality Improvements
+
+- **Clippy compliance**: All Clippy warnings resolved
+  - Added `#[must_use]` attribute to `stream()` method (no functional change)
+  - Fixed redundant closure warning (internal optimization)
+  - Suppressed complexity warnings for long functions (documented with `#[allow]`)
+- **Zero breaking changes**: All improvements are internal only
+- **No migration required**: Existing code continues to work identically
 
 ### 0.4.1 → 0.4.2
 

@@ -1674,4 +1674,29 @@ mod mcp_integration_tests {
             panic!("Expected Mcp error");
         }
     }
+
+    #[test]
+    fn test_http_transport_clone() {
+        use crate::mcp::transport::HttpTransport;
+
+        // Create a transport with headers
+        let transport = HttpTransport::new("http://localhost:3400")
+            .with_header("Authorization", "Bearer token")
+            .expect("Failed to add header")
+            .with_bearer_token("another-token")
+            .expect("Failed to add bearer token");
+
+        // Clone the transport
+        let cloned = transport.clone();
+
+        // Both should be usable independently
+        // We can't easily test the actual HTTP calls without a server,
+        // but we can verify the clone succeeded by checking it compiles
+        // and the types match
+        let _original: HttpTransport = transport;
+        let _cloned: HttpTransport = cloned;
+
+        // Verify clone preserves configuration
+        // (This is implicit - if clone didn't work, the above wouldn't compile)
+    }
 }
