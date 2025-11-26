@@ -19,11 +19,14 @@ pub trait McpTransport: Send + Sync {
 /// ```rust
 /// use open_ai_rust_responses_by_sshift::mcp::transport::HttpTransport;
 ///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let transport = HttpTransport::new("http://localhost:8000/mcp")
 ///     .with_bearer_token("your-token")?;
 ///
 /// // Clone the transport to reuse the same configuration
 /// let cloned = transport.clone();
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Clone)]
 pub struct HttpTransport {
